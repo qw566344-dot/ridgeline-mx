@@ -7,7 +7,7 @@
 //  then rebuild RidgelineMX.html. Everyone using that file connects
 //  there automatically and only needs the party code.
 // =====================================================================
-export const PUBLIC_SERVER = '';
+export const PUBLIC_SERVER = 'https://ridgeline-mx.onrender.com';
 
 function stored() { try { return localStorage.getItem('mx.server') || ''; } catch { return ''; } }
 
