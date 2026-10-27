@@ -1,0 +1,9 @@
+# One-click hosting on Render.com (free plan works). See README.md.
+services:
+  - type: web
+    name: ridgeline-mx
+    runtime: node
+    plan: free
+    buildCommand: echo "nothing to build"
+    startCommand: node server/server.js
+    healthCheckPath: /health
