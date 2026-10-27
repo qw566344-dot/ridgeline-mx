@@ -11,6 +11,8 @@
 // =====================================================================
 import * as THREE from '../../vendor/three.module.js';
 import { groundAt } from '../../../shared/terrain.js';
+import { bankBoost } from './bike.js';
+import { newTrick, scoreTricks } from './tricks.js';
 
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
@@ -36,7 +38,7 @@ export class AtvController {
     const maxDeg = c.steer.maxLow + (c.steer.maxHigh - c.steer.maxLow) * Math.sqrt(t);
     // ask for a turn rate (like the bike), heavier and lazier than a bike
     const sliding = inp.rearBrake > 0.1 || Math.max(v.wheels[2].slipLong, v.wheels[3].slipLong) > 0.35;
-    const yawMax = spd < 0.2 ? 0 : Math.min((spd * Math.tan(maxDeg * DEG)) / c.wheelbase, (c.steer.latAcc || 9) / Math.max(spd, 1));
+    const yawMax = spd < 0.2 ? 0 : Math.min((spd * Math.tan(maxDeg * DEG)) / c.wheelbase, ((c.steer.latAcc || 9) * (1 + bankBoost(v, this.steer))) / Math.max(spd, 1));
     this.yawTarget = this.steer * yawMax * Math.sign(v.fwdSpeed || 1) * (sliding ? 1.3 : 1);
     let delta = spd > 0.2 ? Math.atan((this.yawTarget * c.wheelbase) / spd) * Math.sign(v.fwdSpeed) : this.steer * maxDeg * DEG;
     delta = clamp(delta, -maxDeg * DEG, maxDeg * DEG);
@@ -132,7 +134,7 @@ export class AtvController {
     } else {
       // air: Q / E flip, A / D a small sideways throw, landing assist when hands-off
       const A = c.air;
-      const tr = this.trick || (this.trick = { pitch: 0, whip: 0, yaw: 0 });
+      const tr = this.trick || (this.trick = newTrick(v));
       tr.pitch += pitchW * dt; tr.yaw += yawW * dt;
       let ap = (inp.lean * A.flipRate - pitchW) * (Math.abs(inp.lean) > 0.1 ? A.flipAccel : A.spinDamp);
       ap += -inp.throttle * A.gyro * 0.4 + inp.rearBrake * A.gyro;
@@ -147,15 +149,15 @@ export class AtvController {
       const roll = Math.asin(clamp(left.y, -1, 1));
       tr.whip = Math.max(tr.whip, Math.abs(roll));
       v.torque.addScaledVector(fwd, ((-this.steer * A.whip * DEG - roll) * 10 - rollW * 4) * I[2]);
-      v.torque.addScaledVector(up, (this.steer * c.steer.airYaw - yawW * 1.2) * I[1]);
+      // Shift + A / D: flat spin; otherwise a little yaw to line up the landing
+      if (inp.clutch) v.torque.addScaledVector(up, ((-this.steer * A.spinRate - yawW) * 5) * I[1]);
+      else v.torque.addScaledVector(up, (this.steer * c.steer.airYaw - yawW * 1.2) * I[1]);
     }
   }
 
-  reportTricks() {
-    const t = this.trick;
-    if (!t) return;
-    const flips = Math.round(Math.abs(t.pitch) / (2 * Math.PI) - 0.1);
-    if (flips >= 1) this.v.events.push({ type: 'trick', name: (flips > 1 ? flips + 'x ' : '') + (t.pitch < 0 ? 'Backflip' : 'Front Flip'), score: flips * 700 });
+  reportTricks(landPitchErr = 0, landRoll = 0) {
+    const ev = scoreTricks(this.trick, landPitchErr, landRoll, false);
+    if (ev) this.v.events.push(ev);
     this.trick = null;
   }
 
@@ -184,7 +186,7 @@ export class AtvController {
       if (p > c.landPitch) return v.crash('Flipped over backwards');
       if (p < -c.landPitch) return v.crash('Nose-dived the landing');
       if (vin > c.impact) return v.crash('Landed way too hard');
-      this.reportTricks();
+      this.reportTricks(Math.abs(p), Math.abs(this.bodyRoll) / DEG);
     }
     if (v.grounded && v.groundTime > 0.2) this.trick = null;
     const hit = v.probeHits;

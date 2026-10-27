@@ -83,6 +83,8 @@ export class Game {
     onProgress('Shaping the dirt...');
     await tick();
     this.world = makeWorld(def);
+    // resets look here so nobody gets dropped on top of another rider
+    this.world.blockers = (self) => this.riders.filter((r) => r.veh !== self && (r.veh || (r.remote && r.remote.pos))).map((r) => (r.veh ? r.veh.pos : r.remote.pos));
     this.R.setLook(def.look);
     const q = this.settings.quality();
     onProgress('Building terrain...');
@@ -171,6 +173,7 @@ export class Game {
     this.mode = opts.mode;
     this.autopilot = null;
     this.net = null; // multiplayer sets this again after the session starts
+    this.combo = 0; this.trickScore = 0;
     this.opts = opts;
     this.laps = opts.laps || 3;
     this.paused = false;
@@ -281,7 +284,7 @@ export class Game {
         if (holding) v.input.clutch = true; // rev on the gate
         // auto reset after a crash
         if (v.crashed && v.crashTime > GAME.resetDelay) this.resetRider(r);
-        if (!v.crashed && v.offTrack > 1.2) this.resetRider(r);
+        if (!v.crashed && v.offTrack > 0.9) { this.resetRider(r); this.toast('Out of bounds - back on the track', 1.6); }
       } else if (r.ai) {
         if (r.ai.enabled && !holding) r.ai.update(dt);
         else { v.input.throttle = holding ? 0.5 : 0; v.input.clutch = holding; v.input.brake = 0; v.input.steer = 0; }
@@ -342,6 +345,8 @@ export class Game {
           this.effects.crash(v.pos, v.vel);
           if (r.isPlayer) {
             this.audio.crash();
+            if (this.combo > 1) this.toast('Combo lost', 1.2, 'bad');
+            this.combo = 0;
             this.cam.addShake(0.9);
             this.toast('CRASH! ' + e.reason + '  (R to reset)', 2.2, 'bad');
             if (this.net) this.net.sendEvent({ t: 'crash' });
@@ -358,9 +363,15 @@ export class Game {
           }
         } else if (e.type === 'trick') {
           if (r.isPlayer) {
-            this.toast(e.name.toUpperCase() + '!', 2.2, 'good');
+            // combos: land tricks one after another (within 4.5 s on the ground) for a multiplier
+            this.combo = this.simTime - (this.comboT ?? -99) < 4.5 + (this.player.veh.lastLanding || 0) ? (this.combo || 0) + 1 : 1;
+            this.comboT = this.simTime;
+            const mult = Math.min(4, 1 + (this.combo - 1) * 0.5);
+            const pts = Math.round(e.score * mult);
+            this.trickScore = (this.trickScore || 0) + pts;
+            this.ui.trickPopup(e, pts, this.combo, mult);
             this.audio.beep(true);
-            this.award('trick', Math.round((e.score / 100) * REWARDS.trickPer100));
+            this.award('trick', Math.round((pts / 100) * REWARDS.trickPer100));
           }
         } else if (e.type === 'reset') {
           if (!r.rider.attached) r.rider.attachTo(r.vis.model);
@@ -499,7 +510,7 @@ export class Game {
     // remote riders: interpolate from snapshots
     if (this.net) for (const r of this.riders) if (r.remote) this.net.interpolate(r, this);
     // stuck hint
-    if (this.player && this.player.veh && this.player.veh.stuckTime > 4 && !this.stuckHinted) { this.toast('Stuck? Press R to reset', 2.5); this.stuckHinted = true; }
+    if (this.player && this.player.veh && (this.player.veh.stuckTime > 4 || this.player.veh.noProgress) && !this.stuckHinted && this.mode !== 'freeride') { this.toast('Stuck? Press R to reset', 2.5); this.stuckHinted = true; }
     if (this.player && this.player.veh && this.player.veh.stuckTime === 0) this.stuckHinted = false;
     this.ui.updateHud(this, dt);
   }

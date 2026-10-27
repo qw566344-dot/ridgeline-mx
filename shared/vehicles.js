@@ -101,7 +101,7 @@ const BIKE_BASE = {
   progressive: 6,                 // spring force at full travel = this x static load
   steer: { maxLow: 32, latAcc: 10.6, rate: 3.6, feedback: 2.5, airYaw: 2.2 },
   lean: { max: 52, rate: 7 },
-  air: { flipRate: 5.6, flipAccel: 9, spinDamp: 1.2, gyro: 2.5, whip: 60, spinRate: 3.2 },
+  air: { flipRate: 5.6, flipAccel: 9, spinDamp: 1.2, gyro: 2.5, whip: 60, spinRate: 5.0 },
   balance: { rollK: 45000, rollC: 3200, airRollK: 900, airRollC: 160 },
   brakes: { front: 1500, rear: 1000 },      // N of force at the tyre at full input
   crash: { landPitch: 52, impact: 14, slide: 78, roll: 70, loop: 80 },
@@ -140,7 +140,7 @@ const ATV_BASE = {
   riderLean: 900,                  // N m of body-English torque when steering
   riderBalance: 5200,              // N m per radian: the rider throws weight to the high side
   axleScrub: 0.22,                 // solid rear axle resists turning (understeer)
-  air: { flipRate: 3.6, flipAccel: 6, spinDamp: 1.0, gyro: 1.6, whip: 25, spinRate: 2.6 },
+  air: { flipRate: 3.6, flipAccel: 6, spinDamp: 1.0, gyro: 1.6, whip: 25, spinRate: 4.6 },
   brakes: { front: 2100, rear: 1500 },
   crash: { landPitch: 58, impact: 14, roll: 80, loop: 82 },
   probes: [
@@ -180,7 +180,7 @@ const UTV_BASE = {
   antiRoll: 30000,
   rollCentre: 0.55,
   riderLean: 0, riderBalance: 6000, axleScrub: 0,
-  air: { flipRate: 2.0, flipAccel: 3.5, spinDamp: 1.0, gyro: 1.2, whip: 8, spinRate: 1.6 },
+  air: { flipRate: 2.0, flipAccel: 3.5, spinDamp: 1.0, gyro: 1.2, whip: 8, spinRate: 3.6 },
   brakes: { front: 6200, rear: 4400 },
   crash: { landPitch: 62, impact: 16, roll: 85, loop: 85, nose: 9 },
   probes: [
@@ -216,7 +216,7 @@ const BUGGY_BASE = {
   steer: { maxLow: 30, maxHigh: 7, highSpeed: 34, rate: 2.3, airYaw: 0.4, latAcc: 9.0 },
   antiRoll: 52000,
   riderBalance: 9000,
-  air: { flipRate: 1.6, flipAccel: 2.6, spinDamp: 0.9, gyro: 1.0, whip: 6, spinRate: 1.3 },
+  air: { flipRate: 1.6, flipAccel: 2.6, spinDamp: 0.9, gyro: 1.0, whip: 6, spinRate: 3.0 },
   brakes: { front: 9800, rear: 7000 },
   probes: [
     { p: [0.45, 1.25, 0.3], r: 0.18, hit: 'roll' },

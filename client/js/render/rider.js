@@ -200,7 +200,12 @@ export class Rider {
     s.stand += (stand - s.stand) * Math.min(1, dt * 3.5);
     s.crouch += (Math.min(0.6, crouch) - s.crouch) * Math.min(1, dt * 12);
     s.fore += (Math.max(-1, Math.min(1, fore)) - s.fore) * k;
-    s.leanBody += ((isBike ? -0.25 : 0.9) * (veh.lean || 0) - s.leanBody) * k;
+    // on the ground lean with the vehicle; in the air counter the whip and tuck for flips
+    const airRoll = air && veh.controller ? veh.controller.airRoll || 0 : 0;
+    const leanT = air ? -airRoll * 0.55 : (isBike ? -0.25 : 0.9) * (veh.lean || 0);
+    s.leanBody += (leanT - s.leanBody) * k;
+    const flipping = air && veh.angVel ? Math.min(1, Math.abs(veh.angVel.dot(veh.left)) / 3) : 0;
+    s.crouch = Math.max(s.crouch, flipping * 0.45);
     // inside leg out in tight, slow-ish bike turns; foot dab when nearly stopped
     const legOut = isBike && !air && spd > 2.5 && spd < 16 && Math.abs(steer) > 0.45 && s.stand < 0.4 ? 1 : 0;
     s.legOutL += ((legOut && steer > 0 ? 1 : 0) - s.legOutL) * k;

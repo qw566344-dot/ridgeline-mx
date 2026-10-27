@@ -17,11 +17,21 @@
 // =====================================================================
 import * as THREE from '../../vendor/three.module.js';
 import { groundAt } from '../../../shared/terrain.js';
+import { newTrick, scoreTricks } from './tricks.js';
 
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 const g0 = { h: 0, nx: 0, ny: 1, nz: 0 };
 const _n = new THREE.Vector3(), _d = new THREE.Vector3(), _c = new THREE.Vector3(), _p = new THREE.Vector3();
+
+// a berm leaning into the turn lets you corner much harder (that is what they are for)
+export function bankBoost(v, steer) {
+  if (!v.grounded || Math.abs(steer) < 0.05) return 0;
+  groundAt(v.world, v.pos.x, v.pos.z, g0);
+  // ground normal leaning toward the inside of the turn = a banked berm
+  const lean = (g0.nx * v.left.x + g0.ny * v.left.y + g0.nz * v.left.z) * Math.sign(steer);
+  return Math.max(0, Math.min(0.7, lean * 2.2));
+}
 
 export class BikeController {
   constructor(veh) {
@@ -41,7 +51,7 @@ export class BikeController {
   yawMax(spd) {
     const c = this.v.cfg, a = Math.abs(spd);
     if (a < 0.2) return 0;
-    return Math.min((a * Math.tan(c.steer.maxLow * DEG)) / c.wheelbase, c.steer.latAcc / Math.max(a, 1));
+    return Math.min((a * Math.tan(c.steer.maxLow * DEG)) / c.wheelbase, (c.steer.latAcc * (1 + (this.bankBoost || 0))) / Math.max(a, 1));
   }
 
   preStep(dt) {
@@ -52,6 +62,7 @@ export class BikeController {
     const front = v.wheels[0], rear = v.wheels[1];
     const sliding = inp.rearBrake > 0.1 || rear.slipLong > 0.35;
     // turn rate target; sliding lets the back come round more
+    this.bankBoost = bankBoost(v, this.steer);
     this.yawTarget = this.steer * this.yawMax(spd) * Math.sign(spd || 1) * (sliding ? 1.35 : 1);
     // front wheel angle that gives that turn (for the tyres and the bars)
     let delta = 0;
@@ -158,9 +169,10 @@ export class BikeController {
     } else {
       // ------------------------------------------------------------ air
       const A = c.air;
-      const tr = this.trick || (this.trick = { pitch: 0, whip: 0, yaw: 0 });
+      const tr = this.trick || (this.trick = newTrick(v));
       tr.pitch += pitchW * dt;
       tr.yaw += yawW * dt;
+      tr.peak = Math.max(tr.peak, v.pos.y - tr.y0);
       // flips: Q / E set a spin rate, the rider gets there quickly
       const spinTarget = inp.lean * A.flipRate;
       let ap = (spinTarget - pitchW) * (Math.abs(inp.lean) > 0.1 ? A.flipAccel : A.spinDamp);
@@ -175,14 +187,23 @@ export class BikeController {
         else if (v.assist.landing > 0) ap += (e * 14 - pitchW * 3) * v.assist.landing;
       }
       v.torque.addScaledVector(left, ap * I[0]);
-      // whips: A / D throw the bike sideways, it comes back when you let go
       const roll = Math.asin(clamp(left.y, -1, 1)); // + = leaning right (stays 0 during a flip)
-      // landing assist straightens a whip just before touchdown
+      this.airRoll = roll;
       const late = v.assist.landing > 0 ? Math.min(1, Math.max(0, (this.timeToLand - 0.15) / 0.35)) : 1;
-      const whipTarget = -this.steer * A.whip * DEG * late;
-      v.torque.addScaledVector(fwd, ((whipTarget - roll) * 22 - rollW * 6) * I[2]);
-      tr.whip = Math.max(tr.whip, Math.abs(roll));
-      v.torque.addScaledVector(up, (this.steer * c.steer.airYaw - yawW * 2) * I[1]);
+      if (inp.clutch) {
+        // Shift + A / D: flat spin (360s), the bike stays level
+        const spinT = -this.steer * A.spinRate;
+        v.torque.addScaledVector(up, ((spinT - yawW) * 6) * I[1]);
+        v.torque.addScaledVector(fwd, ((0 - roll) * 22 - rollW * 6) * I[2]);
+      } else {
+        // whips: A / D throw the bike sideways, it comes back when you let go
+        const whipTarget = -this.steer * A.whip * DEG * late;
+        v.torque.addScaledVector(fwd, ((whipTarget - roll) * 22 - rollW * 6) * I[2]);
+        v.torque.addScaledVector(up, (this.steer * c.steer.airYaw - yawW * 2) * I[1]);
+        // scrub: whipping hard right off the lip keeps the bike low and fast
+        tr.whip = Math.max(tr.whip, Math.abs(roll)); // only real whips count, not the wobble of a spin
+        if (v.airTime < 0.35 && Math.abs(roll) > 25 * DEG) { tr.scrub = true; v.force.y -= c.mass * 9.81 * 0.3 * Math.min(1, Math.abs(roll) / (45 * DEG)); }
+      }
       this.rollErr = 0;
     }
   }
@@ -219,7 +240,7 @@ export class BikeController {
       if (p < -c.landPitch) return v.crash('Nose-dived the landing');
       if (sideways > 45) return v.crash('Landed it sideways');
       if (vin > c.impact) return v.crash('Landed way too hard');
-      this.reportTricks();
+      this.reportTricks(Math.abs(p), sideways);
     }
     if (v.grounded && v.groundTime > 0.2) this.trick = null;
     const hit = v.probeHits;
@@ -241,15 +262,9 @@ export class BikeController {
   }
 
   // flips / whips landed cleanly -> tell the game
-  reportTricks() {
-    const t = this.trick;
-    if (!t) return;
-    const flips = Math.round(Math.abs(t.pitch) / (2 * Math.PI) - 0.1);
-    const names = [];
-    if (flips >= 1) names.push((flips > 1 ? (flips === 2 ? 'Double ' : flips + 'x ') : '') + (t.pitch < 0 ? 'Backflip' : 'Front Flip'));
-    if (t.whip > 32 * DEG) names.push(t.whip > 55 * DEG ? 'Huge Whip' : 'Whip');
-    if (Math.abs(t.yaw) > 300 * DEG) names.push('360');
-    if (names.length) this.v.events.push({ type: 'trick', name: names.join(' + '), score: flips * 500 + (t.whip > 32 * DEG ? Math.round(t.whip / DEG) * 3 : 0) + (Math.abs(t.yaw) > 300 * DEG ? 300 : 0) });
+  reportTricks(landPitchErr = 0, landRoll = 0) {
+    const ev = scoreTricks(this.trick, landPitchErr, landRoll, true);
+    if (ev) this.v.events.push(ev);
     this.trick = null;
   }
 }

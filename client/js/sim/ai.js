@@ -19,7 +19,7 @@ export function speedProfile(T, cfg) {
   const key = T.id + ':' + cfg.type + ':' + cfg.id;
   if (profiles.has(key)) return profiles.get(key);
   const n = T.n, v = new Float32Array(n), want = new Float32Array(n).fill(0);
-  const mu = cfg.type === 'bike' ? 0.95 : 0.85;
+  const mu = cfg.type === 'bike' ? 0.88 : 0.85;
   for (let i = 0; i < n; i++) {
     const k = Math.abs(T.kappa[i]);
     const b = T.bank[i] * 0.55;
@@ -111,7 +111,7 @@ export class AIDriver {
       if (v.crashTime > this.resetDelay) v.resetToTrack(v.safeS, this.laneOffset);
       return;
     }
-    if (v.stuckTime > 3 || v.offTrack > 1.2) { v.resetToTrack(v.safeS, this.laneOffset); return; }
+    if (v.stuckTime > 3 || v.offTrack > 1.2 || v.noProgress) { v.resetToTrack(v.safeS, this.laneOffset); return; }
     const spd = Math.max(0, v.fwdSpeed);
     const s = v.trackS;
     // --- steering: pure pursuit on a point down the track
