@@ -5,7 +5,7 @@
 //  Vehicle Selection screen is open.
 // =====================================================================
 import * as THREE from 'three';
-import { getVehicle, BIKE_COLORS } from '/shared/vehicles.js';
+import { getVehicle, BIKE_COLORS, paintFor } from '/shared/vehicles.js';
 import { VehicleVisual } from './render/vehicleModel.js';
 import { Rider, riderScheme } from './render/rider.js';
 import { GEAR_SETS } from '/shared/shop.js';
@@ -32,9 +32,11 @@ export class Garage {
     // dirt pad + turntable
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.8, 0.12, 48), new THREE.MeshStandardMaterial({ color: 0x5b4330, roughness: 0.95 }));
     pad.position.y = -0.06; pad.receiveShadow = true;
+    this.pad = pad;
     this.scene.add(pad);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(2.62, 0.04, 8, 64), new THREE.MeshStandardMaterial({ color: 0xff5a1f, emissive: 0x7a2200, roughness: 0.4 }));
     ring.rotation.x = Math.PI / 2; ring.position.y = 0.01;
+    this.ring = ring;
     this.scene.add(ring);
     const floor = new THREE.Mesh(new THREE.CircleGeometry(30, 48), new THREE.MeshStandardMaterial({ color: 0x232833, roughness: 1 }));
     floor.rotation.x = -Math.PI / 2; floor.position.y = -0.12; floor.receiveShadow = true;
@@ -61,10 +63,12 @@ export class Garage {
     this.key = key;
     if (this.vis) { this.vis.dispose(); this.rider.dispose(); }
     const def = getVehicle(vehicleId);
-    const scheme = BIKE_COLORS.find((c) => c.id === colorId) || BIKE_COLORS[0];
+    const scheme = paintFor(vehicleId, colorId);
     this.vis = new VehicleVisual(def, scheme, 1);
     this.vis.tryLoadModel();
     this.vis.root.position.y = this.vis.cfg.rideHeight;
+    const sc = Math.max(1, (this.vis.cfg.halfLength || 1.1) / 1.35);
+    this.pad.scale.set(sc, 1, sc); this.ring.scale.set(sc, sc, 1);
     this.turn.add(this.vis.root);
     this.rider = new Rider(riderScheme(scheme, gearId, GEAR_SETS));
     this.rider.attachTo(this.vis.model);
@@ -78,9 +82,10 @@ export class Garage {
     this.scene.environment = this.R.envMap;
     this.idle += dt;
     if (this.idle > 2 && !this.drag) this.yaw += dt * 0.25;
-    const r = 4.6;
+    const len = this.vis ? this.vis.cfg.halfLength || 1.1 : 1.1;
+    const r = 3.4 + len * 1.9; // back off for the long side-by-side and buggy
     this.camera.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * r, 0.7 + Math.sin(this.pitch) * r, Math.cos(this.yaw) * Math.cos(this.pitch) * r);
-    this.camera.lookAt(0, 0.65, 0);
+    this.camera.lookAt(0, 0.45 + len * 0.18, 0);
     const R = this.R;
     this.camera.aspect = R.camera.aspect;
     this.camera.updateProjectionMatrix();

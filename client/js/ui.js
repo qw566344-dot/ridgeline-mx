@@ -3,7 +3,7 @@
 //  Screens are plain HTML (index.html); this file wires them up.
 // =====================================================================
 import { TRACKS, getTrack } from '/shared/tracks.js';
-import { VEHICLES, BIKE_COLORS, getVehicle } from '/shared/vehicles.js';
+import { VEHICLES, BIKE_COLORS, getVehicle, paintFor } from '/shared/vehicles.js';
 import { GEAR_SETS, shopItem } from '/shared/shop.js';
 import { buildTrack, sampleArr } from '/shared/trackgen.js';
 import { PRESETS, fmtTime } from './settings.js';
@@ -73,7 +73,7 @@ export class UI {
   renderSummary() {
     const v = getVehicle(this.settings.get('vehicle'));
     const t = getTrack(this.settings.get('track'));
-    const col = BIKE_COLORS.find((c) => c.id === this.settings.get('color')) || BIKE_COLORS[0];
+    const col = paintFor(this.settings.get('vehicle'), this.settings.get('color'));
     const best = this.settings.bestLap(t.id, v.id);
     const A = this.account;
     const who = A && A.profile ? `Rider: <b>${escapeHtml(A.profile.name)}</b> <small>${A.mode === 'online' ? '(online)' : A.mode === 'guest' ? '(guest)' : '(this computer)'}</small><br>Coins: <b>${A.coins.toLocaleString()}</b><br>` : '';

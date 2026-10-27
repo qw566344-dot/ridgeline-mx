@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { getTrack } from '/shared/tracks.js';
 import { makeWorld, heightAt } from '/shared/terrain.js';
-import { getVehicle, BIKE_COLORS, VEHICLES } from '/shared/vehicles.js';
+import { getVehicle, BIKE_COLORS, VEHICLES, paintFor } from '/shared/vehicles.js';
 import { pointAt, sampleArr, wrapS, deltaS } from '/shared/trackgen.js';
 import { LapTracker, GAME } from '/shared/rules.js';
 import { Vehicle, FIXED_DT } from './sim/vehicle.js';
@@ -102,7 +102,7 @@ export class Game {
   // ------------------------------------------------------------------ riders
   addRider({ id, name, vehicleId, colorId, gearId = 'match', number, isPlayer = false, ai = null, remote = false }) {
     const def = getVehicle(vehicleId);
-    const scheme = BIKE_COLORS.find((c) => c.id === colorId) || BIKE_COLORS[0];
+    const scheme = paintFor(vehicleId, colorId);
     const vis = new VehicleVisual(def, scheme, number);
     vis.tryLoadModel();
     this.scene.add(vis.root);
@@ -338,7 +338,7 @@ export class Game {
       if (!v || !v.events.length) continue;
       for (const e of v.events) {
         if (e.type === 'crash') {
-          r.rider.detach(this.scene, v.vel);
+          if (v.cfg.type !== 'car') r.rider.detach(this.scene, v.vel); // drivers stay strapped in
           this.effects.crash(v.pos, v.vel);
           if (r.isPlayer) {
             this.audio.crash();
@@ -523,6 +523,7 @@ export class Game {
         quat = _q.copy(v.prevQuat).slerp(v.quat, alpha);
         r.vis.root.position.copy(pos);
         r.vis.root.quaternion.copy(quat);
+        r.vis.camDist = this.R.camera.position.distanceTo(pos);
         r.vis.update({ lean: v.lean, steer: v.steerAngle, wheels: v.wheels });
         crashed = v.crashed;
         if (dt > 0) this.effects.vehicle(v, dt, r.key);
@@ -531,11 +532,12 @@ export class Game {
         const st = r.remote.state;
         r.vis.root.position.copy(st.pos);
         r.vis.root.quaternion.copy(st.quat);
+        r.vis.camDist = this.R.camera.position.distanceTo(st.pos);
         r.vis.update(st.visual);
         crashed = st.crashed;
-        others.push({ key: r.key, pos: r.vis.root.position, rpm: st.rpm, thr: st.thr, crashed, kind: getVehicle(r.vehicleId).cfgKind || (getVehicle(r.vehicleId).type === 'bike' ? 'bike' : 'atv') });
+        others.push({ key: r.key, pos: r.vis.root.position, rpm: st.rpm, thr: st.thr, crashed, kind: getVehicle(r.vehicleId).audio.kind });
         // remote crash -> rider tumbles here too
-        if (crashed && r.rider.attached) r.rider.detach(this.scene, st.vel);
+        if (crashed && r.rider.attached && !r.vis.seated) r.rider.detach(this.scene, st.vel);
         if (!crashed && !r.rider.attached) r.rider.attachTo(r.vis.model);
       } else { r.vis.root.visible = false; continue; }
       r.vis.root.visible = true;

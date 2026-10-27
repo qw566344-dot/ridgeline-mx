@@ -33,7 +33,7 @@ const DEFAULTS = {
   aiSkill: 'medium',
   playerName: '',
   vehicle: 'mx250',
-  color: 'red',
+  color: 'stock',
   gear: 'match',
   track: 'ridgeline',
   camera: 0,

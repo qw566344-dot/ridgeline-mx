@@ -7,7 +7,7 @@
 //  browser instead, with the password hashed. Guests also save locally.
 // =====================================================================
 import { serverBase } from './config.js';
-import { STARTER, shopItem, MAX_REWARD } from '/shared/shop.js';
+import { STARTER, shopItem, MAX_REWARD, upgradeNeeds } from '/shared/shop.js';
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -139,7 +139,11 @@ export class Account {
     this.changed();
   }
 
-  owns(slot, id) { return !!this.profile && this.profile.owned.includes(slot + ':' + id); }
+  owns(slot, id) {
+    const it = shopItem(slot, id);
+    if (it && it.price === 0) return true; // free items belong to everyone
+    return !!this.profile && this.profile.owned.includes(slot + ':' + id);
+  }
   equipped(slot) { return this.profile ? this.profile.equipped[slot] : STARTER.equipped[slot]; }
   get coins() { return this.profile ? this.profile.coins : 0; }
 
@@ -152,8 +156,9 @@ export class Account {
     }
     const p = this.profile;
     if (this.owns(slot, id)) return null;
+    if (slot === 'upgrade') for (const n of upgradeNeeds(item)) { const [s2, i2] = n.split(':'); if (!this.owns(s2, i2)) return s2 === 'vehicle' ? 'Buy the vehicle first' : 'Buy the level below first'; }
     if (p.coins < item.price) return `Not enough coins (need ${item.price})`;
-    p.coins -= item.price; p.owned.push(slot + ':' + id); p.equipped[slot] = id;
+    p.coins -= item.price; p.owned.push(slot + ':' + id); if (slot !== 'upgrade') p.equipped[slot] = id;
     this.persistLocal();
     return null;
   }

@@ -1,8 +1,10 @@
 // =====================================================================
 //  SHOP CATALOGUE + COIN REWARDS (shared by the game and the server)
 //  To add an item: add a line here. price 0 = free from the start.
-//  slot: which thing it changes - 'vehicle', 'color' (paint) or 'gear'
+//  slot: which thing it changes - 'vehicle', 'color' (paint), 'gear' or
+//        'upgrade' (id = vehicle.part.level, generated from UPGRADES)
 // =====================================================================
+import { VEHICLES, UPGRADES } from './vehicles.js';
 export const GEAR_SETS = [
   { id: 'match', name: 'Team Kit', desc: 'Matches your paint', colors: null },
   { id: 'black', name: 'Blackout', colors: [0x1c1c22, 0x2a2a30, 0xe5e7eb] },
@@ -20,7 +22,13 @@ export const SHOP = [
   { id: 'atv450', slot: 'vehicle', price: 0 },
   { id: 'mx450', slot: 'vehicle', price: 3000 },
   { id: 'atv700', slot: 'vehicle', price: 3500 },
-  // paint
+  { id: 'utv', slot: 'vehicle', price: 5000 },
+  { id: 'mx450w', slot: 'vehicle', price: 6500 },
+  { id: 'buggy', slot: 'vehicle', price: 8000 },
+  { id: 'utvr', slot: 'vehicle', price: 9500 },
+  { id: 'buggy_unl', slot: 'vehicle', price: 15000 },
+  // paint ('stock' = the colour the vehicle comes in)
+  { id: 'stock', slot: 'color', price: 0 },
   { id: 'red', slot: 'color', price: 0 },
   { id: 'blue', slot: 'color', price: 0 },
   { id: 'green', slot: 'color', price: 500 },
@@ -29,6 +37,8 @@ export const SHOP = [
   { id: 'white', slot: 'color', price: 800 },
   { id: 'teal', slot: 'color', price: 800 },
   { id: 'black', slot: 'color', price: 1200 },
+  { id: 'purple', slot: 'color', price: 1400 },
+  { id: 'pink', slot: 'color', price: 1400 },
   // rider gear
   { id: 'match', slot: 'gear', price: 0 },
   { id: 'black', slot: 'gear', price: 700 },
@@ -40,7 +50,32 @@ export const SHOP = [
   { id: 'gold', slot: 'gear', price: 5000 },
 ];
 
-export const STARTER = { coins: 500, owned: SHOP.filter((i) => i.price === 0).map((i) => i.slot + ':' + i.id), equipped: { vehicle: 'mx250', color: 'red', gear: 'match' } };
+// performance upgrades: 3 levels of engine / suspension / tyres for every vehicle
+for (const v of VEHICLES) {
+  for (const [part, U] of Object.entries(UPGRADES)) {
+    U.levels.forEach((L, i) => SHOP.push({ id: `${v.id}.${part}.${i + 1}`, slot: 'upgrade', price: L.price, vehicle: v.id, part, level: i + 1 }));
+  }
+}
+
+// what an upgrade needs before you can buy it (the vehicle, and the level below)
+export function upgradeNeeds(item) {
+  const needs = ['vehicle:' + item.vehicle];
+  if (item.level > 1) needs.push(`upgrade:${item.vehicle}.${item.part}.${item.level - 1}`);
+  return needs;
+}
+
+// upgrade levels a player owns for one vehicle, from their owned list
+export function upgradeLevels(owned, vehicleId) {
+  const out = {};
+  for (const part of Object.keys(UPGRADES)) {
+    let lvl = 0;
+    for (let i = 1; i <= 3; i++) if (owned.includes(`upgrade:${vehicleId}.${part}.${i}`)) lvl = i;
+    if (lvl) out[part] = lvl;
+  }
+  return out;
+}
+
+export const STARTER = { coins: 500, owned: SHOP.filter((i) => i.price === 0).map((i) => i.slot + ':' + i.id), equipped: { vehicle: 'mx250', color: 'stock', gear: 'match' } };
 
 export function shopItem(slot, id) { return SHOP.find((i) => i.slot === slot && i.id === id) || null; }
 

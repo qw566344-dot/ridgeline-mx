@@ -67,14 +67,14 @@ export class Audio {
     const filter = c.createBiquadFilter(); filter.type = 'lowpass'; filter.Q.value = 1.2;
     const shaper = c.createWaveShaper();
     const curve = new Float32Array(512);
-    for (let i = 0; i < 512; i++) { const x = (i / 511) * 2 - 1; curve[i] = Math.tanh(x * (kind === 'atv' ? 2.5 : 3.5)); }
+    for (let i = 0; i < 512; i++) { const x = (i / 511) * 2 - 1; curve[i] = Math.tanh(x * ({ atv: 2.5, utv: 2.2, buggy: 1.8 }[kind] || 3.5)); }
     shaper.curve = curve;
     const pre = c.createGain(); pre.gain.value = 0.5;
     // pulse train: sawtooth + square an octave apart, plus a "rasp" noise gate
     const o1 = c.createOscillator(); o1.type = 'sawtooth';
     const o2 = c.createOscillator(); o2.type = 'square';
     const g1 = c.createGain(), g2 = c.createGain();
-    g1.gain.value = 0.6; g2.gain.value = kind === 'atv' ? 0.45 : 0.3;
+    g1.gain.value = 0.6; g2.gain.value = ({ atv: 0.45, utv: 0.4, buggy: 0.55 }[kind] || 0.3);
     o1.connect(g1); o2.connect(g2); g1.connect(pre); g2.connect(pre);
     let rasp = null;
     if (full) {
@@ -94,7 +94,15 @@ export class Audio {
       panner.panningModel = 'equalpower'; panner.distanceModel = 'inverse'; panner.refDistance = 8; panner.rolloffFactor = 1.4;
       out.connect(panner); panner.connect(this.engineBus);
     } else out.connect(this.engineBus);
-    return { o1, o2, filter, out, panner, rasp, kind };
+    // the turbo side-by-side whistles under load
+    let turbo = null;
+    if (kind === 'utv' && full) {
+      const o3 = c.createOscillator(); o3.type = 'sine';
+      const g3 = c.createGain(); g3.gain.value = 0;
+      o3.connect(g3); g3.connect(out); o3.start();
+      turbo = { o3, g3 };
+    }
+    return { o1, o2, filter, out, panner, rasp, kind, turbo };
   }
 
   // called every frame for the player's vehicle
@@ -118,10 +126,12 @@ export class Audio {
     const t = this.ctx.currentTime;
     const rpm = veh.engine ? veh.engine.rpm : veh.rpm || 2000;
     const thr = veh.input ? veh.input.throttle : veh.thr || 0;
-    const fire = rpm / 60 / (v.kind === 'atv' ? 2 : 2) * (v.kind === 'atv' ? 0.85 : 1); // single cylinder four-stroke
+    // firing frequency: singles fire every other turn, the turbo triple 1.5x a turn, the V8 4x a turn
+    const fire = (rpm / 60) * ({ bike: 0.5, atv: 0.425, utv: 1.5, buggy: 4 }[v.kind] || 0.5);
+    if (v.turbo) { v.turbo.o3.frequency.setTargetAtTime(1800 + rpm * 0.55, t, 0.05); v.turbo.g3.gain.setTargetAtTime(thr * 0.05 * Math.min(1, rpm / 5000), t, 0.15); }
     v.o1.frequency.setTargetAtTime(fire, t, 0.02);
     v.o2.frequency.setTargetAtTime(fire * 0.5, t, 0.02);
-    v.filter.frequency.setTargetAtTime(400 + thr * 2600 + rpm * 0.12, t, 0.04);
+    v.filter.frequency.setTargetAtTime((v.kind === 'buggy' ? 260 : 400) + thr * (v.kind === 'buggy' ? 1500 : 2600) + rpm * 0.12, t, 0.04);
     const crashed = veh.crashed;
     v.out.gain.setTargetAtTime(crashed ? 0.04 : (0.16 + thr * 0.14) * gain, t, 0.05);
     if (v.rasp) {
@@ -160,7 +170,7 @@ export class Audio {
     try {
       const t = this.ctx.currentTime;
       v.out.gain.setTargetAtTime(0, t, 0.05);
-      setTimeout(() => { try { v.o1.stop(); v.o2.stop(); if (v.rasp) v.rasp.ns.stop(); v.out.disconnect(); } catch { /* already stopped */ } }, 300);
+      setTimeout(() => { try { v.o1.stop(); v.o2.stop(); if (v.rasp) v.rasp.ns.stop(); if (v.turbo) v.turbo.o3.stop(); v.out.disconnect(); } catch { /* already stopped */ } }, 300);
     } catch { /* ignore */ }
   }
 

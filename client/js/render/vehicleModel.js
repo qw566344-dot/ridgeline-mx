@@ -12,7 +12,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from '../../vendor/addons/loaders/GLTFLoader.js';
 import { box, cyl, tube, sphere, torus, pipe, plate, merge, colorize, clean, place, roundBox } from './geo.js';
-import { prepareVehicle } from '/shared/vehicles.js';
+import { prepareVehicle, MODELS } from '/shared/vehicles.js';
+import { createModelInstance, updateModelInstance } from './modelRig.js';
 
 const DEG = Math.PI / 180;
 const loader = new GLTFLoader();
@@ -276,8 +277,21 @@ export class VehicleVisual {
       pegL: new THREE.Vector3(), pegR: new THREE.Vector3(),
     };
     this.isBike = this.cfg.type === 'bike';
+    this.seated = this.cfg.type === 'car';
     this.usingGLB = false;
-    this.buildPlaceholder(number);
+    // the real 3D model (see modelRig.js); the built-in model is only a fallback
+    this.inst = createModelInstance(this.cfg.modelKey, scheme);
+    if (this.inst) {
+      this.M = MODELS[this.cfg.modelKey];
+      const c = new THREE.Group();
+      c.rotation.y = -Math.PI / 2;                     // model faces +x, the game faces +z
+      c.position.set(0, -this.cfg.rideHeight, -this.M.comX);
+      c.add(this.inst.root);
+      this.model.add(c);
+      this.container = c;
+      this.usingGLB = true;
+      this.camDist = 0;
+    } else if (this.cfg.type !== 'car') this.buildPlaceholder(number);
   }
 
   buildPlaceholder(number) {
@@ -341,6 +355,7 @@ export class VehicleVisual {
 
   // Swap the placeholder for the player's GLB model (if one is available)
   async tryLoadModel() {
+    if (this.inst || this.seated) return true;
     const gltf = await loadGLB(this.def.model);
     if (!gltf) return false;
     try {
@@ -456,6 +471,7 @@ export class VehicleVisual {
 
   // state: { lean, steer, wheels:[{comp, spin, steer}], crashed }
   update(state) {
+    if (this.inst) return this.updateRigged(state);
     const cfg = this.cfg;
     this.lean.rotation.z = this.isBike ? -state.lean : 0;
     const A = this.attach;
@@ -539,6 +555,31 @@ export class VehicleVisual {
         });
         if (this.glb.steer) this.glb.steer.rotation.y = state.steer * 0.9;
       }
+    }
+  }
+
+  // model point (model space) -> vehicle space, for the rider's hands / feet / seat
+  mv(p, out) { return out.set(-p[2], p[1] - this.cfg.rideHeight, p[0] - this.M.comX); }
+
+  updateRigged(state) {
+    this.lean.rotation.z = this.isBike ? -state.lean : 0;
+    updateModelInstance(this.inst, state, this.cfg, this.camDist);
+    const A = this.attach, M = this.M, at = M.attach, meta = this.inst.meta;
+    this.mv(at.seat, A.seat);
+    this.mv(at.pegL, A.pegL); this.mv(at.pegR, A.pegR);
+    // hands follow the bars / steering wheel as they turn
+    const turn = (p, pivotP, axis, ang, out) => {
+      _v.set(p[0] - pivotP[0], p[1] - pivotP[1], p[2] - pivotP[2]).applyAxisAngle(_v2.fromArray(axis), ang);
+      return this.mv([_v.x + pivotP[0], _v.y + pivotP[1], _v.z + pivotP[2]], out);
+    };
+    if (M.steerWheel) {
+      turn(at.gripL, M.wheelCentre, meta.wheelAxis, -state.steer * 5, A.gripL);
+      turn(at.gripR, M.wheelCentre, meta.wheelAxis, -state.steer * 5, A.gripR);
+    } else {
+      const up = [-meta.axisDown[0], -meta.axisDown[1], -meta.axisDown[2]];
+      const k = this.isBike ? 1 : 0.9;
+      turn(at.gripL, M.steerPivot, up, state.steer * k, A.gripL);
+      turn(at.gripR, M.steerPivot, up, state.steer * k, A.gripR);
     }
   }
 

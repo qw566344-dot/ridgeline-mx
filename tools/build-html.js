@@ -33,7 +33,14 @@ const css = fs.readFileSync(path.join(client, 'css', 'style.css'), 'utf8');
 let html = fs.readFileSync(path.join(client, 'index.html'), 'utf8');
 html = html.replace(/<link rel="stylesheet" href="css\/style.css">/, () => `<style>\n${css}\n</style>`);
 html = html.replace(/<script type="importmap">[\s\S]*?<\/script>/, '');
-html = html.replace(/<script type="module" src="js\/main.js"><\/script>/, () => `<script>\n${js}\n</script>`);
+// the vehicle models go inside the file too (base64), so it works when double-clicked
+const models = {};
+const mdir = path.join(client, 'models');
+for (const f of fs.existsSync(mdir) ? fs.readdirSync(mdir) : []) {
+  if (f.endsWith('.glb')) models['models/' + f] = fs.readFileSync(path.join(mdir, f)).toString('base64');
+}
+const modelScript = `<script>window.__MX_MODELS=${JSON.stringify(models)};</script>`;
+html = html.replace(/<script type="module" src="js\/main.js"><\/script>/, () => `${modelScript}\n<script>\n${js}\n</script>`);
 if (html.includes('js/main.js') || html.includes('css/style.css')) throw new Error('bundle still references external files');
 const out = path.join(ROOT, 'RidgelineMX.html');
 fs.writeFileSync(out, html);

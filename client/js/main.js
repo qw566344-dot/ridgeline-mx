@@ -11,6 +11,7 @@ import { Game } from './game.js';
 import { Garage } from './garage.js';
 import { Net } from './net.js';
 import { Account } from './account.js';
+import { preloadModels } from './render/modelRig.js';
 
 const settings = new Settings();
 const R = new Renderer(document.getElementById('game'));
@@ -101,6 +102,8 @@ window.addEventListener('keydown', () => audio.unlock());
 
 // ---- boot
 (async () => {
+  ui.showLoading('Loading vehicles...');
+  try { await preloadModels((m) => ui.showLoading(m)); } catch (e) { console.warn(e); }
   ui.showLoading('Building the track...');
   try {
     await game.startMenu();

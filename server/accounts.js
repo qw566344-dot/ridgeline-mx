@@ -15,7 +15,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { SHOP, STARTER, shopItem, MAX_REWARD } from '../shared/shop.js';
+import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
 
 const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
@@ -93,17 +93,21 @@ export class Accounts {
     if (!item) return { error: 'No such item' };
     const k = slot + ':' + id;
     if (u.owned.includes(k)) return { profile: this.profile(u) };
+    if (slot === 'upgrade') for (const n of upgradeNeeds(item)) if (!this.has(u, n)) return { error: n.startsWith('vehicle') ? 'Buy the vehicle first' : 'Buy the level below first' };
     if (u.coins < item.price) return { error: `Not enough coins (need ${item.price})` };
     u.coins -= item.price;
     u.owned.push(k);
-    u.equipped[slot] = id;
+    if (slot !== 'upgrade') u.equipped[slot] = id;
     this.save();
     return { profile: this.profile(u) };
   }
 
+  // free items count as owned for everyone
+  has(u, key) { if (u.owned.includes(key)) return true; const [slot, id] = key.split(':'); const it = shopItem(slot, id); return !!it && it.price === 0; }
+
   equip(u, slot, id) {
     if (!['vehicle', 'color', 'gear'].includes(slot)) return { error: 'Bad slot' };
-    if (!u.owned.includes(slot + ':' + id)) return { error: 'You do not own that yet' };
+    if (!this.has(u, slot + ':' + id)) return { error: 'You do not own that yet' };
     u.equipped[slot] = id;
     this.save();
     return { profile: this.profile(u) };

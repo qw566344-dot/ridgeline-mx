@@ -36,7 +36,7 @@ export class AtvController {
     const maxDeg = c.steer.maxLow + (c.steer.maxHigh - c.steer.maxLow) * Math.sqrt(t);
     // ask for a turn rate (like the bike), heavier and lazier than a bike
     const sliding = inp.rearBrake > 0.1 || Math.max(v.wheels[2].slipLong, v.wheels[3].slipLong) > 0.35;
-    const yawMax = spd < 0.2 ? 0 : Math.min((spd * Math.tan(maxDeg * DEG)) / c.wheelbase, 9.0 / Math.max(spd, 1));
+    const yawMax = spd < 0.2 ? 0 : Math.min((spd * Math.tan(maxDeg * DEG)) / c.wheelbase, (c.steer.latAcc || 9) / Math.max(spd, 1));
     this.yawTarget = this.steer * yawMax * Math.sign(v.fwdSpeed || 1) * (sliding ? 1.3 : 1);
     let delta = spd > 0.2 ? Math.atan((this.yawTarget * c.wheelbase) / spd) * Math.sign(v.fwdSpeed) : this.steer * maxDeg * DEG;
     delta = clamp(delta, -maxDeg * DEG, maxDeg * DEG);
@@ -113,7 +113,8 @@ export class AtvController {
       const pull = Math.max(0, -inp.lean), push = Math.max(0, inp.lean);
       let a = 0;
       const frontDown = fl.contact || fr.contact, rearDown = rl.contact || rr.contact;
-      if (frontDown && rearDown) a = pull * (3 + 6 * inp.throttle) - push * 1.5;
+      if (c.type !== 'atv') a = 0; // cars: Q / E only shift weight in the air
+      else if (frontDown && rearDown) a = pull * (3 + 6 * inp.throttle) - push * 1.5;
       else if (rearDown && !frontDown && p > 0.03) {
         a = pull * 8 + inp.throttle * 2.5 - push * 7 - inp.rearBrake * 10 - 3.5 + 2 * pitchW;
         if (pull < 0.2 && v.assist.wheelie) a -= (p - 0.05) * 25;
@@ -122,7 +123,7 @@ export class AtvController {
       // when you are lifting the front on purpose, most of the bike's weight is
       // balanced out for you so a wheelie is something you can actually hold
       let lift = a * I[0];
-      if (inp.lean < -0.2 || (this.wheelieTime > 0 && p > 0.03)) {
+      if (c.type === 'atv' && (inp.lean < -0.2 || (this.wheelieTime > 0 && p > 0.03))) {
         const rw = v.wheels[2].cfg;
         const d = -rw.z * Math.cos(p) - c.rideHeight * Math.sin(p); // CoM ahead of the rear tyre
         lift += 0.8 * c.mass * 9.81 * Math.max(0, d);
@@ -190,7 +191,7 @@ export class AtvController {
     if (hit) {
       if (hit.type === 'rider' && (hit.impact > 1.0 || hit.pen > 0.08)) return v.crash('Thrown off');
       if (hit.type === 'roll') return v.crash('Rolled it');
-      if (hit.type === 'hard' && hit.impact > 4.5) return v.crash('Stuffed the nose');
+      if (hit.type === 'hard' && hit.impact > (c.nose || 4.5)) return v.crash('Stuffed the nose');
     }
     // rollover: tipped past the point of no return
     if (Math.abs(this.bodyRoll) > c.roll * DEG && v.grounded) { this.rollTime += dt; if (this.rollTime > 0.4) return v.crash('Rolled it'); }

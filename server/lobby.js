@@ -152,7 +152,7 @@ export class Lobby {
   profile(p, m, quiet) {
     if (m.name !== undefined) p.name = cleanName(m.name);
     if (VEHICLES.some((v) => v.id === m.vehicle)) p.vehicle = m.vehicle;
-    if (BIKE_COLORS.some((c) => c.id === m.color)) p.color = m.color;
+    if (m.color === 'stock' || BIKE_COLORS.some((c) => c.id === m.color)) p.color = m.color;
     if (GEAR_SETS.some((g) => g.id === m.gear)) p.gear = m.gear;
     if (!quiet && p.party) this.broadcastParty(p.party);
   }

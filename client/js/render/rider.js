@@ -148,7 +148,39 @@ export class Rider {
   }
 
   // --- riding pose (vehicle-local coordinates) ---------------------------
+  // --- driver in a side-by-side / buggy: strapped into the seat --------------
+  updateSeated(dt, veh, vis) {
+    const s = this.s, A = vis.attach, J = this.j, t = this.tmp;
+    // the body sways with cornering and bumps, the head stays level-ish
+    const lat = Math.max(-0.5, Math.min(0.5, veh.lean || 0));
+    s.leanBody += (lat * 0.6 - s.leanBody) * Math.min(1, dt * 5);
+    const compAvg = veh.wheels ? veh.wheels.reduce((a, w) => a + w.comp / w.cfg.travel, 0) / veh.wheels.length : 0.3;
+    s.crouch += (Math.max(0, compAvg - 0.35) * 0.6 - s.crouch) * Math.min(1, dt * 10);
+    J.pelvis.copy(A.seat).add(t.c.set(0, 0.1 - s.crouch * 0.05, 0.06));
+    const recline = 0.26;
+    t.up.set(Math.sin(s.leanBody) * 0.5, Math.cos(recline), -Math.sin(recline)).normalize();
+    J.neck.copy(J.pelvis).addScaledVector(t.up, LEN.torso);
+    t.fwd.set(0, Math.sin(recline), Math.cos(recline));
+    t.left.crossVectors(t.up, t.fwd).normalize();
+    J.shL.copy(J.neck).addScaledVector(t.left, 0.19).addScaledVector(t.up, -0.07);
+    J.shR.copy(J.neck).addScaledVector(t.left, -0.19).addScaledVector(t.up, -0.07);
+    J.head.copy(J.neck).addScaledVector(t.up, 0.04);
+    for (const [sh, el, ha, grip, sx] of [[J.shL, J.elL, J.haL, A.gripL, 1], [J.shR, J.elR, J.haR, A.gripR, -1]]) {
+      t.a.copy(sh).add(t.c.set(sx * 0.45, -0.35, 0.05));
+      ik(sh, grip, LEN.ua, LEN.fa, t.a, el, ha);
+    }
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1);
+    J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    for (const [hip, kn, an, toe, ped, sx] of [[J.hipL, J.knL, J.anL, J.toeL, A.pegL, 1], [J.hipR, J.knR, J.anR, J.toeR, A.pegR, -1]]) {
+      t.a.copy(hip).add(t.c.set(sx * 0.12, 0.6, 0.3));
+      ik(hip, ped, LEN.th, LEN.sh, t.a, kn, an);
+      toe.copy(an).add(t.c.set(0, 0.08, 0.24));
+    }
+    this.applyBones(t.up, t.fwd);
+  }
+
   updateRiding(dt, veh, vis) {
+    if (vis.seated) return this.updateSeated(dt, veh, vis);
     const s = this.s, A = vis.attach, isBike = vis.isBike;
     const inp = veh.input || {};
     const spd = veh.speed || 0;

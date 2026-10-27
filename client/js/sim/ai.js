@@ -131,7 +131,7 @@ export class AIDriver {
     } else {
       const t = clamp(spd / cfg.steer.highSpeed, 0, 1);
       const maxDeg = cfg.steer.maxLow + (cfg.steer.maxHigh - cfg.steer.maxLow) * Math.sqrt(t);
-      const yawMax = Math.min((Math.max(spd, 0.5) * Math.tan(maxDeg * DEG)) / L, 9.0 / Math.max(spd, 1));
+      const yawMax = Math.min((Math.max(spd, 0.5) * Math.tan(maxDeg * DEG)) / L, (cfg.steer.latAcc || 9) / Math.max(spd, 1));
       steer = (Math.max(spd, 0.5) * kappa) / yawMax;
     }
     if (zf < 0) steer = Math.sign(xl || 1); // target behind us: full lock

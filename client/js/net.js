@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { PROTOCOL_VERSION, SEND_RATE, INTERP_DELAY, packState, cleanName, validCode, F_CRASHED, F_AIR } from '/shared/protocol.js';
 import { TRACKS, getTrack } from '/shared/tracks.js';
-import { getVehicle, BIKE_COLORS } from '/shared/vehicles.js';
+import { getVehicle, BIKE_COLORS, paintFor } from '/shared/vehicles.js';
 import { escapeHtml } from './ui.js';
 import { fmtTime } from './settings.js';
 import { serverBase, setServerBase, wsUrl } from './config.js';
@@ -249,7 +249,7 @@ export class Net {
     $('mp-codeshow').textContent = P.code;
     $('mp-count').textContent = `(${P.members.filter((m) => m.connected).length}/8)`;
     $('mp-members').innerHTML = P.members.map((m) => {
-      const v = getVehicle(m.vehicle), col = BIKE_COLORS.find((c) => c.id === m.color) || BIKE_COLORS[0];
+      const v = getVehicle(m.vehicle), col = paintFor(m.vehicle, m.color);
       const tags = [];
       if (m.id === P.leader) tags.push('<span class="tagl leader">Leader</span>');
       tags.push(m.connected ? (m.ready ? '<span class="tagl ready">Ready</span>' : '<span class="tagl">Not ready</span>') : '<span class="tagl gone">Disconnected</span>');

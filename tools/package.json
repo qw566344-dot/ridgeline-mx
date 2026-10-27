@@ -11,7 +11,9 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.24.0",
+    "gltfpack": "^0.22.0",
+    "meshoptimizer": "^0.22.0"
   },
   "private": true
 }
