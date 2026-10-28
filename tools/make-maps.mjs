@@ -45,7 +45,7 @@ const MAPS = [
     desc: 'Black volcanic ash under a burning sky. Tight, technical and full of big gaps.',
     look: { dirt: [0.45, 0.42, 0.42], grass: [0.55, 0.55, 0.5], trees: 0.1, pines: 0.05, rocks: 3, fog: 0x6b5552, skyTop: 0x3a1f2b, horizon: 0xc2553a },
     terrain: { hills: 12, hillScale: 130, rim: 55, bumps: [{ x: 0, z: 0, r: 90, h: 10 }] },
-    segments: [str(130, 'Start Straight', [], 16), turn(90, 15), str(120, 'Lava Gap', [D(16, 1.8, 7.5, 7, 1.6, 9), TR(58, 2.0, 8.5, 8, 1.8, 10)]), turn(90, 14), str(100, 'Ash Step', [ST(30, 1.4, 6, 4.5, 2.0, 9, 10)]), turn(-90, 14), str(100, 'Cinder Whoops', [WH(12, 12, 4.4, 0.55)]), turn(90, 14), str(130, 'Caldera Table', [T(22, 2.2, 10, 10, 11)]), turn(90, 15), str(90, 'Ember Rhythm', [D(12, 1.5, 6, 4.5, 1.3, 7)]), turn(-90, 14), str(90, 'Obsidian Rollers', [RO(12, 3, 11, 0.9)]), turn(90, 15), str(110, 'Crater Straight'), turn(90, 16)] },
+    segments: [str(130, 'Start Straight', [], 16), turn(90, 15), str(120, 'Lava Gap', [D(16, 1.8, 7.5, 7, 1.6, 9), T(64, 1.9, 8.5, 8, 10)]), turn(90, 14), str(100, 'Ash Step', [ST(30, 1.4, 6, 4.5, 2.0, 9, 10)]), turn(-90, 14), str(100, 'Cinder Whoops', [WH(12, 12, 4.4, 0.55)]), turn(90, 14), str(130, 'Caldera Table', [T(22, 2.2, 10, 10, 11)]), turn(90, 15), str(90, 'Ember Rhythm', [D(12, 1.5, 6, 4.5, 1.3, 7)]), turn(-90, 14), str(90, 'Obsidian Rollers', [RO(12, 3, 11, 0.9)]), turn(90, 15), str(110, 'Crater Straight'), turn(90, 16)] },
   { id: 'farm', name: 'Countryside Farm', difficulty: 'Easy', recommend: ['Dirt Bikes', 'Quads'], seed: 9066, defaultWidth: 14,
     desc: 'Green fields and hay bales. A relaxed loop with friendly tables and smooth rollers.',
     look: { dirt: [1.0, 0.86, 0.72], grass: [0.9, 1.15, 0.75], trees: 1.2, pines: 0.1, rocks: 0.2 },

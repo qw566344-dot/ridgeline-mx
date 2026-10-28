@@ -666,12 +666,11 @@ export const MORE_TRACKS = [
       land: 9
      },
      {
-      at: 58,
-      type: "triple",
-      h: 2,
+      at: 64,
+      type: "table",
+      h: 1.9,
       face: 8.5,
-      gap: 8,
-      h2: 1.8,
+      top: 8,
       land: 10
      }
     ],
