@@ -183,7 +183,9 @@ const UTV_BASE = {
   riderLean: 0, riderBalance: 6000, axleScrub: 0,
   air: { flipRate: 2.0, flipAccel: 3.5, spinDamp: 1.0, gyro: 1.2, whip: 8, spinRate: 3.6 },
   brakes: { front: 6200, rear: 4400 },
-  crash: { landPitch: 62, impact: 16, roll: 85, loop: 85, nose: 9 },
+  // cars are tough: a roll cage and seat belts. Only ending up on the roof counts as a crash,
+  // and a car on its side pushes itself back onto its wheels
+  crash: { landPitch: 62, impact: 16, roll: 85, loop: 85, nose: 9, tough: true },
   probes: [
     { p: [0.6, 1.05, 0.2], r: 0.15, hit: 'roll' },   // roll cage corners
     { p: [-0.6, 1.05, 0.2], r: 0.15, hit: 'roll' },

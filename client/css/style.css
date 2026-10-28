@@ -336,6 +336,12 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
 .fps { position: absolute; right: 18px; top: 50%; font-size: 13px; background: rgba(0, 0, 0, 0.5); padding: 3px 8px; border-radius: 4px; font-variant-numeric: tabular-nums; }
 .netinfo { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); font-size: 13px; background: rgba(0, 0, 0, 0.45); padding: 4px 12px; border-radius: 12px; display: flex; gap: 8px; align-items: center; }
 
+/* name tags over the other riders while riding */
+#name-tags { position: absolute; inset: 0; overflow: hidden; }
+.ntag { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: 13px; font-weight: 700; letter-spacing: 0.03em; padding: 2px 8px; border-radius: 10px; background: rgba(8, 10, 14, 0.55); color: #fff; text-shadow: none; will-change: transform; }
+.ntag i { font-style: normal; color: var(--gold); margin-right: 5px; }
+.ntag.friend { background: rgba(37, 99, 235, 0.55); }
+
 /* results */
 .results { width: 100%; border-collapse: collapse; font-size: 16px; font-variant-numeric: tabular-nums; }
 .results th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; padding: 6px 10px; }

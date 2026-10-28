@@ -146,13 +146,14 @@ export class Net {
       case 'party': {
         const was = this.party;
         this.party = m; this.code = m.code; ssSet('mx.code', m.code);
-        if (!was) this.ui.popup(`You are in party <b>${m.code}</b>`, 'good');
-        // a party you just made starts with what you had picked solo
-        if (!was && m.leader === this.id && m.members.length === 1) {
-          const S = this.settings, mode = S.get('mode') === 'practice' ? 'freeride' : S.get('mode');
-          this.sendSettings({ track: S.get('track'), mode, laps: mode === 'freestyle' ? Math.max(1, S.get('freestyleTime') || 2) : S.get('laps') });
-        }
-        else {
+        if (!was) {
+          this.ui.popup(`You are in party <b>${m.code}</b>`, 'good');
+          // a party you just made starts with what you had picked solo
+          if (m.leader === this.id && m.members.length === 1) {
+            const S = this.settings, mode = S.get('mode') === 'practice' ? 'freeride' : S.get('mode');
+            this.sendSettings({ track: S.get('track'), mode, laps: mode === 'freestyle' ? Math.max(1, S.get('freestyleTime') || 2) : S.get('laps') });
+          }
+        } else {
           const before = new Set(was.members.map((x) => x.id));
           for (const x of m.members) if (!before.has(x.id)) this.ui.popup(`<b>${escapeHtml(x.name)}</b> joined the party`);
           for (const x of was.members) if (!m.members.some((y) => y.id === x.id)) this.ui.popup(`<b>${escapeHtml(x.name)}</b> left the party`);

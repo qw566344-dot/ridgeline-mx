@@ -32,6 +32,9 @@ function freshProfile(name) {
   return { name, coins: STARTER.coins, owned: [...STARTER.owned], equipped: { ...STARTER.equipped }, stats: { laps: 0, wins: 0, tricks: 0 } };
 }
 
+// Backup: every online account is also copied into this browser (coins, items,
+// friends + a hash of the password). Free servers forget accounts when they
+// restart; logging in then quietly re-creates the account from this copy.
 export class Account {
   constructor() {
     const saved = LS.get('mx.account', null);
@@ -44,7 +47,39 @@ export class Account {
 
   get loggedIn() { return !!this.profile; }
   onChange(f) { this.listeners.push(f); }
-  changed() { LS.set('mx.account', { mode: this.mode, token: this.token, name: this.name, profile: this.profile }); this.listeners.forEach((f) => f(this.profile)); }
+  changed() {
+    LS.set('mx.account', { mode: this.mode, token: this.token, name: this.name, profile: this.profile });
+    if (this.mode === 'online' && this.profile) this.backup();
+    this.listeners.forEach((f) => f(this.profile));
+  }
+
+  // ---- the local copy of online accounts
+  backups() { return LS.get('mx.backups', {}); }
+  backup(check) {
+    const all = this.backups(), k = this.profile.name.toLowerCase();
+    const b = all[k] || {};
+    all[k] = { ...b, name: this.profile.name, profile: this.profile, friends: this.friendNames || b.friends || [], check: check || b.check, salt: b.salt, at: Date.now() };
+    LS.set('mx.backups', all);
+  }
+  async rememberPassword(pw) {
+    const all = this.backups(), k = this.profile.name.toLowerCase();
+    const salt = (all[k] && all[k].salt) || Math.random().toString(36).slice(2) + Date.now().toString(36);
+    all[k] = { ...(all[k] || {}), salt, check: await hashPassword(pw, salt) };
+    LS.set('mx.backups', all);
+    this.backup(all[k].check);
+  }
+  setFriends(names) { this.friendNames = names; if (this.mode === 'online' && this.profile) this.backup(); }
+  // the server does not know this name: bring the account back from this browser's copy
+  async restore(name, password) {
+    const b = this.backups()[name.trim().toLowerCase()];
+    if (!b || !b.check || !b.salt) return null;
+    if ((await hashPassword(password, b.salt)) !== b.check) return 'Wrong password';
+    const r = await this.api('register', { name: b.name, password, restore: { ...b.profile, friends: b.friends || [] } });
+    if (r.error) return r.error;
+    this.set('online', r.token, r.profile);
+    this.restoredNote = true;
+    return '';
+  }
 
   async api(path, body) {
     const res = await fetch(serverBase() + '/api/' + path, {
@@ -61,7 +96,7 @@ export class Account {
     try {
       const r = await this.api('me');
       if (r.profile) { this.profile = r.profile; this.changed(); }
-      else if (r.error) { this.logout(); }
+      else if (r.error) { this.expiredName = this.name; this.logout(); } // server restarted: log in again (progress comes back)
     } catch { /* server not reachable: keep the cached profile for now */ this.stale = true; }
   }
 
@@ -70,6 +105,7 @@ export class Account {
       const r = await this.api('register', { name, password });
       if (r.error) return r.error;
       this.set('online', r.token, r.profile);
+      await this.rememberPassword(password);
       return null;
     } catch {
       // no server: make an offline account in this browser
@@ -91,11 +127,18 @@ export class Account {
     try {
       const r = await this.api('login', { name, password });
       if (r.error) {
+        // the server lost it (restart)? bring it back from this computer's copy
+        if (/No account/.test(r.error)) {
+          const back = await this.restore(name, password);
+          if (back === '') return null;
+          if (back) return back;
+        }
         // maybe it is an offline account on this computer
         const off = await this.localLogin(name, password);
         return off === null ? null : r.error;
       }
       this.set('online', r.token, r.profile);
+      await this.rememberPassword(password);
       return null;
     } catch {
       return this.localLogin(name, password);
@@ -122,6 +165,7 @@ export class Account {
   }
 
   logout() {
+    if (this.profile && this.mode !== 'guest') this.lastName = this.profile.name;
     if (this.mode === 'online' && this.token) this.api('logout', {}).catch(() => {});
     this.mode = null; this.token = null; this.profile = null; this.name = null;
     LS.del('mx.account');

@@ -601,6 +601,7 @@ export class Game {
       if (this.player === focus && v) this.audio.player(v, cam);
     }
     this.audio.others(others, cam);
+    this.ui.updateNameTags(this);
     this.scenery.update(dt, cam);
     this.effects.update(dt, cam, this.R.renderer);
     this.R.render();

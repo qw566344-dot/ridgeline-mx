@@ -3,7 +3,10 @@
 //  Saved to server/data/accounts.json. Passwords are never stored -
 //  only a salted scrypt hash. Logged-in clients get a random token.
 //  HTTP API (JSON):
-//    POST /api/register {name, password}     -> {token, profile}
+//    POST /api/register {name, password[, restore]} -> {token, profile}
+//         restore: the copy of the account the game keeps on the player's
+//         computer, used when this server lost its data (free hosting wipes
+//         it on every restart) so nobody loses their progress
 //    POST /api/login    {name, password}     -> {token, profile}
 //    GET  /api/me                            -> {profile}
 //    POST /api/buy      {slot, id}           -> {profile}
@@ -20,6 +23,11 @@ import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
 
 const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
+
+// TESTING ONLY: accounts topped up to this many coins when they log in.
+// Delete the line (or the name) when testing is over.
+const TEST_COINS = { nahh: 1_000_000 };
+const MAX_COINS = 5_000_000;
 
 export class Accounts {
   constructor(dir) {
@@ -66,7 +74,33 @@ export class Accounts {
     return a.length > 12;
   }
 
-  register(name, password, ip) {
+  // what a restore may bring back: real shop items only, sane numbers
+  restoreInto(u, r) {
+    if (!r || typeof r !== 'object') return;
+    const n = (x, max) => Math.max(0, Math.min(max, Math.floor(Number(x) || 0)));
+    u.coins = n(r.coins, MAX_COINS);
+    const owned = Array.isArray(r.owned) ? r.owned.filter((k) => typeof k === 'string' && (() => { const [s, ...rest] = k.split(':'); return !!shopItem(s, rest.join(':')); })()) : [];
+    u.owned = [...new Set([...STARTER.owned, ...owned])];
+    const eq = r.equipped || {};
+    for (const slot of ['vehicle', 'color', 'gear']) if (typeof eq[slot] === 'string' && this.has(u, slot + ':' + eq[slot])) u.equipped[slot] = eq[slot];
+    const st = r.stats || {};
+    u.stats = { laps: n(st.laps, 1e6), wins: n(st.wins, 1e6), tricks: n(st.tricks, 1e7) };
+    // friends come back too, once both riders exist again
+    u.friends = [];
+    for (const fname of Array.isArray(r.friends) ? r.friends.slice(0, 100) : []) {
+      const f = this.db.users[String(fname).toLowerCase()];
+      if (!f || f.key === u.key) continue;
+      u.friends.push(f.key);
+      f.friends = f.friends || [];
+      if (!f.friends.includes(u.key)) f.friends.push(u.key);
+    }
+    u.restored = Date.now();
+  }
+
+  // TESTING ONLY - see TEST_COINS
+  grant(u) { const c = TEST_COINS[u.key]; if (c && u.coins < c) { u.coins = c; this.save(); } }
+
+  register(name, password, ip, restore) {
     name = String(name || '').trim();
     if (!NAME_RE.test(name)) return { error: 'Names are 3-16 letters, numbers, spaces, _ . or -' };
     if (String(password || '').length < 4) return { error: 'Password must be at least 4 characters' };
@@ -75,8 +109,10 @@ export class Accounts {
     if (this.db.users[key]) return { error: 'That name is taken - pick another or log in' };
     const salt = crypto.randomBytes(16).toString('hex');
     const u = { key, name, salt, hash: this.hash(password, salt), created: Date.now(), coins: STARTER.coins, owned: [...STARTER.owned], equipped: { ...STARTER.equipped }, stats: { laps: 0, wins: 0, tricks: 0 }, rewardLog: [] };
+    if (restore) this.restoreInto(u, restore);
     this.db.users[key] = u;
-    return { token: this.issue(u), profile: this.profile(u) };
+    this.grant(u);
+    return { token: this.issue(u), profile: this.profile(u), restored: !!restore };
   }
 
   login(name, password, ip) {
@@ -85,6 +121,7 @@ export class Accounts {
     if (!u) return { error: 'No account with that name' };
     const h = this.hash(password, u.salt);
     if (!crypto.timingSafeEqual(Buffer.from(h, 'hex'), Buffer.from(u.hash, 'hex'))) return { error: 'Wrong password' };
+    this.grant(u);
     return { token: this.issue(u), profile: this.profile(u) };
   }
 
@@ -153,17 +190,17 @@ export class Accounts {
     const url = new URL(req.url, 'http://x');
     const token = (req.headers.authorization || '').replace(/^Bearer /, '');
     let body = '';
-    req.on('data', (d) => { body += d; if (body.length > 4096) req.destroy(); });
+    req.on('data', (d) => { body += d; if (body.length > 65536) req.destroy(); });
     req.on('end', () => {
       let m = {};
       try { m = body ? JSON.parse(body) : {}; } catch { return send(400, { error: 'Bad request' }); }
       const r = url.pathname.replace('/api/', '');
-      if (r === 'register') return send(200, this.register(m.name, m.password, ip));
+      if (r === 'register') return send(200, this.register(m.name, m.password, ip, m.restore));
       if (r === 'login') return send(200, this.login(m.name, m.password, ip));
       if (r === 'info') return send(200, { ok: true, accounts: Object.keys(this.db.users).length });
       const u = this.user(token);
       if (!u) return send(401, { error: 'Please log in again' });
-      if (r === 'me') return send(200, { profile: this.profile(u) });
+      if (r === 'me') { this.grant(u); return send(200, { profile: this.profile(u) }); }
       if (r === 'buy') return send(200, this.buy(u, m.slot, m.id));
       if (r === 'equip') return send(200, this.equip(u, m.slot, m.id));
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));

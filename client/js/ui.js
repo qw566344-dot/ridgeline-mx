@@ -21,7 +21,9 @@ import { liveTrick } from './sim/tricks.js';
 import { regionList, customServer, setServerBase, serverBase } from './config.js';
 
 export { escapeHtml };
+import { Vector3 } from 'three';
 const $ = (id) => document.getElementById(id);
+const _tv = new Vector3();
 const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'friends', 'settings', 'controls', 'credits', 'pause', 'results'];
 const MENUS = new Set(['home', 'play', 'garage', 'shop', 'friends', 'settings', 'controls', 'credits']);
 const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', friends: 'friends', settings: 'settings' };
@@ -668,6 +670,8 @@ export class UI {
       $('acct-error').textContent = '';
     };
     $('acct-tabs').querySelectorAll('button').forEach((b) => (b.onclick = () => setMode(b.dataset.acct)));
+    const last = this.account.expiredName || this.account.lastName;
+    if (last && !$('acct-name').value) $('acct-name').value = last;
     const go = async () => {
       const name = $('acct-name').value.trim(), pw = $('acct-pass').value;
       if (!name || !pw) { $('acct-error').textContent = 'Type a name and a password'; return; }
@@ -811,6 +815,7 @@ export class UI {
     $('hud-center').textContent = '';
     $('hud-trick').textContent = '';
     $('trick-pop').innerHTML = '';
+    $('name-tags').innerHTML = ''; this.nameTagEls = new Map();
     $('toasts').innerHTML = '';
     $('hud-hint').innerHTML = game.mode === 'freestyle' ? 'Q/E flip &nbsp; A/D whip &nbsp; Shift+A/D spin &nbsp; T restart' : 'R reset &nbsp; C camera &nbsp; Esc pause';
     if (this.stage) this.stage.hideTags();
@@ -889,6 +894,36 @@ export class UI {
       const ping = game.net.ping;
       net.innerHTML = `<span>Party ${game.net.code || ''}</span><span class="ping ${pingCls(ping)}">${game.net.connected ? (ping != null ? ping + ' ms' : 'online') : 'reconnecting...'}</span>`;
     } else net.hidden = true;
+  }
+
+  // small name tags above everyone else on the track (fade with distance)
+  updateNameTags(game) {
+    const box = $('name-tags');
+    if (!box || $('hud').hidden) return;
+    const cam = game.R.camera, w = window.innerWidth, h = window.innerHeight;
+    const tags = this.nameTagEls || (this.nameTagEls = new Map());
+    const seen = new Set();
+    for (const r of game.riders) {
+      if (r.isPlayer || !r.vis.root.visible) continue;
+      const p = r.vis.root.position;
+      const d = cam.position.distanceTo(p);
+      if (d > 160) continue;
+      _tv.set(p.x, p.y + (r.vis.cfg.type === 'car' ? 2.0 : 1.75), p.z).project(cam);
+      if (_tv.z > 1 || Math.abs(_tv.x) > 1.2 || Math.abs(_tv.y) > 1.2) continue;
+      let el = tags.get(r.key);
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'ntag' + (r.remote ? ' friend' : '');
+        el.innerHTML = `<i>${r.number || ''}</i>${escapeHtml(r.name)}`;
+        box.appendChild(el);
+        tags.set(r.key, el);
+      }
+      seen.add(r.key);
+      el.style.display = '';
+      el.style.opacity = String(Math.max(0, Math.min(1, (160 - d) / 80)));
+      el.style.transform = `translate(${((_tv.x + 1) / 2) * w}px, ${((1 - _tv.y) / 2) * h}px) translate(-50%, -100%)`;
+    }
+    for (const [k, el] of tags) if (!seen.has(k)) { if (!game.riders.some((r) => r.key === k)) { el.remove(); tags.delete(k); } else el.style.display = 'none'; }
   }
 
   drawMinimap(game) {

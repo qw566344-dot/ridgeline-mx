@@ -19,12 +19,28 @@ const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 const g0 = { h: 0, nx: 0, ny: 1, nz: 0 };
 const _f = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _n = new THREE.Vector3();
 
+const _ax = new THREE.Vector3();
 export class AtvController {
   constructor(veh) {
     this.v = veh;
     this.rollCentre = veh.cfg.rollCentre;
     this.pitchCentre = 0.25;
     this.reset();
+  }
+
+  // cars: only the roof counts. On its side or nose-up and nearly stopped,
+  // the car rolls itself back onto its wheels after a moment.
+  toughChecks(dt) {
+    const v = this.v;
+    if (v.up.y < -0.25) { this.upsideTime += dt; if (this.upsideTime > (v.grounded ? 1.2 : 3)) return v.crash('Landed on the roof'); }
+    else this.upsideTime = 0;
+    if (v.up.y < 0.55 && v.speed < 4) {
+      this.tipTime = (this.tipTime || 0) + dt;
+      if (this.tipTime > 0.6) {
+        _ax.set(-v.up.z, 0, v.up.x); // axis that turns 'up' back towards the sky
+        if (_ax.lengthSq() > 1e-6) v.angVel.addScaledVector(_ax.normalize(), Math.min(4, 9 * dt) * (1 - v.up.y));
+      }
+    } else this.tipTime = 0;
   }
 
   reset() { this.steer = 0; this.rollTime = 0; this.upsideTime = 0; this.bodyRoll = 0; this.yawTarget = 0; this.trick = null; }
@@ -183,18 +199,21 @@ export class AtvController {
       groundAt(v.world, v.pos.x, v.pos.z, g0);
       const vin = -(v.prevVel.x * g0.nx + v.prevVel.y * g0.ny + v.prevVel.z * g0.nz);
       v.landImpact = vin;
-      if (p > c.landPitch) return v.crash('Flipped over backwards');
-      if (p < -c.landPitch) return v.crash('Nose-dived the landing');
-      if (vin > c.impact) return v.crash('Landed way too hard');
+      if (!c.tough) {
+        if (p > c.landPitch) return v.crash('Flipped over backwards');
+        if (p < -c.landPitch) return v.crash('Nose-dived the landing');
+        if (vin > c.impact) return v.crash('Landed way too hard');
+      }
       this.reportTricks(Math.abs(p), Math.abs(this.bodyRoll) / DEG);
     }
     if (v.grounded && v.groundTime > 0.2) this.trick = null;
     const hit = v.probeHits;
-    if (hit) {
+    if (hit && !c.tough) {
       if (hit.type === 'rider' && (hit.impact > 1.0 || hit.pen > 0.08)) return v.crash('Thrown off');
       if (hit.type === 'roll') return v.crash('Rolled it');
       if (hit.type === 'hard' && hit.impact > (c.nose || 4.5)) return v.crash('Stuffed the nose');
     }
+    if (c.tough) return this.toughChecks(dt);
     // rollover: tipped past the point of no return
     if (Math.abs(this.bodyRoll) > c.roll * DEG && v.grounded) { this.rollTime += dt; if (this.rollTime > 0.4) return v.crash('Rolled it'); }
     else this.rollTime = 0;

@@ -15,8 +15,13 @@ import { Rider, riderScheme } from './render/rider.js';
 import { GEAR_SETS } from '/shared/shop.js';
 import { escapeHtml } from './util.js';
 
-// slot order: middle, then alternating right / left
-const SLOT_X = [0, 4.6, -4.6, 9, -9, 13.2, -13.2, 17.2];
+// line-up: middle first, then alternating right / left, packed side by side
+// by how wide each vehicle looks at the lobby angle (bikes close, buggies wider)
+const GAP = 0.35;
+function halfWidthOnStage(def) {
+  const a = 0.95; // the angle vehicles face in the lobby
+  return Math.abs(Math.sin(a)) * (def.halfLength || 1.1) * 0.82 + Math.abs(Math.cos(a)) * (def.halfWidth || 0.4);
+}
 const _v = new THREE.Vector3();
 
 export class Stage {
@@ -110,17 +115,30 @@ export class Stage {
   setLineup(list) {
     const keep = new Set(list.map((e) => e.key));
     for (const [k, e] of this.entries) if (!keep.has(k)) this.leave(e);
+    // where each one stands
+    const xs = [];
+    let right = 0, left = 0;
+    list.forEach((d, i) => {
+      const w = halfWidthOnStage(getVehicle(d.vehicleId));
+      if (i === 0) { xs.push(0); right = w; left = -w; }
+      else if (i % 2) { xs.push(right + GAP + w); right += GAP + 2 * w; }
+      else { xs.push(left - GAP - w); left -= GAP + 2 * w; }
+    });
+    // centre the whole group on the stage
+    const mid = (right + left) / 2;
+    for (let i = 0; i < xs.length; i++) xs[i] -= mid;
+    this.lineWidth = (right - left) / 2;
     list.forEach((d, i) => {
       let e = this.entries.get(d.key);
       const look = d.vehicleId + ':' + d.colorId + ':' + (d.gearId || 'match');
       if (e && e.look !== look) { this.dispose(e); this.entries.delete(d.key); e = null; }
       if (!e) {
         e = this.make(d, look);
-        e.x = SLOT_X[i] ?? i * 4; e.z = -14; e.arrive = 0; // roll in from the back
+        e.x = xs[i]; e.z = -14; e.arrive = 0; // roll in from the back
         this.entries.set(d.key, e);
       }
       e.slot = i; e.info = d; e.leaving = false;
-      e.tx = SLOT_X[i] ?? i * 4;
+      e.tx = xs[i];
     });
     this.renderTags();
   }
@@ -200,7 +218,7 @@ export class Stage {
       e.holder.visible = e.fade > 0.02;
       e.holder.position.set(e.x, (e.fade - 1) * 0.6, e.z);
       // facing: three-quarter view towards the camera in the lobby, turntable in focus
-      const want = isFocus ? 0 : moving ? 0 : 0.95 - e.x * 0.025;
+      const want = isFocus ? 0 : moving ? 0 : 0.95;
       e.spin += (want - e.spin) * (1 - Math.exp(-dt * 3));
       e.holder.rotation.y = e.spin;
       // idle life: suspension breathing, wheels creep when rolling in
@@ -221,11 +239,11 @@ export class Stage {
       pos = _v.set(c.x + Math.sin(this.yaw) * Math.cos(this.pitch) * r, 0.75 + Math.sin(this.pitch) * r, c.z + Math.cos(this.yaw) * Math.cos(this.pitch) * r);
       look = new THREE.Vector3(c.x, 0.5 + len * 0.2, c.z);
     } else {
-      const n = [...this.entries.values()].filter((e) => !e.leaving).length;
-      const spread = Math.min(4, Math.max(1, n));
-      const sway = Math.sin(this.time * 0.15) * 0.8;
-      pos = _v.set(sway, 1.5 + spread * 0.45, 5.6 + spread * 2.4);
-      look = new THREE.Vector3(0, 0.75 + spread * 0.08, 0);
+      // frame the whole line-up, close in when it is just you
+      const half = Math.max(1.2, this.lineWidth || 1.2);
+      const sway = Math.sin(this.time * 0.15) * 0.5;
+      pos = _v.set(sway, 1.45 + half * 0.22, 5.0 + half * 1.75);
+      look = new THREE.Vector3(0, 0.8 + half * 0.03, 0);
     }
     const k = 1 - Math.exp(-dt * (this.snap ? 60 : 3.2));
     this.snap = false;

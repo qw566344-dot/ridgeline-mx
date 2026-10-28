@@ -42,11 +42,15 @@ function syncEquipped() {
   settings.set('playerName', account.profile.name);
 }
 account.onChange(() => { ui.renderTop(); if (ui.screen === 'home') ui.renderHome(); });
-ui.on('loggedIn', () => { syncEquipped(); ui.show('home'); social.start(); net.sendProfile(); });
-ui.on('logout', () => { account.logout(); social.start(); ui.showAccount(); });
+ui.on('loggedIn', () => {
+  syncEquipped(); ui.show('home'); social.start(); net.sendProfile();
+  if (account.restoredNote) { account.restoredNote = false; ui.popup('The server had restarted - your account, coins and items were restored from this computer', 'good', null, 7); }
+});
+ui.on('logout', () => { if (net.code) net.leave(); account.logout(); social.start(); ui.showAccount(); });
 
 // friends: keep the lists fresh, pop up party invites wherever you are
 social.onChange(() => {
+  account.setFriends(social.data.friends.map((f) => f.name));
   ui.renderTop();
   if (ui.screen === 'friends') ui.renderFriends();
   if (ui.screen === 'home') ui.renderFriendsMini();
@@ -127,6 +131,7 @@ window.addEventListener('keydown', () => audio.unlock());
   await account.init();
   net.pingRegions();
   if (account.loggedIn) { syncEquipped(); ui.show('home'); } else ui.showAccount();
+  if (account.expiredName) ui.popup('Please log in again - your progress is kept on this computer', '', null, 7);
   social.start();
   net.autoRejoin();
 })();
