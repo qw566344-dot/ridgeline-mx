@@ -319,13 +319,51 @@ function buildTemplate(key, scene) {
 }
 
 // ---------------------------------------------------------------- instances
-function paintMaterial(base, color, key) {
-  const k = base.uuid + ':' + color;
+// paint: a plain colour, or a skin pattern drawn in the model's own space
+const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9 };
+const SKIN_GLSL = `
+uniform vec3 uA; uniform vec3 uB; uniform vec3 uC; uniform float uPat;
+varying vec3 vPat;
+float skinHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+vec3 skinColor(vec3 p) {
+  if (uPat < 0.5 || (uPat > 5.5 && uPat < 6.5)) return uA;
+  if (uPat < 1.5) return mix(uA, uB, step(0.62, fract((p.x * 1.6 + p.y * 0.9) * 2.2)));
+  if (uPat < 2.5) {
+    float e = p.x * 1.4 + 0.35 * sin(p.y * 16.0 + p.z * 7.0) + 0.18 * sin(p.y * 31.0 + p.x * 9.0);
+    return mix(mix(uC, uA, smoothstep(-0.1, -0.05, e)), uB, smoothstep(0.25, 0.3, e));
+  }
+  if (uPat < 3.5) { float n = skinHash(floor(p * 9.0)); return n < 0.4 ? uA : (n < 0.75 ? uB : uC); }
+  if (uPat < 4.5) {
+    float n = 0.5 + 0.5 * sin(p.x * 7.0 + sin(p.y * 5.0) * 2.0 + p.z * 3.0);
+    return mix(mix(uA, uB, n), vec3(1.0), step(0.985, skinHash(floor(p * 60.0))));
+  }
+  if (uPat < 5.5) { float a = step(0.5, fract((p.x + p.z) * 30.0)), b = step(0.5, fract((p.x - p.z) * 30.0)); return mix(uA, uB, abs(a - b)); }
+  if (uPat < 7.5) return mix(uA, uB, step(0.55, sin(p.x * 22.0 + sin(p.y * 11.0) * 1.6 + p.z * 4.0)));
+  if (uPat < 8.5) return mix(uB, uA, smoothstep(0.2, 1.1, p.y));
+  return mix(uA, uB, mod(floor(p.x * 10.0) + floor(p.y * 10.0) + floor(p.z * 10.0), 2.0));
+}
+`;
+function paintMaterial(base, scheme, which, key) {
+  const pat = which === 'body' ? scheme.pattern || 'solid' : 'solid';
+  const color = which === 'body' ? scheme.body : scheme.accent;
+  const k = base.uuid + ':' + color + ':' + pat + ':' + (scheme.accent || 0);
   if (!paintCache.has(k)) {
     const m = base.clone();
     m.color = new THREE.Color(color);
+    if (pat === 'chrome') { m.metalness = 1; m.roughness = 0.12; m.envMapIntensity = 1.4; }
+    if (pat === 'carbon') { m.roughness = 0.3; }
+    if (pat !== 'solid' && pat !== 'chrome') {
+      const u = { uA: { value: new THREE.Color(scheme.body) }, uB: { value: new THREE.Color(scheme.accent) }, uC: { value: new THREE.Color(scheme.third || 0x111111) }, uPat: { value: PATTERN_ID[pat] || 0 } };
+      m.onBeforeCompile = (sh) => {
+        Object.assign(sh.uniforms, u);
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vPat;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPat = position;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + SKIN_GLSL).replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = skinColor(vPat);');
+      };
+      m.customProgramCacheKey = () => 'skin-' + pat;
+    }
     paintCache.set(k, m);
   }
+  void key;
   return paintCache.get(k);
 }
 
@@ -338,8 +376,8 @@ export function createModelInstance(key, scheme) {
   root.traverse((o) => {
     if (!o.isMesh) return;
     const n = o.material.name;
-    if (T.M.paint.includes(n)) o.material = paintMaterial(o.material, scheme.body, key);
-    else if (T.M.accent.includes(n)) o.material = paintMaterial(o.material, scheme.accent, key);
+    if (T.M.paint.includes(n)) o.material = paintMaterial(o.material, scheme, 'body', key);
+    else if (T.M.accent.includes(n)) o.material = paintMaterial(o.material, scheme, 'accent', key);
     meshes.push({ mesh: o, hi: o.geometry, lo: loMap.get(o.geometry) || o.geometry });
   });
   const get = (n) => root.getObjectByName(n);

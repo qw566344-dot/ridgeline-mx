@@ -44,6 +44,7 @@
         <button data-go="home">Lobby</button>
         <button data-go="garage">Garage</button>
         <button data-go="shop">Shop</button>
+        <button data-go="casino">Casino</button>
         <button data-go="friends">Friends <b id="friends-badge" class="badge" hidden></b></button>
         <button data-go="settings">Settings</button>
       </nav>
@@ -144,15 +145,57 @@
     <!-- SHOP: buy and unlock -->
     <section id="shop" class="screen menu-screen" hidden>
       <div class="card shop-panel">
-        <div class="shop-top">
-          <h2>Shop</h2>
-          <div class="tabs" id="shop-tabs"></div>
-        </div>
-        <div id="shop-sub" class="seg"></div>
+        <div id="shop-tabs" hidden></div><div id="shop-sub" hidden></div>
         <div id="shop-grid" class="shop-grid"></div>
       </div>
       <aside class="card shop-detail" id="shop-detail"></aside>
     </section>
+
+    <!-- CASINO -->
+    <section id="casino" class="screen overlay" hidden>
+      <div class="sheet wide casino-sheet">
+        <div class="sheet-head"><h2>Casino</h2><span class="chip coins"><i class="coin"></i><b id="casino-coins">0</b></span></div>
+        <div class="casino-grid">
+          <div class="cgame">
+            <h3>Roulette</h3>
+            <div class="rl-wheel"><span id="rl-ball" class="rl-ball green">0</span></div>
+            <div id="rl-hist" class="hist"></div>
+            <div class="picks">
+              <button data-pick="red" class="pk red">Red</button><button data-pick="black" class="pk black">Black</button><button data-pick="green" class="pk green">0</button>
+              <button data-pick="odd" class="pk">Odd</button><button data-pick="even" class="pk">Even</button>
+              <button data-pick="low" class="pk">1-18</button><button data-pick="high" class="pk">19-36</button>
+              <input id="rl-num" type="number" min="0" max="36" placeholder="#" title="Bet on one number (x36)">
+            </div>
+            <div class="hint">Betting on: <b id="rl-pickname">Red (x2)</b></div>
+            <div class="bet-row"><input id="rl-bet" type="number" min="10" value="100"><button class="small" data-chip="100" data-for="rl-bet">+100</button><button class="small" data-chip="1000" data-for="rl-bet">+1K</button><button class="small" data-chip="x2" data-for="rl-bet">x2</button><button class="small" data-chip="half" data-for="rl-bet">1/2</button><button class="small" data-chip="max" data-for="rl-bet">Max</button></div>
+            <button id="rl-spin" class="primary big wide">SPIN</button>
+            <div id="rl-msg" class="cmsg"></div>
+          </div>
+          <div class="cgame">
+            <h3>Crash</h3>
+            <div class="cr-box"><canvas id="cr-canvas" width="420" height="200"></canvas><div id="cr-mult" class="cr-mult">1.00x</div></div>
+            <div id="cr-hist" class="hist"></div>
+            <div class="hint">The multiplier climbs until it crashes. Cash out before it does!</div>
+            <div class="bet-row"><input id="cr-bet" type="number" min="10" value="100"><button class="small" data-chip="100" data-for="cr-bet">+100</button><button class="small" data-chip="1000" data-for="cr-bet">+1K</button><button class="small" data-chip="x2" data-for="cr-bet">x2</button><button class="small" data-chip="half" data-for="cr-bet">1/2</button><button class="small" data-chip="max" data-for="cr-bet">Max</button></div>
+            <label class="field">Auto cash out at <input id="cr-auto" type="number" min="1.01" step="0.1" placeholder="off" style="width:90px">x</label>
+            <button id="cr-go" class="primary big wide">BET</button>
+            <div id="cr-msg" class="cmsg"></div>
+          </div>
+        </div>
+        <p class="hint">Coins only - just for fun. Results are decided by the game server.</p>
+        <div class="row end"><button data-go="home">Back</button></div>
+      </div>
+    </section>
+
+    <!-- ADMIN (press - , admin accounts only) -->
+    <div id="admin" class="screen overlay" hidden>
+      <div class="sheet wide">
+        <div class="sheet-head"><h2>Admin panel</h2><span id="adm-total" class="hint"></span></div>
+        <div class="search-row"><input id="adm-search" placeholder="Find a rider" autocomplete="off"><button id="adm-close">Close (-)</button></div>
+        <div id="adm-msg" class="cmsg"></div>
+        <table class="results adm"><thead><tr><th>Rider</th><th>Coins</th><th>Items</th><th>Actions</th></tr></thead><tbody id="adm-list"></tbody></table>
+      </div>
+    </div>
 
     <!-- FRIENDS -->
     <section id="friends" class="screen overlay" hidden>
@@ -203,6 +246,7 @@
           <tr><td><kbd>A</kbd> <kbd>D</kbd></td><td>Steer &bull; in the air: whip / scrub (bikes)</td></tr>
           <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>Lean back / forward &bull; in the air: backflip / front flip</td></tr>
           <tr><td><kbd>Shift</kbd> + <kbd>A</kbd>/<kbd>D</kbd> in the air</td><td>Flat spin (360s)</td></tr>
+          <tr><td>Hold <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> in the air</td><td>Superman, Nac-Nac, Heel Clicker, Cliffhanger - let go before you land!</td></tr>
           <tr><td><kbd>Shift</kbd></td><td>Clutch - hold, rev, release for a burst (wheelies)</td></tr>
           <tr><td><kbd>Space</kbd></td><td>Rear brake - locks the rear for slides</td></tr>
           <tr><td><kbd>R</kbd></td><td>Reset onto the track</td></tr>

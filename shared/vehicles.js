@@ -25,7 +25,20 @@ export const BIKE_COLORS = [
   { id: 'teal', name: 'Teal Storm', body: 0x0d9488, accent: 0xf1f1ee, gear: [0x0d9488, 0xf8fafc, 0x134e4a] },
   { id: 'purple', name: 'Ultraviolet', body: 0x6d28d9, accent: 0xfacc15, gear: [0x6d28d9, 0x111111, 0xfacc15] },
   { id: 'pink', name: 'Hot Pink', body: 0xec4899, accent: 0x111111, gear: [0xec4899, 0x111111, 0xffffff] },
+  // skins: a pattern drawn over the plastics (see PATTERNS / modelRig.js). third = a third colour
+  { id: 'inferno', name: 'Inferno', pattern: 'flames', body: 0xff3b00, accent: 0xffd000, third: 0x18181b, gear: [0xff3b00, 0x18181b, 0xffd000] },
+  { id: 'toxic', name: 'Toxic', pattern: 'stripes', body: 0x39ff14, accent: 0x111111, gear: [0x39ff14, 0x111111, 0x39ff14] },
+  { id: 'galaxy', name: 'Galaxy', pattern: 'galaxy', body: 0x1e1b4b, accent: 0x9333ea, gear: [0x312e81, 0x0f0a1f, 0xc084fc] },
+  { id: 'chrome', name: 'Liquid Chrome', pattern: 'chrome', body: 0xd6dbe1, accent: 0x52525b, gear: [0xd6dbe1, 0x27272a, 0xffffff] },
+  { id: 'carbon', name: 'Carbon Fiber', pattern: 'carbon', body: 0x18181b, accent: 0x3f3f46, gear: [0x18181b, 0x3f3f46, 0xef4444] },
+  { id: 'digicamo', name: 'Digital Camo', pattern: 'camo', body: 0x556b3a, accent: 0x2f3a26, third: 0x9c9a6a, gear: [0x556b3a, 0x2f3a26, 0x9c9a6a] },
+  { id: 'tiger', name: 'Tiger', pattern: 'tiger', body: 0xf28c16, accent: 0x111111, gear: [0xf28c16, 0x111111, 0xffffff] },
+  { id: 'glacier', name: 'Glacier Fade', pattern: 'gradient', body: 0xe0f2fe, accent: 0x0284c7, gear: [0x7dd3fc, 0xf8fafc, 0x0c4a6e] },
+  { id: 'finish', name: 'Finish Line', pattern: 'checker', body: 0xf4f4f4, accent: 0x111111, gear: [0x111111, 0xf4f4f4, 0xef4444] },
+  { id: 'goldrush', name: 'Gold Rush', pattern: 'chrome', body: 0xd4a017, accent: 0x111111, gear: [0xd4a017, 0x111111, 0xfff4cc] },
+  { id: 'neonwave', name: 'Neon Wave', pattern: 'stripes', body: 0xec4899, accent: 0x22d3ee, gear: [0xec4899, 0x0f172a, 0x22d3ee] },
 ];
+export const PATTERNS = ['solid', 'stripes', 'flames', 'camo', 'galaxy', 'carbon', 'chrome', 'tiger', 'gradient', 'checker'];
 
 // ---------------------------------------------------------------------
 //  THE 3D MODELS (measured from the .glb files, in the model's own space:
@@ -102,10 +115,10 @@ const BIKE_BASE = {
   progressive: 6,                 // spring force at full travel = this x static load
   steer: { maxLow: 32, latAcc: 10.6, rate: 3.6, feedback: 2.5, airYaw: 2.2 },
   lean: { max: 52, rate: 7 },
-  air: { flipRate: 5.6, flipAccel: 9, spinDamp: 1.2, gyro: 2.5, whip: 60, spinRate: 5.0 },
+  air: { flipRate: 5.6, flipAccel: 9, spinDamp: 1.2, gyro: 2.5, whip: 72, spinRate: 5.0 },
   balance: { rollK: 45000, rollC: 3200, airRollK: 900, airRollC: 160 },
   brakes: { front: 1500, rear: 1000 },      // N of force at the tyre at full input
-  crash: { landPitch: 52, impact: 14, slide: 78, roll: 70, loop: 80 },
+  crash: { landPitch: 64, impact: 19, slide: 86, roll: 80, loop: 90 },
   probes: [
     { p: [0, 0.75, 0.15], r: 0.18, hit: 'rider' },     // rider head / helmet
     { p: [0.42, 0.35, 0.62], r: 0.06, hit: 'hard' },   // left bar end
@@ -143,7 +156,7 @@ const ATV_BASE = {
   axleScrub: 0.22,                 // solid rear axle resists turning (understeer)
   air: { flipRate: 3.6, flipAccel: 6, spinDamp: 1.0, gyro: 1.6, whip: 25, spinRate: 4.6 },
   brakes: { front: 2100, rear: 1500 },
-  crash: { landPitch: 58, impact: 14, roll: 80, loop: 82 },
+  crash: { landPitch: 66, impact: 19, roll: 88, loop: 90 },
   probes: [
     { p: [0, 0.85, -0.05], r: 0.2, hit: 'rider' },
     { p: [0.42, 0.48, 0.25], r: 0.07, hit: 'hard' },
@@ -255,9 +268,11 @@ export const VEHICLES = [
     id: 'mx250', name: 'Factory 250F', paint: 'blue', tier: 'Starter',
     desc: 'Light and screaming. Less grunt than the 450 but it flicks into turns, floats over whoops and spins fast in the air.',
     stats: { speed: 7, accel: 7, handling: 9, stability: 6, suspension: 7 },
-    mass: 185, inertia: [56, 44, 20],
-    steer: { ...BIKE_BASE.steer, rate: 4.2, latAcc: 11.0 },
-    air: { ...BIKE_BASE.air, flipRate: 6.0 },
+    // light and nimble: quick to turn and rotate, revs to the moon, short on grunt
+    mass: 172, inertia: [48, 37, 17],
+    steer: { ...BIKE_BASE.steer, rate: 4.8, latAcc: 11.4 },
+    air: { ...BIKE_BASE.air, flipRate: 6.8, spinRate: 6.0, whip: 80 },
+    wheels: BIKE_BASE.wheels.map((w) => ({ ...w, freq: w.freq * 0.94 })),
     engine: engine({ idle: 2000, redline: 13500, torque: [[1500, 11], [4000, 17], [8000, 24], [11000, 26.5], [13000, 24], [14000, 19]], gearSpeeds: [11, 16, 21, 26, 30.5] }),
   },
   {
@@ -265,7 +280,11 @@ export const VEHICLES = [
     id: 'mx450', name: 'Factory 450 MX', paint: 'red', tier: 'Pro',
     desc: 'Open-class four-stroke. Brutal torque out of corners and the speed to clear anything on the track.',
     stats: { speed: 9, accel: 9, handling: 7, stability: 7, suspension: 8 },
-    engine: engine({ torque: [[1000, 18], [3000, 30], [6000, 40], [8000, 42], [10000, 38], [11500, 30]] }),
+    // heavier and torquey: pulls from nothing, slower to turn and rotate, very planted
+    mass: 204, inertia: [66, 52, 24],
+    steer: { ...BIKE_BASE.steer, rate: 3.3, latAcc: 10.3 },
+    air: { ...BIKE_BASE.air, flipRate: 5.0, spinRate: 4.5, whip: 66 },
+    engine: engine({ idle: 1500, redline: 10500, torque: [[1000, 26], [3000, 38], [6000, 45], [8000, 45], [10000, 38], [11000, 30]], gearSpeeds: [12.5, 18.5, 24.5, 30, 35] }),
   },
   {
     ...BIKE_BASE,
@@ -275,13 +294,17 @@ export const VEHICLES = [
     damping: { bump: 0.46, rebound: 0.66 },
     steer: { ...BIKE_BASE.steer, latAcc: 11.2, rate: 4.0 },
     wheels: BIKE_BASE.wheels.map((w) => ({ ...w, freq: w.freq * 1.08, mu: w.mu * 1.03 })),
-    engine: engine({ torque: [[1000, 19], [3000, 32], [6000, 44], [8000, 46], [10000, 42], [11500, 33]], gearSpeeds: [12.5, 18, 24, 29.5, 34.5] }),
+    mass: 198, inertia: [62, 48, 22],
+    air: { ...BIKE_BASE.air, flipRate: 5.6, spinRate: 5.0, whip: 75 },
+    engine: engine({ idle: 1500, redline: 11200, torque: [[1000, 27], [3000, 41], [6000, 50], [8000, 52], [10000, 47], [11500, 37]], gearSpeeds: [13, 19.5, 25.5, 31.5, 37] }),
   },
   {
     ...ATV_BASE,
     id: 'atv450', name: 'Pro 450R', paint: 'yellow', tier: 'Starter',
     desc: 'A race-bred sport quad. Planted on four wheels, slides the rear when you ask it to.',
     stats: { speed: 8, accel: 7, handling: 8, stability: 8, suspension: 7 },
+    mass: 285, inertia: [88, 106, 48],
+    air: { ...ATV_BASE.air, flipRate: 4.1, spinRate: 5.2 },
     engine: engine({ idle: 1600, redline: 10000, torque: [[1000, 22], [3000, 36], [6000, 48], [7500, 50], [9000, 44], [10500, 35]], gearSpeeds: [10, 15, 20, 25, 29.5], reverseSpeed: 4 }),
   },
   {
@@ -289,8 +312,9 @@ export const VEHICLES = [
     id: 'atv700', name: 'Pro 700 Brute', paint: 'orange', tier: 'Pro',
     desc: 'Big-bore torque monster. Heavy and stable, pulls hard everywhere, a handful in tight turns.',
     stats: { speed: 9, accel: 8, handling: 6, stability: 10, suspension: 8 },
-    mass: 335, inertia: [105, 128, 58],
-    steer: { ...ATV_BASE.steer, maxLow: 30, rate: 2.6 },
+    mass: 350, inertia: [112, 136, 62],
+    steer: { ...ATV_BASE.steer, maxLow: 29, rate: 2.4 },
+    air: { ...ATV_BASE.air, flipRate: 3.1, spinRate: 3.9 },
     engine: engine({ idle: 1300, redline: 8500, torque: [[1000, 38], [2500, 55], [4500, 66], [6000, 64], [7500, 56], [9000, 44]], gearSpeeds: [9.5, 14.5, 19.5, 24.5, 30], reverseSpeed: 4 }),
   },
   {
@@ -306,7 +330,8 @@ export const VEHICLES = [
     desc: 'Race-built Viper: bigger turbo, stiffer shocks and a quicker steering rack. The fastest thing on four small wheels.',
     stats: { speed: 10, accel: 9, handling: 8, stability: 9, suspension: 10 },
     damping: { bump: 0.48, rebound: 0.78 },
-    steer: { ...UTV_BASE.steer, rate: 3.0, latAcc: 10.0 },
+    steer: { ...UTV_BASE.steer, rate: 3.2, latAcc: 10.4 },
+    mass: 780,
     engine: engine({ idle: 1200, redline: 8200, torque: [[1000, 130], [3000, 200], [5500, 235], [7000, 225], [8500, 190]], gearSpeeds: [12.5, 21, 29.5, 37], engineBrake: 30, shiftTime: 0.07, reverseSpeed: 5 }),
   },
   {
@@ -334,25 +359,28 @@ export function getVehicle(id) {
 }
 
 // ---------------------------------------------------------------------
-//  UPGRADES (bought in the shop, per vehicle, 3 levels each)
+//  UPGRADES (bought in the shop, per vehicle, 5 levels each)
 //  They scale the physics a little - never enough to make a vehicle
 //  a different class.
 // ---------------------------------------------------------------------
 export const UPGRADES = {
-  engine: { name: 'Engine', levels: [{ price: 800, power: 1.04 }, { price: 1800, power: 1.08 }, { price: 3500, power: 1.12 }] },
-  suspension: { name: 'Suspension', levels: [{ price: 700, travel: 1.04, damp: 1.05 }, { price: 1500, travel: 1.08, damp: 1.1 }, { price: 3000, travel: 1.12, damp: 1.15 }] },
-  tyres: { name: 'Tyres', levels: [{ price: 600, grip: 1.03 }, { price: 1300, grip: 1.06 }, { price: 2600, grip: 1.09 }] },
+  engine: { name: 'Engine', levels: [800, 1600, 3000, 5000, 8000].map((price, i) => ({ price, power: [1.04, 1.08, 1.12, 1.16, 1.22][i] })) },
+  suspension: { name: 'Suspension', levels: [700, 1400, 2600, 4400, 7000].map((price, i) => ({ price, travel: 1 + 0.03 * (i + 1), damp: 1 + 0.04 * (i + 1) })) },
+  tyres: { name: 'Tyres', levels: [600, 1300, 2400, 4000, 6500].map((price, i) => ({ price, grip: 1 + 0.03 * (i + 1) })) },
+  weight: { name: 'Weight Reduction', levels: [700, 1500, 2800, 4500, 7000].map((price, i) => ({ price, mass: 1 - 0.03 * (i + 1) })) },
+  air: { name: 'Air Control', levels: [600, 1200, 2200, 3600, 5500].map((price, i) => ({ price, rot: 1 + 0.06 * (i + 1) })) },
 };
 
 export function applyUpgrades(def, ups = {}) {
-  const e = ups.engine ? UPGRADES.engine.levels[ups.engine - 1] : null;
-  const s = ups.suspension ? UPGRADES.suspension.levels[ups.suspension - 1] : null;
-  const t = ups.tyres ? UPGRADES.tyres.levels[ups.tyres - 1] : null;
-  if (!e && !s && !t) return def;
+  const L = (p) => (ups[p] ? UPGRADES[p].levels[Math.min(ups[p], UPGRADES[p].levels.length) - 1] : null);
+  const e = L('engine'), s = L('suspension'), t = L('tyres'), w = L('weight'), a = L('air');
+  if (!e && !s && !t && !w && !a) return def;
   const d = JSON.parse(JSON.stringify(def));
   if (e) d.engine.torque = d.engine.torque.map(([r, q]) => [r, q * e.power]);
-  if (s) { d.wheels.forEach((w) => { w.travel *= s.travel; }); d.damping.bump *= s.damp; d.damping.rebound *= s.damp; }
-  if (t) d.wheels.forEach((w) => { w.mu *= t.grip; });
+  if (s) { d.wheels.forEach((x) => { x.travel *= s.travel; }); d.damping.bump *= s.damp; d.damping.rebound *= s.damp; }
+  if (t) d.wheels.forEach((x) => { x.mu *= t.grip; });
+  if (w) { d.mass *= w.mass; d.inertia = d.inertia.map((i) => i * w.mass); }
+  if (a) { d.air.flipRate *= a.rot; d.air.spinRate *= a.rot; d.air.flipAccel *= a.rot; }
   return d;
 }
 

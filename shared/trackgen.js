@@ -11,6 +11,8 @@ const STEP = 0.5; // centreline sample spacing (m)
 // landing ramps are this much longer than written in tracks.js, so a wider
 // range of speeds lands smoothly on the downslope instead of on flat ground
 const LAND_SCALE = 1.45;
+// whoops and rollers are built lower than the numbers in tracks.js (easier to ride)
+const WHOOP_SCALE = 0.62, ROLLER_SCALE = 0.8;
 
 function nl(th) { return [Math.sin(th), -Math.cos(th)]; } // left normal of heading th
 
@@ -171,7 +173,7 @@ function featureHeight(f, knots, x) {
   if (f.type === 'whoops' || f.type === 'rollers') {
     const L = f.n * f.len;
     if (x <= 0 || x >= L) return 0;
-    return f.h * 0.5 * (1 - Math.cos((2 * Math.PI * x) / f.len));
+    return f.h * (f.type === 'whoops' ? WHOOP_SCALE : ROLLER_SCALE) * 0.5 * (1 - Math.cos((2 * Math.PI * x) / f.len));
   }
   return hermite(knots, x);
 }

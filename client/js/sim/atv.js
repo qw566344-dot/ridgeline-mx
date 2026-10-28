@@ -12,7 +12,7 @@
 import * as THREE from '../../vendor/three.module.js';
 import { groundAt } from '../../../shared/terrain.js';
 import { bankBoost } from './bike.js';
-import { newTrick, scoreTricks } from './tricks.js';
+import { newTrick, scoreTricks, trackPose } from './tricks.js';
 
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
@@ -151,6 +151,7 @@ export class AtvController {
       // air: Q / E flip, A / D a small sideways throw, landing assist when hands-off
       const A = c.air;
       const tr = this.trick || (this.trick = newTrick(v));
+      if (c.type === 'atv') trackPose(tr, inp, dt);
       tr.pitch += pitchW * dt; tr.yaw += yawW * dt;
       let ap = (inp.lean * A.flipRate - pitchW) * (Math.abs(inp.lean) > 0.1 ? A.flipAccel : A.spinDamp);
       ap += -inp.throttle * A.gyro * 0.4 + inp.rearBrake * A.gyro;
@@ -199,6 +200,7 @@ export class AtvController {
       groundAt(v.world, v.pos.x, v.pos.z, g0);
       const vin = -(v.prevVel.x * g0.nx + v.prevVel.y * g0.ny + v.prevVel.z * g0.nz);
       v.landImpact = vin;
+      if (this.trick && this.trick.cur) return v.crash('Landed still doing a ' + this.trick.cur);
       if (!c.tough) {
         if (p > c.landPitch) return v.crash('Flipped over backwards');
         if (p < -c.landPitch) return v.crash('Nose-dived the landing');

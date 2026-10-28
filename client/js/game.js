@@ -201,7 +201,10 @@ export class Game {
     if (opts.mode === 'race' && !opts.mp) {
       const skillBase = { easy: 0.84, medium: 0.91, hard: 0.97 }[this.settings.get('aiSkill')] || 0.91;
       for (let i = 0; i < opts.aiCount; i++) {
-        const vd = opts.aiVehicleType === 'same' ? getVehicle(opts.vehicleId) : VEHICLES[(i + 1) % VEHICLES.length];
+        // AI rides what suits the track (its recommended vehicle types)
+        const rec = getTrack(opts.trackId).recommend;
+        const pool = rec ? VEHICLES.filter((x) => rec.includes(x.category)) : VEHICLES;
+        const vd = opts.aiVehicleType === 'same' ? getVehicle(opts.vehicleId) : pool[(i + 1) % pool.length];
         const g = grid[i + 1];
         const r = this.addRider({
           id: 10 + i, name: AI_NAMES[i % AI_NAMES.length], vehicleId: vd.id, colorId: BIKE_COLORS[(i + 2) % BIKE_COLORS.length].id,

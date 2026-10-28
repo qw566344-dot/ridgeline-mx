@@ -21,6 +21,8 @@ import path from 'path';
 import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
+import { Casino } from './casino.js';
+import { Admin, ADMINS } from './admin.js';
 
 const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
 
@@ -40,6 +42,8 @@ export class Accounts {
     this.attempts = new Map();
     this.saveTimer = null;
     this.friends = new Friends(this);
+    this.casino = new Casino(this);
+    this.admin = new Admin(this);
   }
 
   save() {
@@ -54,7 +58,7 @@ export class Accounts {
   hash(password, salt) { return crypto.scryptSync(String(password), salt, 32).toString('hex'); }
 
   profile(u) {
-    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats };
+    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, admin: ADMINS.includes(u.key) };
   }
 
   issue(u) {
@@ -205,6 +209,8 @@ export class Accounts {
       if (r === 'equip') return send(200, this.equip(u, m.slot, m.id));
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));
       if (r === 'logout') return send(200, this.logout(token));
+      if (r.startsWith('casino/')) { const out = this.casino.handle(r, u, m); if (out) return send(200, out); }
+      if (r.startsWith('admin/')) return send(200, this.admin.handle(r, u, m, url));
       if (r === 'friends' || r.startsWith('friends/')) { const out = this.friends.handle(r, u, m, url); if (out) return send(200, out); }
       return send(404, { error: 'Unknown' });
     });

@@ -10,6 +10,9 @@ import { Audio } from './audio.js';
 import { UI } from './ui.js';
 import { Game } from './game.js';
 import { Stage } from './stage.js';
+import { Thumbs } from './thumbs.js';
+import { CasinoUI } from './casino.js';
+import { AdminPanel } from './admin.js';
 import { Net } from './net.js';
 import { Account } from './account.js';
 import { Social } from './social.js';
@@ -24,11 +27,17 @@ const audio = new Audio(settings);
 const ui = new UI(settings);
 const game = new Game({ renderer: R, settings, audio, input, ui });
 const stage = new Stage(R);
+const thumbs = new Thumbs(R);
 const account = new Account();
 const social = new Social(account);
-ui.account = account; ui.game = game; ui.stage = stage; ui.social = social;
+ui.account = account; ui.game = game; ui.stage = stage; ui.social = social; ui.thumbs = thumbs;
+// shop pictures: redraw the shop a moment after new ones are ready
+let thumbTimer = null;
+thumbs.onReady(() => { if (ui.screen === 'shop' && !thumbTimer) thumbTimer = setTimeout(() => { thumbTimer = null; const y = document.getElementById('shop-grid').scrollTop; ui.renderShop(); document.getElementById('shop-grid').scrollTop = y; }, 250); });
 game.account = account;
 const net = new Net(ui, game, settings);
+ui.casino = new CasinoUI(ui, account);
+new AdminPanel(ui, account);
 ui.net = net;
 social.presence = () => net.presence();
 
@@ -138,13 +147,14 @@ window.addEventListener('keydown', () => audio.unlock());
 
 // ---- frame loop
 let last = performance.now();
-const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'friends', 'settings', 'controls', 'credits']);
+const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits']);
 function loop(now) {
   const raw = (now - last) / 1000;
   const dt = Math.min(0.1, raw);
   game.rawDt = raw;
   last = now;
   input.update(dt);
+  if (ui.screen === 'shop') thumbs.step();
   if (STAGE_SCREENS.has(ui.screen) && game.state !== 'running') stage.render(dt);
   else { stage.active = false; game.frame(dt); }
   input.endFrame();

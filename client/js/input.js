@@ -15,6 +15,10 @@ export const KEYS = {
   reset: ['KeyR'],
   camera: ['KeyC'],
   retry: ['KeyT'],
+  trick1: ['Digit1', 'Numpad1'],   // Superman
+  trick2: ['Digit2', 'Numpad2'],   // Nac-Nac
+  trick3: ['Digit3', 'Numpad3'],   // Heel Clicker
+  trick4: ['Digit4', 'Numpad4'],   // Cliffhanger
   pause: ['Escape', 'KeyP'],
   fps: ['F3'],
 };
@@ -23,7 +27,7 @@ export class Input {
   constructor() {
     this.down = new Set();
     this.pressedOnce = new Set();
-    this.controls = { throttle: 0, brake: 0, steer: 0, rearBrake: 0, clutch: false, lean: 0 };
+    this.controls = { throttle: 0, brake: 0, steer: 0, rearBrake: 0, clutch: false, lean: 0, trick: 0 };
     this.enabled = true;
     this.mouse = { dx: 0, dy: 0, look: false };
     window.addEventListener('keydown', (e) => {
@@ -64,6 +68,7 @@ export class Input {
     let lean = (this.held('leanFwd') ? 1 : 0) - (this.held('leanBack') ? 1 : 0);
     let rear = this.held('rearBrake') ? 1 : 0;
     let clutch = this.held('clutch');
+    let trick = this.held('trick1') ? 1 : this.held('trick2') ? 2 : this.held('trick3') ? 3 : this.held('trick4') ? 4 : 0;
     // gamepad (if any)
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     const pad = pads && Array.from(pads).find((p) => p && p.connected);
@@ -84,13 +89,14 @@ export class Input {
       };
       edge(0, 'reset'); edge(3, 'camera'); edge(9, 'pause'); edge(1, 'retry');
     }
-    if (!this.enabled) { thr = brk = st = lean = rear = 0; clutch = false; }
+    if (!this.enabled) { thr = brk = st = lean = rear = trick = 0; clutch = false; }
     c.throttle = ramp(c.throttle, thr, 7, 10);
     c.brake = ramp(c.brake, brk, 8, 12);
     c.steer = ramp(c.steer, st, 6, 9);
     c.lean = ramp(c.lean, lean, 6, 8);
     c.rearBrake = ramp(c.rearBrake, rear, 10, 12);
     c.clutch = clutch;
+    c.trick = trick;
     return c;
   }
 }

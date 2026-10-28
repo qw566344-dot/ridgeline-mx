@@ -614,7 +614,8 @@ export class Scenery {
   buildGrass() {
     const q = this.quality;
     // tufts per 100 m^2 (mostly buried on snowy tracks)
-    const density = q.grass * (1 - ((this.world.def.look && this.world.def.look.snow) || 0) * 0.8);
+    const lk = this.world.def.look || {};
+    const density = q.grass * (1 - (lk.snow || 0) * 0.8) * (1 - (lk.sand || 0) * 0.95);
     this.grassRange = q.detail === 'low' ? 35 : q.detail === 'high' ? 70 : 52;
     this.grassCell = 12;
     const cap = Math.ceil(((Math.PI * this.grassRange * this.grassRange) / 100) * density * 1.3) + 50;

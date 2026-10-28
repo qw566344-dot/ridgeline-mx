@@ -12,7 +12,7 @@
 // =====================================================================
 import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES } from '/shared/vehicles.js';
-import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds } from '/shared/shop.js';
+import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf } from '/shared/shop.js';
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
@@ -24,9 +24,9 @@ export { escapeHtml };
 import { Vector3 } from 'three';
 const $ = (id) => document.getElementById(id);
 const _tv = new Vector3();
-const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'friends', 'settings', 'controls', 'credits', 'pause', 'results'];
-const MENUS = new Set(['home', 'play', 'garage', 'shop', 'friends', 'settings', 'controls', 'credits']);
-const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', friends: 'friends', settings: 'settings' };
+const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits', 'pause', 'results'];
+const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits']);
+const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', friends: 'friends', settings: 'settings' };
 
 export const MODES = [
   { id: 'freeride', name: 'Free Ride', desc: 'Ride at your own pace. No timer, no pressure.', party: true },
@@ -38,11 +38,13 @@ export const MODES = [
 export const modeName = (id) => (MODES.find((m) => m.id === id) || MODES[0]).name;
 
 // rough effect of each upgrade level on the 0-10 stat bars
-const UP_STAT = { engine: { speed: 0.35, accel: 0.45 }, suspension: { suspension: 0.35, stability: 0.25 }, tyres: { handling: 0.4, stability: 0.15 } };
+const UP_STAT = { engine: { speed: 0.25, accel: 0.32 }, suspension: { suspension: 0.25, stability: 0.18 }, tyres: { handling: 0.28, stability: 0.1 }, weight: { accel: 0.2, handling: 0.15 }, air: { handling: 0.05 } };
 const UP_TEXT = {
   engine: (L) => `+${Math.round((L.power - 1) * 100)}% engine power`,
   suspension: (L) => `+${Math.round((L.travel - 1) * 100)}% travel, +${Math.round((L.damp - 1) * 100)}% damping`,
   tyres: (L) => `+${Math.round((L.grip - 1) * 100)}% grip`,
+  weight: (L) => `-${Math.round((1 - L.mass) * 100)}% weight (faster, nimbler)`,
+  air: (L) => `+${Math.round((L.rot - 1) * 100)}% flip and spin speed`,
 };
 const STATS = [['speed', 'Top speed'], ['accel', 'Acceleration'], ['handling', 'Handling'], ['stability', 'Stability'], ['suspension', 'Suspension']];
 
@@ -123,6 +125,7 @@ export class UI {
     if (name === 'play') this.renderPlay();
     if (name === 'garage') { this.gView = null; this.renderGarage(); }
     if (name === 'shop') this.renderShop();
+    if (name === 'casino' && this.casino) this.casino.show();
     if (name === 'friends') { this.renderFriends(); if (this.social) this.social.refresh(); }
     if (name === 'settings') this.renderSettings();
     this.renderTop();
@@ -313,7 +316,8 @@ export class UI {
       const d = document.createElement('div');
       const jumps = T.features.filter((f) => !['whoops', 'rollers'].includes(f.type)).length;
       const rec = mode === 'freestyle' ? `Best ${(S.bestScore(def.id) || 0).toLocaleString()} pts` : `Best lap ${fmtTime(S.bestLap(def.id, S.get('vehicle')))}`;
-      d.innerHTML = `<b>${def.name}</b><span class="diff ${def.difficulty}">${def.difficulty.toUpperCase()}</span><p>${(T.L / 1000).toFixed(2)} km &bull; ${jumps} jumps</p><p>${rec}</p>`;
+      const recs = (def.recommend || []).map((c) => `<span class="rec">${{ 'Dirt Bikes': 'BIKE', Quads: 'QUAD', 'Side-by-Sides': 'UTV', Buggies: 'BUGGY' }[c]}</span>`).join('');
+      d.innerHTML = `<b>${def.name}</b><span class="diff ${def.difficulty}">${def.difficulty.toUpperCase()}</span>${recs}<p>${(T.L / 1000).toFixed(2)} km &bull; ${jumps} jumps</p><p>${rec}</p>`;
       d.title = def.desc;
       b.appendChild(d);
       b.onclick = () => this.setMatch({ track: def.id });
@@ -470,45 +474,72 @@ export class UI {
   // ------------------------------------------------------------- shop
   openShop(tab, sel) { this.shopTab = tab; this.shopSel = sel; this.show('shop'); }
 
+  // Item shop, laid out like a battle-royale store: FEATURED (big cards) and
+  // DAILY rotate every day at midnight UTC (the same for everyone), then
+  // BROWSE has every vehicle, skin, gear set and upgrade.
   renderShop() {
     const S = this.settings, A = this.account;
-    const tabs = ['Vehicles', 'Paint', 'Rider Gear', 'Upgrades'];
-    $('shop-tabs').innerHTML = tabs.map((t) => `<button class="${t === this.shopTab ? 'sel' : ''}" data-t="${t}">${t}</button>`).join('');
-    $('shop-tabs').querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { this.shopTab = b.dataset.t; this.shopSel = null; this.renderShop(); this.syncStage(); });
     const owns = (slot, id) => !A || A.owns(slot, id);
-    const grid = $('shop-grid'), sub = $('shop-sub');
-    sub.innerHTML = '';
-    const cards = [];
-    const card = (slot, id, title, small, c1, c2, big = '') => {
-      const it = shopItem(slot, id);
-      const own = owns(slot, id);
-      let price = own ? '<span class="price owned">OWNED</span>' : `<span class="price"><i class="coin"></i>${it.price.toLocaleString()}</span>`;
-      if (slot === 'upgrade' && !own) {
-        const need = upgradeNeeds(it).find((n) => { const [s2, i2] = n.split(':'); return !owns(s2, i2); });
-        if (need) price = `<span class="price need">${need.startsWith('vehicle') ? 'Needs the vehicle' : 'Needs level ' + (it.level - 1)}</span>`;
-      }
-      const isSel = this.shopSel && this.shopSel.slot === slot && this.shopSel.id === id;
-      cards.push(`<button class="item ${isSel ? 'sel' : ''}" data-slot="${slot}" data-id="${id}"><div class="thumb" style="--c1:${hex(c1)};--c2:${hex(c2)}"><span class="big">${big}</span></div><div class="info"><b>${title}</b><small>${small}</small>${price}</div></button>`);
+    const day = Math.floor(Date.now() / 86400000);
+    const rot = (list, n, salt) => {
+      const r = seeded(day * 97 + salt), out = [...list];
+      for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+      return out.slice(0, n);
     };
-    if (this.shopTab === 'Vehicles') {
-      for (const v of VEHICLES) { const p = paintFor(v.id, 'stock'); card('vehicle', v.id, v.name, `${v.tier} ${v.category.replace(/ies$/, 'y').replace(/s$/, '')}`, p.body, p.accent, v.category === 'Dirt Bikes' ? 'MX' : v.category === 'Quads' ? 'ATV' : v.category === 'Buggies' ? 'BUGGY' : 'UTV'); }
-    } else if (this.shopTab === 'Paint') {
-      for (const c of BIKE_COLORS) card('color', c.id, c.name, 'Paint for every vehicle', c.body, c.accent);
-    } else if (this.shopTab === 'Rider Gear') {
-      const paint = paintFor(S.get('vehicle'), S.get('color'));
-      for (const g of GEAR_SETS) { const cs = g.colors || paint.gear; card('gear', g.id, g.name, g.desc || 'Jersey, pants, gloves', cs[0], cs[2]); }
-    } else {
+    const skinIds = BIKE_COLORS.filter((c) => c.pattern).map((c) => c.id);
+    const featuredPool = [...skinIds.filter((id) => ['Legendary', 'Epic'].includes(rarityOf(shopItem('color', id)))).map((id) => ({ slot: 'color', id })),
+      ...VEHICLES.filter((v) => shopItem('vehicle', v.id).price >= 6000).map((v) => ({ slot: 'vehicle', id: v.id }))];
+    const featured = rot(featuredPool, 3, 1);
+    const dailyPool = [...BIKE_COLORS.filter((c) => !featured.some((x) => x.id === c.id) && shopItem('color', c.id).price > 0).map((c) => ({ slot: 'color', id: c.id })),
+      ...GEAR_SETS.filter((g) => shopItem('gear', g.id).price > 0).map((g) => ({ slot: 'gear', id: g.id })),
+      ...VEHICLES.filter((v) => { const p = shopItem('vehicle', v.id).price; return p > 0 && p < 6000; }).map((v) => ({ slot: 'vehicle', id: v.id }))];
+    const daily = rot(dailyPool, 6, 2);
+    const left = 86400000 - (Date.now() % 86400000);
+    const hh = String(Math.floor(left / 3600000)).padStart(2, '0'), mm = String(Math.floor(left / 60000) % 60).padStart(2, '0');
+    const browseTabs = ['Vehicles', 'Skins & Paint', 'Rider Gear', 'Upgrades'];
+    if (!browseTabs.includes(this.shopTab)) this.shopTab = this.shopTab === 'Paint' ? 'Skins & Paint' : 'Vehicles';
+    let browse = [];
+    let sub = '';
+    if (this.shopTab === 'Vehicles') browse = VEHICLES.map((v) => ({ slot: 'vehicle', id: v.id }));
+    else if (this.shopTab === 'Skins & Paint') browse = BIKE_COLORS.map((c) => ({ slot: 'color', id: c.id })).sort((x, y) => shopItem('color', x.id).price - shopItem('color', y.id).price);
+    else if (this.shopTab === 'Rider Gear') browse = GEAR_SETS.map((g) => ({ slot: 'gear', id: g.id }));
+    else {
       const ownedV = VEHICLES.filter((v) => owns('vehicle', v.id));
       if (!this.shopUpVehicle || !ownedV.some((v) => v.id === this.shopUpVehicle)) this.shopUpVehicle = ownedV.some((v) => v.id === S.get('vehicle')) ? S.get('vehicle') : (ownedV[0] || VEHICLES[0]).id;
-      sub.innerHTML = ownedV.map((v) => `<button class="${v.id === this.shopUpVehicle ? 'sel' : ''}" data-uv="${v.id}">${v.name}</button>`).join('');
-      sub.querySelectorAll('[data-uv]').forEach((b) => b.onclick = () => { this.shopUpVehicle = b.dataset.uv; this.shopSel = null; this.renderShop(); this.syncStage(); });
-      for (const [part, U] of Object.entries(UPGRADES)) {
-        U.levels.forEach((L, i) => card('upgrade', `${this.shopUpVehicle}.${part}.${i + 1}`, `${U.name} L${i + 1}`, UP_TEXT[part](L), part === 'engine' ? 0xb91c1c : part === 'tyres' ? 0x27272a : 0x1d4ed8, 0x0f1115, 'L' + (i + 1)));
-      }
+      sub = '<div class="seg">' + ownedV.map((v) => `<button class="${v.id === this.shopUpVehicle ? 'sel' : ''}" data-uv="${v.id}">${v.name}</button>`).join('') + '</div>';
+      for (const [part, U] of Object.entries(UPGRADES)) U.levels.forEach((L, i) => browse.push({ slot: 'upgrade', id: `${this.shopUpVehicle}.${part}.${i + 1}` }));
     }
-    grid.innerHTML = cards.join('');
-    grid.querySelectorAll('.item').forEach((b) => b.onclick = () => { this.shopSel = { slot: b.dataset.slot, id: b.dataset.id }; this.renderShop(); this.syncStage(); });
+    const grid = $('shop-grid');
+    grid.innerHTML = `<div class="shop-head"><div><h2>Item Shop</h2><small>Coins come from riding - laps, records, races, big air and tricks</small></div><div class="reset">NEW ITEMS IN <b>${hh}:${mm}</b></div></div>
+      <h3 class="fsec">Featured</h3><div class="fgrid featured">${featured.map((x) => this.shopCard(x, true)).join('')}</div>
+      <h3 class="fsec">Daily</h3><div class="fgrid">${daily.map((x) => this.shopCard(x)).join('')}</div>
+      <h3 class="fsec">Browse</h3><div class="tabs">${browseTabs.map((t) => `<button class="${t === this.shopTab ? 'sel' : ''}" data-t="${t}">${t}</button>`).join('')}</div>${sub}
+      <div class="fgrid">${browse.map((x) => this.shopCard(x)).join('')}</div>`;
+    $('shop-tabs').innerHTML = ''; $('shop-sub').innerHTML = '';
+    grid.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { this.shopTab = b.dataset.t; this.shopSel = null; this.renderShop(); this.syncStage(); });
+    grid.querySelectorAll('[data-uv]').forEach((b) => b.onclick = () => { this.shopUpVehicle = b.dataset.uv; this.shopSel = null; this.renderShop(); this.syncStage(); });
+    grid.querySelectorAll('.fcard').forEach((b) => b.onclick = () => { this.shopSel = { slot: b.dataset.slot, id: b.dataset.id }; grid.querySelectorAll('.fcard.sel').forEach((x) => x.classList.remove('sel')); grid.querySelectorAll(`.fcard[data-slot="${b.dataset.slot}"][data-id="${b.dataset.id}"]`).forEach((x) => x.classList.add('sel')); this.renderShopDetail(); this.syncStage(); });
     this.renderShopDetail();
+  }
+
+  // one shop card: rarity colours, a rendered picture, name and price
+  shopCard(x, big = false) {
+    const S = this.settings, A = this.account;
+    const it = shopItem(x.slot, x.id);
+    if (!it) return '';
+    const own = !A || A.owns(x.slot, x.id);
+    const rar = rarityOf(it);
+    let name = '', type = '', img = null, badge = '';
+    if (x.slot === 'vehicle') { const v = getVehicle(x.id); name = v.name; type = v.tier + ' ' + v.category.replace(/ies$/, 'y').replace(/s$/, ''); img = this.thumbs && this.thumbs.get(x.id, 'stock'); }
+    if (x.slot === 'color') { const c = BIKE_COLORS.find((q) => q.id === x.id); name = c.name; type = c.pattern ? 'Skin' : 'Paint'; img = this.thumbs && this.thumbs.get(S.get('vehicle'), x.id, S.get('gear') || 'match'); }
+    if (x.slot === 'gear') { const g = GEAR_SETS.find((q) => q.id === x.id); name = g.name; type = 'Rider Gear'; img = this.thumbs && this.thumbs.get(S.get('vehicle'), S.get('color'), x.id); }
+    if (x.slot === 'upgrade') { const U = UPGRADES[it.part]; name = U.name + ' ' + it.level; type = getVehicle(it.vehicle).name; badge = `<span class="big-l">L${it.level}</span>`; }
+    const need = x.slot === 'upgrade' && !own ? upgradeNeeds(it).find((n) => { const [s2, i2] = n.split(':'); return A && !A.owns(s2, i2); }) : null;
+    const price = own ? '<span class="owned">OWNED</span>' : need ? `<span class="need">${need.startsWith('vehicle') ? 'Needs vehicle' : 'Needs L' + (it.level - 1)}</span>` : `<i class="coin"></i>${it.price.toLocaleString()}`;
+    const sel = this.shopSel && this.shopSel.slot === x.slot && this.shopSel.id === x.id;
+    return `<button class="fcard ${rar}${big ? ' big' : ''}${sel ? ' sel' : ''}${own ? ' is-owned' : ''}" data-slot="${x.slot}" data-id="${x.id}">
+      <span class="rar">${rar}</span>${img ? `<img src="${img}" alt="">` : badge || '<span class="loading-img"></span>'}
+      <span class="fname"><b>${escapeHtml(name)}</b><small>${escapeHtml(type)}</small><span class="fprice">${price}</span></span></button>`;
   }
 
   renderShopDetail() {
@@ -523,7 +554,7 @@ export class UI {
     const own = !A || A.owns(sel.slot, sel.id);
     let title = '', body = '';
     if (sel.slot === 'vehicle') { const v = getVehicle(sel.id); title = v.name; body = `<p class="desc">${v.desc}</p>` + STATS.map(([k, n]) => `<div class="stat"><div class="lbl"><span>${n}</span><span>${v.stats[k]}</span></div><div class="bar"><i style="width:${v.stats[k] * 10}%"></i></div></div>`).join(''); }
-    if (sel.slot === 'color') { const c = BIKE_COLORS.find((x) => x.id === sel.id); title = c.name + ' paint'; body = '<p class="desc">Works on every vehicle you own, with matching rider kit when your gear is set to Team Kit.</p>'; }
+    if (sel.slot === 'color') { const c = BIKE_COLORS.find((x) => x.id === sel.id); title = c.name + (c.pattern ? ' skin' : ' paint'); body = '<p class="desc">Works on every vehicle you own, with matching rider kit when your gear is set to Team Kit.</p>'; }
     if (sel.slot === 'gear') { const g = GEAR_SETS.find((x) => x.id === sel.id); title = g.name + ' gear'; body = '<p class="desc">Jersey, pants and gloves for your rider.</p>'; }
     if (sel.slot === 'upgrade') { const U = UPGRADES[it.part]; title = `${getVehicle(it.vehicle).name}: ${U.name} level ${it.level}`; body = `<p class="desc">${UP_TEXT[it.part](U.levels[it.level - 1])}. Only for this vehicle. Upgrades stack - each level replaces the one below.</p>`; }
     let need = null;
@@ -987,6 +1018,7 @@ function statusText(f) {
   if (f.status === 'party') return 'In a party lobby';
   return 'Online · in the menus';
 }
+function seeded(seed) { let x = seed >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
 function fsLabel(n) { return n ? n + ' min' : 'No limit'; }
 function pingCls(p) { return p == null ? '' : p < 90 ? 'good' : p < 170 ? 'ok' : 'bad'; }
 void ordinal;

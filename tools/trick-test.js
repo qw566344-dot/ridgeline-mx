@@ -34,7 +34,7 @@ for (const id of ['mx450', 'mx250', 'atv450']) {
 }
 
 // --- flips off the big downhill table
-for (const [id, lean, label] of [['mx450', -1, 'backflip'], ['mx450', 1, 'front flip'], ['mx450', 'whip', 'whip'], ['atv450', -1, 'backflip'], ['mx450', 'spin', '360 spin'], ['atv450', 'spin', '360 spin'], ['utv', 'spin', '360 spin']]) {
+for (const [id, lean, label] of [['mx450', -1, 'backflip'], ['mx450', 1, 'front flip'], ['mx450', 'whip', 'whip'], ['atv450', -1, 'backflip'], ['mx450', 'spin', '360 spin'], ['atv450', 'spin', '360 spin'], ['utv', 'spin', '360 spin'], ['mx450', 'pose1', 'superman'], ['mx250', 'pose4', 'cliffhanger'], ['atv450', 'pose2', 'nac-nac'], ['mx450', 'posebad', 'superman held into the landing']]) {
   const tbl = T.features.find((f) => f.type === 'table' && f.segName === 'Big Downhill');
   const v = new Vehicle(id, W);
   const p = pointAt(T, tbl.s0 - 60, 0); v.placeAt(p.x, p.z, p.tx, p.tz);
@@ -47,10 +47,12 @@ for (const [id, lean, label] of [['mx450', -1, 'backflip'], ['mx450', 1, 'front 
       const t = v.controller.trick;
       const rot = t ? Math.abs(t.pitch) : 0;
       v.input.throttle = 0.3; v.input.brake = 0; v.input.rearBrake = 0;
-      if (lean === 'whip') { v.input.lean = 0; v.input.steer = v.airTime < 0.7 ? 1 : 0; }
+      v.input.trick = 0;
+      if (String(lean).startsWith('pose')) { v.input.lean = 0; v.input.steer = 0; v.input.trick = lean === 'posebad' ? 1 : v.airTime < 1.0 && !tricks.length ? Number(lean[4]) : 0; }
+      else if (lean === 'whip') { v.input.lean = 0; v.input.steer = v.airTime < 0.7 ? 1 : 0; }
       else if (lean === 'spin') { const y = v.controller.trick ? Math.abs(v.controller.trick.yaw) : 0; v.input.lean = 0; v.input.clutch = y < 2 * Math.PI - 1.2; v.input.steer = v.input.clutch ? 1 : 0; }
       else { v.input.steer = 0; v.input.lean = rot < 2 * Math.PI - 1.7 ? lean : 0; }
-    } else { ai.update(FIXED_DT); v.input.clutch = false; }
+    } else { ai.update(FIXED_DT); v.input.clutch = false; if (lean !== 'posebad' || !took) v.input.trick = 0; }
     v.step(FIXED_DT);
     for (const e of v.events) if (e.type === 'trick') tricks.push(e.name + ' (' + e.landing + ' ' + e.score + ')');
     v.events.length = 0;

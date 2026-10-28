@@ -143,7 +143,7 @@ export class Rider {
       pelvis: V(), neck: V(), head: V(), shL: V(), shR: V(), elL: V(), elR: V(), haL: V(), haR: V(),
       hipL: V(), hipR: V(), knL: V(), knR: V(), anL: V(), anR: V(), toeL: V(), toeR: V(),
     };
-    this.s = { stand: 0, crouch: 0, fore: 0, leanBody: 0, footL: 0, footR: 0, legOutL: 0, legOutR: 0, bob: 0, air: 0 };
+    this.s = { stand: 0, crouch: 0, fore: 0, leanBody: 0, footL: 0, footR: 0, legOutL: 0, legOutR: 0, bob: 0, air: 0, pose: 0, poseId: null };
     this.attached = true;
     this.rag = null;
     this.tmp = { a: V(), b: V(), c: V(), up: V(), fwd: V(), left: V() };
@@ -226,8 +226,16 @@ export class Rider {
     J.pelvis.z += s.fore * 0.14 * (0.5 + s.stand);
     J.pelvis.y -= s.crouch * 0.22 * (0.4 + s.stand);
     J.pelvis.x += Math.sin(s.leanBody) * 0.1;
+    // rider tricks (keys 1-4 in the air): blend into the pose
+    const curPose = veh.controller && veh.controller.trick && !veh.grounded ? veh.controller.trick.cur : null;
+    if (curPose) s.poseId = curPose;
+    s.pose += ((curPose ? 1 : 0) - s.pose) * Math.min(1, dt * 9);
+    const P = s.pose > 0.01 ? s.poseId : null, pw = s.pose;
+    if (P === 'Superman') { J.pelvis.y += 0.14 * pw; J.pelvis.z -= 0.18 * pw; }
+    if (P === 'Cliffhanger') J.pelvis.y += 0.28 * pw;
+    if (P === 'Heel Clicker') { J.pelvis.y += 0.1 * pw; J.pelvis.z -= 0.1 * pw; }
     // torso direction (forward lean + side lean)
-    const pitch = (isBike ? 0.32 : 0.25) + s.stand * 0.38 + s.fore * 0.25 + s.crouch * 0.35;
+    const pitch = (isBike ? 0.32 : 0.25) + s.stand * 0.38 + s.fore * 0.25 + s.crouch * 0.35 + (P === 'Superman' ? 0.85 * pw : P === 'Cliffhanger' ? -0.3 * pw : 0);
     t.up.set(Math.sin(s.leanBody) * 0.9, Math.cos(pitch), Math.sin(pitch)).normalize();
     J.neck.copy(J.pelvis).addScaledVector(t.up, LEN.torso);
     // shoulders
@@ -239,6 +247,7 @@ export class Rider {
     // arms to the grips, elbows up and out
     for (const [sh, el, ha, grip, sx] of [[J.shL, J.elL, J.haL, A.gripL, 1], [J.shR, J.elR, J.haR, A.gripR, -1]]) {
       t.b.copy(grip).add(t.c.set(0, 0.0, -0.03));
+      if (P === 'Cliffhanger') t.b.lerp(t.c.set(sh.x + sx * 0.3, sh.y + 0.5, sh.z + 0.05), pw);   // hands up
       t.a.copy(sh).add(t.c.set(sx * 0.5, 0.12, -0.25));
       ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
     }
@@ -250,6 +259,10 @@ export class Rider {
       t.b.copy(peg).add(t.c.set(0, 0.08, -0.02));
       if (out > 0.01) t.b.lerp(t.c.set(sx * 0.42, -0.42, 0.55), out);
       if (dabK > 0.01) t.b.lerp(t.c.set(sx * 0.45, -0.8, 0.05), dabK);
+      if (P === 'Superman') t.b.lerp(t.c.set(sx * 0.16, seat.y + 0.3, seat.z - 0.8), pw);
+      if (P === 'Nac-Nac' && sx > 0) t.b.lerp(t.c.set(-0.45, pegY + 0.5, pegZ - 0.1), pw);
+      if (P === 'Heel Clicker') t.b.lerp(t.c.set(sx * 0.06, A.gripL.y - 0.02, A.gripL.z + 0.22), pw);
+      if (P === 'Cliffhanger') t.b.lerp(t.c.set(sx * 0.12, A.gripL.y - 0.18, A.gripL.z + 0.08), pw);
       t.a.copy(hip).add(t.c.set(sx * 0.18, 0.05, 0.6));
       ik(hip, t.b, LEN.th, LEN.sh, t.a, kn, an);
       toe.copy(an).add(t.c.set(0, -0.06, 0.24));

@@ -39,6 +39,18 @@ export const SHOP = [
   { id: 'black', slot: 'color', price: 1200 },
   { id: 'purple', slot: 'color', price: 1400 },
   { id: 'pink', slot: 'color', price: 1400 },
+  // skins
+  { id: 'digicamo', slot: 'color', price: 2500, rarity: 'Rare' },
+  { id: 'glacier', slot: 'color', price: 2200, rarity: 'Rare' },
+  { id: 'finish', slot: 'color', price: 2400, rarity: 'Rare' },
+  { id: 'toxic', slot: 'color', price: 3500, rarity: 'Epic' },
+  { id: 'carbon', slot: 'color', price: 4000, rarity: 'Epic' },
+  { id: 'tiger', slot: 'color', price: 4500, rarity: 'Epic' },
+  { id: 'neonwave', slot: 'color', price: 4200, rarity: 'Epic' },
+  { id: 'inferno', slot: 'color', price: 6000, rarity: 'Legendary' },
+  { id: 'galaxy', slot: 'color', price: 7500, rarity: 'Legendary' },
+  { id: 'chrome', slot: 'color', price: 9000, rarity: 'Legendary' },
+  { id: 'goldrush', slot: 'color', price: 12000, rarity: 'Legendary' },
   // rider gear
   { id: 'match', slot: 'gear', price: 0 },
   { id: 'black', slot: 'gear', price: 700 },
@@ -69,13 +81,23 @@ export function upgradeLevels(owned, vehicleId) {
   const out = {};
   for (const part of Object.keys(UPGRADES)) {
     let lvl = 0;
-    for (let i = 1; i <= 3; i++) if (owned.includes(`upgrade:${vehicleId}.${part}.${i}`)) lvl = i;
+    for (let i = 1; i <= UPGRADES[part].levels.length; i++) if (owned.includes(`upgrade:${vehicleId}.${part}.${i}`)) lvl = i;
     if (lvl) out[part] = lvl;
   }
   return out;
 }
 
 export const STARTER = { coins: 500, owned: SHOP.filter((i) => i.price === 0).map((i) => i.slot + ':' + i.id), equipped: { vehicle: 'mx250', color: 'stock', gear: 'match' } };
+
+// rarity for the shop cards (set on the item, or from its price)
+export const RARITIES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+export function rarityOf(it) {
+  if (!it) return 'Common';
+  if (it.rarity) return it.rarity;
+  if (it.slot === 'vehicle') return it.price >= 9000 ? 'Legendary' : it.price >= 6000 ? 'Epic' : it.price >= 3000 ? 'Rare' : it.price > 0 ? 'Uncommon' : 'Common';
+  if (it.slot === 'upgrade') return ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][it.level - 1] || 'Common';
+  return it.price >= 4000 ? 'Epic' : it.price >= 1200 ? 'Rare' : it.price > 0 ? 'Uncommon' : 'Common';
+}
 
 export function shopItem(slot, id) { return SHOP.find((i) => i.slot === slot && i.id === id) || null; }
 

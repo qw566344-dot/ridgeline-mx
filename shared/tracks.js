@@ -21,7 +21,7 @@
 
 export const TRACKS = [
   {
-    id: 'ridgeline',
+    id: 'ridgeline', recommend: ['Dirt Bikes', 'Quads'],
     name: 'Ridgeline National', difficulty: 'Medium',
     desc: 'A big outdoor national track carved into rolling hills. Tall berms, a ridge-top triple, a long downhill with big air and a split rhythm lane.',
     worldSize: 700,
@@ -72,7 +72,8 @@ export const TRACKS = [
     finishAt: 115,     // metres along the lap of the finish line
   },
   {
-    id: 'quarry',
+    id: 'quarry', recommend: ['Dirt Bikes'],
+    look: { dirt: [0.86, 0.83, 0.8], grass: [0.82, 0.88, 0.7], trees: 0.25, pines: 0.2, rocks: 3.2, fog: 0xd2cdc4, skyTop: 0x4f7fb8, horizon: 0xdcd6cc },
     name: 'Quarry Arenacross', difficulty: 'Expert',
     desc: 'Tight, technical and fast on the floor of an old stone quarry. Hairpin switchbacks, rhythm after rhythm and a long wall-side straight.',
     worldSize: 460,
@@ -126,7 +127,7 @@ export const TRACKS = [
     finishAt: 100,
   },
   {
-    id: 'canyon',
+    id: 'canyon', recommend: ['Dirt Bikes', 'Quads', 'Side-by-Sides'],
     name: 'Canyon Creek', difficulty: 'Hard',
     desc: 'Red dirt on a desert canyon floor. A massive canyon gap, deep sand whoops and long, fast mesa straights.',
     worldSize: 760,
@@ -165,7 +166,7 @@ export const TRACKS = [
     finishAt: 110,
   },
   {
-    id: 'pine',
+    id: 'pine', recommend: ['Dirt Bikes', 'Quads'],
     name: 'Pine Hollow', difficulty: 'Medium',
     desc: 'A tight, hilly track cut through a pine forest. Rollers, rhythm and off-camber corners - flow is everything.',
     worldSize: 640,
@@ -202,7 +203,7 @@ export const TRACKS = [
     finishAt: 95,
   },
   {
-    id: 'practice',
+    id: 'practice', recommend: ['Dirt Bikes', 'Quads', 'Side-by-Sides', 'Buggies'],
     name: 'Practice Ground', difficulty: 'Easy',
     desc: 'A wide, forgiving loop to learn on: small tables, then medium, then big ones, plus friendly rollers and berms.',
     worldSize: 560,
@@ -237,7 +238,7 @@ export const TRACKS = [
     finishAt: 100,
   },
   {
-    id: 'frostbite',
+    id: 'frostbite', recommend: ['Dirt Bikes', 'Quads'],
     name: 'Frostbite MX', difficulty: 'Medium',
     desc: 'A winter national cut through snowy hills. Icy rhythm, a pine-ridge triple and an avalanche step-up.',
     worldSize: 680,
@@ -274,7 +275,7 @@ export const TRACKS = [
     finishAt: 110,
   },
   {
-    id: 'freestyle',
+    id: 'freestyle', recommend: ['Dirt Bikes', 'Quads'],
     name: 'Freestyle Compound', difficulty: 'Freestyle',
     desc: 'A wide arena built for tricks: freestyle kickers with open gaps up to 20 m, a huge table and room to land anything.',
     worldSize: 600,
@@ -308,6 +309,98 @@ export const TRACKS = [
 ];
 
 // easiest first (used by the menus)
+TRACKS.push(...[
+  {
+    id: 'dunes', recommend: ['Buggies', 'Side-by-Sides'],
+    name: 'Sandstorm Dunes', difficulty: 'Medium',
+    desc: 'Wide, fast desert loop over rolling dunes. Huge tabletops and long sand rollers - made for buggies and side-by-sides.',
+    worldSize: 980,
+    seed: 8123,
+    start: { x: -199, z: 154, heading: 0 },
+    defaultWidth: 22,
+    look: { sand: 1, dirt: [1.3, 1.08, 0.8], grass: [1.42, 1.2, 0.78], trees: 0.04, pines: 0, rocks: 1.4, fog: 0xf0dcb0, skyTop: 0x5a8fd0, horizon: 0xf5e3c0 },
+    terrain: { hills: 7, hillScale: 230, rim: 55, rimStart: 380, bumps: [{ x: 120, z: -150, r: 140, h: 10 }] },
+    segments: [
+      { len: 220, w: 26, free: true, name: 'Start Straight' },
+      { turn: 90, r: 45, berm: 0.5 },
+      { len: 200, name: 'Dune Tables', features: [
+        { at: 30, type: 'table', h: 2.2, face: 14, top: 14, land: 16 },
+        { at: 110, type: 'table', h: 2.6, face: 15, top: 16, land: 18 },
+      ] },
+      { turn: 120, r: 40, berm: 0.6 },
+      { len: 160, name: 'Whoop Valley', features: [{ at: 20, type: 'whoops', n: 10, len: 7, h: 0.8 }] },
+      { turn: -60, r: 50, berm: 0.3 },
+      { len: 230, name: 'Big Air Dune', features: [
+        { at: 40, type: 'table', h: 3.0, face: 16, top: 18, land: 20 },
+        { at: 135, type: 'double', h: 2.4, face: 14, gap: 10, h2: 2.0, land: 16 },
+      ] },
+      { turn: 120, r: 42, berm: 0.6 },
+      { len: 130, free: true, name: 'Sand Rollers', features: [{ at: 15, type: 'rollers', n: 3, len: 18, h: 1.2 }] },
+      { turn: 90, r: 45, berm: 0.5 },
+    ],
+    gateAt: 16,
+    finishAt: 140,
+  },
+  {
+    id: 'mud', recommend: ['Quads', 'Dirt Bikes'],
+    name: 'Mudhole Woods', difficulty: 'Hard',
+    desc: 'Dark, wet and tight. Rutted mud through thick woods with log rollers, a swamp double and bog whoops.',
+    worldSize: 600,
+    seed: 4417,
+    start: { x: -95, z: 81, heading: 0 },
+    defaultWidth: 10,
+    look: { dirt: [0.56, 0.45, 0.38], grass: [0.62, 0.86, 0.55], trees: 2.8, pines: 0.35, rocks: 1.0, fog: 0x9aa79a, skyTop: 0x5f7487, horizon: 0xa9b5ad },
+    terrain: { hills: 9, hillScale: 110, rim: 38, rimStart: 220, bumps: [{ x: 20, z: 10, r: 60, h: -3 }] },
+    segments: [
+      { len: 110, w: 16, name: 'Start Straight' },
+      { turn: 90, r: 16, berm: 1 },
+      { len: 80, free: true, name: 'Log Rollers', features: [{ at: 10, type: 'rollers', n: 4, len: 9, h: 0.8 }] },
+      { turn: -90, r: 14, berm: 1 },
+      { len: 70, name: 'Swamp Double', features: [{ at: 14, type: 'double', h: 1.5, face: 6, gap: 5, h2: 1.3, land: 8 }] },
+      { turn: 180, r: 16, berm: 1 },
+      { len: 100, free: true, name: 'Bog Whoops', features: [{ at: 12, type: 'whoops', n: 12, len: 4.4, h: 0.55 }] },
+      { turn: 90, r: 16, berm: 1 },
+      { len: 130, name: 'Root Rhythm', features: [
+        { at: 14, type: 'table', h: 1.4, face: 6, top: 5, land: 7 },
+        { at: 62, type: 'double', h: 1.6, face: 6.5, gap: 5, h2: 1.4, land: 8 },
+      ] },
+      { turn: 90, r: 18, berm: 1 },
+    ],
+    gateAt: 14,
+    finishAt: 90,
+  },
+  {
+    id: 'stadium', recommend: ['Dirt Bikes'],
+    name: 'Sunset Supercross', difficulty: 'Expert',
+    desc: 'A stadium-style supercross under an orange sky: tight 180s, rhythm lanes, a triple and a whoop lane.',
+    worldSize: 420,
+    seed: 6060,
+    start: { x: -68, z: 52, heading: 0 },
+    defaultWidth: 10,
+    look: { dirt: [0.98, 0.8, 0.68], grass: [0.78, 0.86, 0.6], trees: 0.25, pines: 0.1, rocks: 0.3, fog: 0xe9a46a, skyTop: 0x2c3e7a, horizon: 0xf2a65a },
+    terrain: { hills: 2, hillScale: 160, rim: 30, rimStart: 160, bumps: [] },
+    segments: [
+      { len: 95, w: 14, free: true, name: 'Start Straight' },
+      { turn: 180, r: 15, berm: 1 },
+      { len: 95, name: 'Rhythm Lane', features: [
+        { at: 8, type: 'double', h: 1.5, face: 6, gap: 4.5, h2: 1.3, land: 7 },
+        { at: 48, type: 'double', h: 1.5, face: 6, gap: 4.5, h2: 1.3, land: 7 },
+      ] },
+      { turn: -180, r: 15, berm: 1 },
+      { len: 95, name: 'Triple Lane', features: [{ at: 30, type: 'triple', h: 1.7, face: 7.5, gap: 6, h2: 1.5, land: 9 }] },
+      { turn: 90, r: 15, berm: 1 },
+      { len: 26, name: 'Stadium Corner' },
+      { turn: 90, r: 15, berm: 1 },
+      { len: 140, name: 'Whoop Lane', features: [{ at: 30, type: 'whoops', n: 14, len: 4.2, h: 0.6 }] },
+      { turn: 90, r: 15, berm: 1 },
+      { len: 90, free: true, name: 'Back Straight', features: [{ at: 18, type: 'table', h: 1.6, face: 7, top: 6, land: 8 }] },
+      { turn: 90, r: 15, berm: 1 },
+    ],
+    gateAt: 14,
+    finishAt: 80,
+  },
+]);
+
 export const DIFFICULTY_ORDER = ['Easy', 'Medium', 'Hard', 'Expert', 'Freestyle'];
 TRACKS.sort((a, b) => DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty));
 

@@ -6,6 +6,9 @@
 //    Clean    (within 16 degrees)                     x1.2
 //    Sketchy  (anything you rode away from)           x0.8
 //  Combos across jumps are counted by the game (game.js).
+//  Rider tricks (keys 1-4, hold in the air): Superman, Nac-Nac, Heel Clicker,
+//  Cliffhanger - the longer you hold, the more points. Let go before you
+//  land or you crash.
 // =====================================================================
 const DEG = Math.PI / 180;
 
@@ -14,8 +17,17 @@ export const TRICK_POINTS = {
   spin: 400, whip: 150, whipPerDeg: 6, hugeWhip: 300, scrub: 250, bigAir: 100,
 };
 
+export const POSES = ['Superman', 'Nac-Nac', 'Heel Clicker', 'Cliffhanger'];
+const POSE_POINTS = { Superman: 450, 'Nac-Nac': 350, 'Heel Clicker': 400, Cliffhanger: 600 };
+
+// hold time of the rider trick on keys 1-4 (bikes and quads)
+export function trackPose(tr, inp, dt) {
+  tr.cur = inp.trick ? POSES[inp.trick - 1] : null;
+  if (tr.cur) tr.poses[tr.cur] = (tr.poses[tr.cur] || 0) + dt;
+}
+
 export function newTrick(v) {
-  return { pitch: 0, yaw: 0, whip: 0, scrub: false, peak: 0, y0: v.pos.y, t0: v.time };
+  return { pitch: 0, yaw: 0, whip: 0, scrub: false, peak: 0, y0: v.pos.y, t0: v.time, poses: {}, cur: null };
 }
 
 // what is happening right now, for the HUD while you are in the air
@@ -27,6 +39,7 @@ export function liveTrick(tr) {
   const yaw = Math.abs(tr.yaw) / DEG;
   if (yaw > 120) out.push(`SPIN ${Math.round(yaw)}°`);
   if (tr.whip > 25 * DEG) out.push(tr.scrub ? 'SCRUB' : `WHIP ${Math.round(tr.whip / DEG)}°`);
+  if (tr.cur) out.push(tr.cur.toUpperCase() + '!');
   return out.join('  ');
 }
 
@@ -46,6 +59,10 @@ export function scoreTricks(tr, landPitchErr, landRollErr, canWhip) {
     if (tr.scrub) parts.push({ name: 'Scrub', points: P.scrub });
     else if (tr.whip > 55 * DEG) parts.push({ name: 'Huge Whip', points: P.hugeWhip + Math.round((tr.whip / DEG - 32) * P.whipPerDeg) });
     else parts.push({ name: 'Whip', points: P.whip + Math.round((tr.whip / DEG - 32) * P.whipPerDeg) });
+  }
+  for (const [name, t] of Object.entries(tr.poses || {})) {
+    if (t < 0.3) continue;
+    parts.push({ name: t > 1.2 ? 'Held ' + name : name, points: Math.round(POSE_POINTS[name] * Math.min(2.5, 0.5 + t)) });
   }
   if (!parts.length) return null;
   const worst = Math.max(landPitchErr, landRollErr);

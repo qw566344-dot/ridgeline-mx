@@ -17,7 +17,7 @@
 // =====================================================================
 import * as THREE from '../../vendor/three.module.js';
 import { groundAt } from '../../../shared/terrain.js';
-import { newTrick, scoreTricks } from './tricks.js';
+import { newTrick, scoreTricks, trackPose } from './tricks.js';
 
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
@@ -173,6 +173,7 @@ export class BikeController {
       tr.pitch += pitchW * dt;
       tr.yaw += yawW * dt;
       tr.peak = Math.max(tr.peak, v.pos.y - tr.y0);
+      trackPose(tr, inp, dt);
       // flips: Q / E set a spin rate, the rider gets there quickly
       const spinTarget = inp.lean * A.flipRate;
       let ap = (spinTarget - pitchW) * (Math.abs(inp.lean) > 0.1 ? A.flipAccel : A.spinDamp);
@@ -196,10 +197,14 @@ export class BikeController {
         v.torque.addScaledVector(up, ((spinT - yawW) * 6) * I[1]);
         v.torque.addScaledVector(fwd, ((0 - roll) * 22 - rollW * 6) * I[2]);
       } else {
-        // whips: A / D throw the bike sideways, it comes back when you let go
+        // whips: A / D lay the bike over and swing the back out; hold it and it
+        // hangs there, let go and it swings back smoothly, straight for the landing
+        const holding = Math.abs(this.steer) > 0.15;
         const whipTarget = -this.steer * A.whip * DEG * late;
-        v.torque.addScaledVector(fwd, ((whipTarget - roll) * 22 - rollW * 6) * I[2]);
-        v.torque.addScaledVector(up, (this.steer * c.steer.airYaw - yawW * 2) * I[1]);
+        const k = holding ? 26 : 13, cdamp = holding ? 6 : 5.5;
+        v.torque.addScaledVector(fwd, ((whipTarget - roll) * k - rollW * cdamp) * I[2]);
+        // the nose turns into the whip as the bike lays down (that is what makes it look like a whip)
+        v.torque.addScaledVector(up, ((this.steer * c.steer.airYaw + roll * 1.4 * (holding ? 1 : 0.4)) - yawW * 2.2) * I[1]);
         // scrub: whipping hard right off the lip keeps the bike low and fast
         tr.whip = Math.max(tr.whip, Math.abs(roll)); // only real whips count, not the wobble of a spin
         if (v.airTime < 0.35 && Math.abs(roll) > 25 * DEG) { tr.scrub = true; v.force.y -= c.mass * 9.81 * 0.3 * Math.min(1, Math.abs(roll) / (45 * DEG)); }
@@ -236,6 +241,7 @@ export class BikeController {
       v.landImpact = vin;
       _n.set(g0.nx, g0.ny, g0.nz);
       const sideways = Math.abs(Math.asin(clamp(v.left.dot(_n), -1, 1))) / DEG;
+      if (this.trick && this.trick.cur) return v.crash('Landed still doing a ' + this.trick.cur);
       if (p > c.landPitch) return v.crash('Looped out on the landing');
       if (p < -c.landPitch) return v.crash('Nose-dived the landing');
       if (sideways > 45) return v.crash('Landed it sideways');
@@ -253,7 +259,7 @@ export class BikeController {
     if (Math.abs(this.rollErr) > c.roll * DEG) return v.crash('Lost the balance');
     if (v.grounded && v.speed > 6) {
       const beta = Math.atan2(v.vel.dot(v.left), v.vel.dot(fwd)) / DEG;
-      if (Math.abs(beta) > c.slide) { this.slideTime += dt; if (this.slideTime > 0.25) return v.crash('Low-sided'); }
+      if (Math.abs(beta) > c.slide) { this.slideTime += dt; if (this.slideTime > 0.45) return v.crash('Low-sided'); }
       else this.slideTime = 0;
     }
     if (v.grounded && v.groundPitch() > c.loop) return v.crash('Looped the wheelie');

@@ -27,12 +27,13 @@ function terrainMaterial(renderer, look = {}) {
     sh.uniforms.uDirtTint = { value: new THREE.Vector3(...(look.dirt || [1, 1, 1])) };
     sh.uniforms.uGrassTint = { value: new THREE.Vector3(...(look.grass || [1, 1, 1])) };
     sh.uniforms.uSnow = { value: look.snow || 0 };
+    sh.uniforms.uSand = { value: look.sand || 0 };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec3 splat;\nvarying vec3 vSplat;\nvarying vec3 vWPos;')
       .replace('#include <common>', '#include <common>\nvarying float vSlope;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSplat = splat;\nvWPos = (modelMatrix * vec4(position, 1.0)).xyz;\nvSlope = 1.0 - normalize(mat3(modelMatrix) * normal).y;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D tGrass; uniform sampler2D tDirt; uniform sampler2D tRock; uniform vec3 uDirtTint; uniform vec3 uGrassTint; uniform float uSnow;\nvarying vec3 vSplat;\nvarying vec3 vWPos;\nvarying float vSlope;')
+      .replace('#include <common>', '#include <common>\nuniform sampler2D tGrass; uniform sampler2D tDirt; uniform sampler2D tRock; uniform vec3 uDirtTint; uniform vec3 uGrassTint; uniform float uSnow; uniform float uSand;\nvarying vec3 vSplat;\nvarying vec3 vWPos;\nvarying float vSlope;')
       .replace('#include <color_fragment>', `#include <color_fragment>
         vec2 wuv = vWPos.xz;
         float big = texture2D(tGrass, wuv * 0.011).g;
@@ -48,6 +49,12 @@ function terrainMaterial(renderer, look = {}) {
         float d = smoothstep(0.3, 0.7, vSplat.x + edgeNoise * 0.6);
         vec3 ground = mix(grass, dirt, d);
         ground = mix(ground, rock, vSplat.y);
+        // desert tracks: rippled sand everywhere off the racing line
+        if (uSand > 0.0) {
+          float rip = 0.9 + 0.1 * sin(wuv.x * 0.9 + sin(wuv.y * 0.13) * 6.0) + (texture2D(tDirt, wuv * 0.12).r - 0.5) * 0.25;
+          vec3 sand = vec3(0.56, 0.44, 0.28) * rip;
+          ground = mix(ground, sand, uSand * (1.0 - d * 0.75) * (1.0 - vSplat.y * 0.6));
+        }
         // winter tracks: snow lies on the flat ground off the racing line, a dusting on the dirt
         if (uSnow > 0.0) {
           float drift = texture2D(tGrass, wuv * 0.023).g;
@@ -226,8 +233,9 @@ export class TerrainMesh {
       pos.push(x, h, z);
       const t = Math.min(1, Math.max(0, (h - 10) / 120));
       const gt = W.def.look && W.def.look.grass ? W.def.look.grass : [1, 1, 1];
-      const sn = (W.def.look && W.def.look.snow) || 0;
-      col.push(((0.33 + t * 0.2) * gt[0]) * (1 - sn) + 0.82 * sn, ((0.45 + t * 0.12) * gt[1]) * (1 - sn) + 0.86 * sn, ((0.27 + t * 0.2) * gt[2]) * (1 - sn) + 0.92 * sn);
+      const sn = (W.def.look && W.def.look.snow) || 0, sd = (W.def.look && W.def.look.sand) || 0;
+      const k = 1 - sn - sd;
+      col.push((0.33 + t * 0.2) * gt[0] * k + 0.82 * sn + 0.74 * sd, (0.45 + t * 0.12) * gt[1] * k + 0.86 * sn + 0.6 * sd, (0.27 + t * 0.2) * gt[2] * k + 0.92 * sn + 0.4 * sd);
     }
     for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) {
       const a = map[j * n + i], b = map[j * n + i + 1], c = map[(j + 1) * n + i], d = map[(j + 1) * n + i + 1];
