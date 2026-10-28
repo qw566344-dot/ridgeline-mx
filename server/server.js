@@ -32,14 +32,20 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ port: PORT, addresses: lanAddresses() }));
     return;
   }
+  if (req.url.startsWith('/api/party')) {
+    const code = new URL(req.url, 'http://x').searchParams.get('code');
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ exists: lobby.hasParty(code), region: process.env.REGION || null }));
+    return;
+  }
   if (req.url.startsWith('/api/')) {
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
     accounts.handle(req, res, ip);
     return;
   }
-  if (req.url === '/health') {
+  if (req.url === '/health' || req.url.startsWith('/health?')) {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ ok: true, ...lobby.stats() }));
+    res.end(JSON.stringify({ ok: true, region: process.env.REGION || null, ...lobby.stats() }));
     return;
   }
   serveStatic(req, res);

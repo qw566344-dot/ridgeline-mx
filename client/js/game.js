@@ -1,7 +1,7 @@
 // =====================================================================
 //  GAME: loads a track, spawns riders, runs the fixed-step physics,
 //  draws everything with smooth interpolation, and runs the modes:
-//    menu (background), freeride, timetrial, race, practice
+//    freeride, timetrial, race, practice, freestyle (tricks for points)
 //  Multiplayer sessions use the same modes with remote riders that are
 //  NOT simulated here - they are drawn from network snapshots (net.js).
 // =====================================================================
@@ -18,7 +18,7 @@ import { Scenery } from './render/scenery.js';
 import { Effects } from './render/effects.js';
 import { VehicleVisual } from './render/vehicleModel.js';
 import { Rider, riderScheme } from './render/rider.js';
-import { GEAR_SETS, REWARDS } from '/shared/shop.js';
+import { GEAR_SETS, REWARDS, upgradeLevels } from '/shared/shop.js';
 import { CameraRig, CAMERA_MODES } from './camera.js';
 
 const AI_NAMES = ['Tanner', 'Kade', 'Brody', 'Jett', 'Ryder', 'Colt', 'Maverick', 'Dax', 'Wyatt', 'Blaze', 'Cruz', 'Ace'];
@@ -58,6 +58,7 @@ export class Game {
     this.cam.sensitivity = s.get('cameraSensitivity');
     this.cam.mouseSens = s.get('mouseSensitivity');
     this.cam.shakeScale = s.get('cameraShake');
+    this.cam.effects = s.get('screenEffects') !== false;
     if (this.effects) this.effects.setQuality(s.quality());
     for (const r of this.riders) if (r.veh) this.applyAssists(r.veh, r.isPlayer);
     this.audio.applyVolumes();
@@ -112,7 +113,8 @@ export class Game {
     rider.attachTo(vis.model);
     const r = { id, name, number, isPlayer, vis, rider, vehicleId, colorId, lap: new LapTracker(this.world.T), finished: false, best: null, key: String(id) };
     if (!remote) {
-      r.veh = new Vehicle(vehicleId, this.world, { id, ai: !!ai });
+      const upgrades = isPlayer && this.account && this.account.profile ? upgradeLevels(this.account.profile.owned, vehicleId) : {};
+      r.veh = new Vehicle(vehicleId, this.world, { id, ai: !!ai, upgrades });
       this.applyAssists(r.veh, isPlayer);
       if (ai) r.ai = new AIDriver(r.veh, ai);
     } else {
@@ -186,7 +188,7 @@ export class Game {
     const grid = this.scenery.gridSlots(Math.max(1, (opts.aiCount || 0) + 1 + (opts.mp ? opts.mp.players.length : 0)));
     const me = this.addRider({ id: opts.mp ? opts.mp.myId : 1, name, vehicleId: opts.vehicleId, colorId: opts.colorId, gearId: opts.gearId, number: opts.number || 1, isPlayer: true });
     let slot = opts.mp ? opts.mp.slot : 0;
-    if (opts.mode === 'race' || opts.mode === 'timetrial' || opts.mode === 'freeride') {
+    if (opts.mode !== 'practice') {
       const g = grid[slot] || grid[0];
       this.placeRider(me, g.s, g.u);
     }
@@ -216,11 +218,13 @@ export class Game {
         this.addRider({ id: p.id, name: p.name, vehicleId: p.vehicle, colorId: p.color, gearId: p.gear, number: p.number, remote: true });
       }
     }
+    // freestyle: score as many trick points as you can before the clock runs out
+    this.fs = opts.mode === 'freestyle' ? { limit: opts.mp ? opts.mp.minutes * 60 : (opts.freestyleTime || 0) * 60, best: this.settings.bestScore(opts.trackId), done: false } : null;
     const lapMode = opts.mode === 'timetrial' ? 'flying' : 'race';
     for (const r of this.riders) r.lap.reset(lapMode, 0);
     this.cam.setMode(this.settings.get('camera') || 0);
     this.cam.snapNext = true;
-    if (opts.mode === 'race' || (opts.mp && opts.mode === 'timetrial')) {
+    if (opts.mode === 'race' || (opts.mp && opts.mode !== 'freeride')) {
       this.phase = 'countdown';
       this.countdown = GAME.countdown + 0.99;
       this.lastBeep = 4;
@@ -358,6 +362,7 @@ export class Game {
             if (r.isPlayer) {
               this.audio.thud(Math.max(0.3, strength));
               this.cam.addShake(Math.max(0, strength - 0.6) * 0.8);
+              this.cam.landing(strength);
               if (e.air > 1.3) { this.toast(`Big air! ${e.air.toFixed(1)} s`, 1.2, 'good'); this.award('air', REWARDS.bigAir); }
             }
           }
@@ -370,6 +375,7 @@ export class Game {
             const pts = Math.round(e.score * mult);
             this.trickScore = (this.trickScore || 0) + pts;
             this.ui.trickPopup(e, pts, this.combo, mult);
+            if (this.net && this.mode === 'freestyle') this.net.sendEvent({ t: 'trick', v: pts });
             this.audio.beep(true);
             this.award('trick', Math.round((pts / 100) * REWARDS.trickPer100));
           }
@@ -405,6 +411,7 @@ export class Game {
   }
 
   quickRetry() {
+    if (this.mode === 'freestyle' && !this.opts.mp) { this.ui.hideResults(); this.startSession(this.opts); return; }
     if (this.mode === 'timetrial' && !this.opts.mp) {
       const g = this.scenery.gridSlots(1)[0];
       this.placeRider(this.player, g.s, g.u);
@@ -440,6 +447,17 @@ export class Game {
         setTimeout(() => this.showResults(), 2500);
       }
     }
+  }
+
+  endFreestyle() {
+    const F = this.fs;
+    F.done = true;
+    const rec = this.settings.saveScore(this.trackId, this.trickScore || 0);
+    this.toast("TIME'S UP!", 2.5, 'good');
+    if (this.opts.mp) return; // the server sends everyone's scores
+    if (rec && this.trickScore) this.toast('New best score!', 2.5, 'good');
+    this.results = [{ pos: 1, name: this.player.name, vehicle: getVehicle(this.player.vehicleId).name, score: this.trickScore || 0, best: F.best, record: rec, me: true }];
+    setTimeout(() => this.ui.showResults(this.results, this), 1200);
   }
 
   showResults() {
@@ -480,6 +498,8 @@ export class Game {
         this.toast('GO!', 1, 'good');
       }
     }
+    // freestyle clock
+    if (this.fs && this.phase === 'go' && this.fs.limit && !this.fs.done && this.raceTime >= this.fs.limit) this.endFreestyle();
     // practice section timing
     if (this.mode === 'practice' && this.player && this.player.veh) {
       const P = this.practice, v = this.player.veh;
@@ -510,8 +530,11 @@ export class Game {
     // remote riders: interpolate from snapshots
     if (this.net) for (const r of this.riders) if (r.remote) this.net.interpolate(r, this);
     // stuck hint
-    if (this.player && this.player.veh && (this.player.veh.stuckTime > 4 || this.player.veh.noProgress) && !this.stuckHinted && this.mode !== 'freeride') { this.toast('Stuck? Press R to reset', 2.5); this.stuckHinted = true; }
-    if (this.player && this.player.veh && this.player.veh.stuckTime === 0) this.stuckHinted = false;
+    // stuck hint (once, until you are properly moving again)
+    const pv = this.player && this.player.veh;
+    if (pv && this.phase === 'go' && (pv.stuckTime > 4 || pv.noProgress) && !this.stuckHinted && this.mode !== 'freeride' && this.mode !== 'freestyle') { this.toast('Stuck? Press R to reset', 2.5); this.stuckHinted = true; }
+    if (pv && pv.speed > 6) this.movingTime = (this.movingTime || 0) + dt; else this.movingTime = 0;
+    if (this.movingTime > 3) this.stuckHinted = false;
     this.ui.updateHud(this, dt);
   }
 
@@ -563,7 +586,7 @@ export class Game {
       const v = focus.veh;
       const target = v ? {
         pos: focus.vis.root.position, quat: focus.vis.root.quaternion, vel: v.vel, speed: v.speed, grounded: v.grounded,
-        trackS: v.trackS, lean: v.lean,
+        trackS: v.trackS, lean: v.lean, airTime: v.airTime,
       } : { pos: focus.vis.root.position, quat: focus.vis.root.quaternion, vel: focus.remote.state.vel, speed: focus.remote.state.vel.length(), grounded: true, trackS: 0 };
       let head = null;
       if (this.cam.mode === 2 && focus.rider.attached) {
@@ -573,6 +596,7 @@ export class Game {
       focus.vis.root.visible = true;
       // helmet cam: hide our own rider's head
       focus.rider.mesh.visible = !(this.cam.mode === 2 && focus === this.player && focus.rider.attached);
+      if (focus.rider.helmet) focus.rider.helmet.visible = focus.rider.mesh.visible;
       this.R.followShadow(focus.vis.root.position);
       if (this.player === focus && v) this.audio.player(v, cam);
     }
@@ -602,9 +626,14 @@ export class Game {
     }
   }
 
+  // back to the lobby: nothing on track, the menus draw the 3D stage instead
   stop() {
     this.state = 'idle';
+    this.mode = 'none';
+    this.paused = false;
+    this.net = null;
     this.clearRiders();
+    this.audio.silenceAll();
   }
 }
 

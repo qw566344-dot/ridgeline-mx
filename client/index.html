@@ -11,196 +11,221 @@
 </head>
 <body>
   <canvas id="game"></canvas>
+  <div id="stage-tags"></div>
 
   <div id="ui">
     <!-- LOADING -->
     <div id="loading" class="screen center">
       <div class="logo big">RIDGELINE <span>MX</span></div>
-      <div class="spinner"></div>
+      <div class="loadbar"><i id="loading-bar"></i></div>
       <div id="loading-text">Loading...</div>
     </div>
 
     <!-- ACCOUNT -->
-    <div id="account" class="screen panel-screen" hidden>
-      <div class="panel narrow account-panel">
+    <div id="account" class="screen center account-bg" hidden>
+      <div class="card account-card">
         <div class="logo small">RIDGELINE <span>MX</span></div>
         <div class="tabs" id="acct-tabs"><button data-acct="login" class="sel">Log in</button><button data-acct="register">Create account</button></div>
-        <label class="field col-field">Name <input id="acct-name" maxlength="16" autocomplete="username" placeholder="Your rider name"></label>
+        <label class="field col-field">Rider name <input id="acct-name" maxlength="16" autocomplete="username" placeholder="Your rider name"></label>
         <label class="field col-field">Password <input id="acct-pass" type="password" maxlength="64" autocomplete="current-password" placeholder="At least 4 characters"></label>
         <div id="acct-error" class="error"></div>
         <div class="col">
-          <button id="acct-go" class="primary">Log in</button>
-          <button id="acct-guest">Play as guest</button>
+          <button id="acct-go" class="primary big">Log in</button>
+          <button id="acct-guest" class="ghost">Play as guest</button>
         </div>
         <p class="hint" id="acct-note"></p>
       </div>
     </div>
 
-    <!-- MAIN MENU -->
-    <div id="menu" class="screen" hidden>
-      <div class="menu-left">
-        <div class="logo">RIDGELINE <span>MX</span></div>
-        <div class="tag">Dirt bikes &bull; Quads &bull; Ride with friends</div>
-        <nav class="menu-buttons">
-          <button data-go="play" class="primary">Play</button>
-          <button data-go="mp">Multiplayer</button>
-          <button data-go="garage">Vehicle Selection</button>
-          <button data-go="shop">Shop</button>
-          <button data-go="tracks">Track Selection</button>
-          <button data-go="settings">Settings</button>
-          <button data-go="controls">Controls</button>
-          <button data-go="credits">Credits</button>
-        </nav>
-      </div>
-      <div class="menu-card" id="menu-summary"></div>
-    </div>
-
-    <!-- PLAY: choose a mode -->
-    <div id="play" class="screen panel-screen" hidden>
-      <div class="panel wide">
-        <h2>Choose a mode</h2>
-        <div class="modes">
-          <button class="mode" data-mode="freeride"><b>Free Ride</b><span>Ride the track at your own pace. No timer, no pressure.</span></button>
-          <button class="mode" data-mode="timetrial"><b>Time Trial</b><span>Hot laps against the clock. Beat your personal best. T = quick retry.</span></button>
-          <button class="mode" data-mode="race"><b>Race</b><span>Line up on the gate against AI riders.</span></button>
-          <button class="mode" data-mode="practice"><b>Practice</b><span>Drill one section of the track. T = retry the section.</span></button>
+    <!-- TOP BAR (all menus) -->
+    <header id="topbar" hidden>
+      <div class="brand">RIDGELINE <span>MX</span></div>
+      <nav id="nav">
+        <button data-go="home">Lobby</button>
+        <button data-go="garage">Garage</button>
+        <button data-go="shop">Shop</button>
+        <button data-go="friends">Friends <b id="friends-badge" class="badge" hidden></b></button>
+        <button data-go="settings">Settings</button>
+      </nav>
+      <div class="top-right">
+        <button id="region-chip" class="chip" title="Server region and ping"><i class="dot"></i><span id="region-text">Offline</span></button>
+        <div class="chip coins" title="Coins - earn them by riding"><i class="coin"></i><b id="top-coins">0</b></div>
+        <div class="profile-wrap">
+          <button id="profile-chip" class="chip profile"><span id="profile-name">Rider</span> <small id="profile-mode"></small></button>
+          <div id="profile-menu" class="menu-pop" hidden>
+            <div class="menu-stats" id="profile-stats"></div>
+            <button data-go="controls">Controls</button>
+            <button data-go="credits">Credits</button>
+            <button id="logout-btn">Log out</button>
+          </div>
         </div>
-        <div id="mode-options"></div>
+      </div>
+    </header>
+
+    <!-- LOBBY (home) -->
+    <section id="home" class="screen menu-screen" hidden>
+      <aside class="card party-card">
+        <div class="card-head"><h3>Party</h3><span id="party-status" class="status">Solo</span></div>
+        <div id="party-solo">
+          <p class="hint">Ride together: make a party and send the code, or invite a friend.</p>
+          <button id="party-create" class="primary wide">Create party</button>
+          <div class="join-row">
+            <input id="party-code" class="code-input" maxlength="6" placeholder="CODE" autocomplete="off" spellcheck="false">
+            <button id="party-join">Join</button>
+          </div>
+        </div>
+        <div id="party-in" hidden>
+          <div class="party-code-row">
+            <div><small>PARTY CODE</small><b id="party-codeshow">------</b></div>
+            <button id="party-copy" class="small">Copy</button>
+          </div>
+          <ul id="party-members" class="members"></ul>
+          <div class="row tight">
+            <button id="party-invite" class="small">Invite friends</button>
+            <button id="party-leave" class="small danger">Leave</button>
+          </div>
+        </div>
+        <div id="party-error" class="error"></div>
+      </aside>
+
+      <aside class="card friends-mini">
+        <div class="card-head"><h3>Friends online</h3><button data-go="friends" class="link">All</button></div>
+        <ul id="friends-mini" class="mini-list"></ul>
+      </aside>
+
+      <div class="play-dock">
+        <button id="dock-setup" class="dock-sel">
+          <small>MODE</small><b id="dock-mode">Free Ride</b>
+          <small>TRACK</small><b id="dock-track">Ridgeline</b>
+          <i class="edit">Change</i>
+        </button>
+        <button id="play-btn" class="play-btn">PLAY</button>
+        <div id="dock-note" class="dock-note"></div>
+      </div>
+    </section>
+
+    <!-- MATCH SETUP -->
+    <section id="play" class="screen overlay" hidden>
+      <div class="sheet wide">
+        <div class="sheet-head"><h2>Match setup</h2><span id="play-who" class="hint"></span></div>
+        <h4>Game mode</h4>
+        <div class="modes" id="mode-cards"></div>
+        <div class="track-head"><h4>Track</h4><div class="seg" id="track-filter"></div></div>
+        <div class="track-grid" id="track-grid"></div>
+        <div id="mode-options" class="options"></div>
         <div class="row end">
-          <button data-go="menu">Back</button>
-          <button id="start-mode" class="primary">Start Riding</button>
+          <button data-go="home">Back</button>
+          <button id="play-confirm" class="primary">Done</button>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- GARAGE / VEHICLE SELECTION -->
-    <div id="garage" class="screen" hidden>
-      <div class="garage-left panel">
-        <h2 id="garage-title">Vehicle Selection</h2>
-        <div class="coins-line">Coins <b id="garage-coins">0</b></div>
-        <div id="vehicle-list"></div>
-        <h3>Paint</h3>
-        <div id="color-list" class="swatches"></div>
-        <h3>Rider gear</h3>
-        <div id="gear-list" class="swatches"></div>
-      </div>
-      <div class="garage-right panel">
-        <h2 id="garage-name"></h2>
-        <p id="garage-desc"></p>
-        <div id="garage-stats"></div>
-        <div id="garage-buy" class="buy-box"></div>
-        <p class="hint">Drag the vehicle to rotate it. Earn coins by riding: laps, race finishes, records, big air and tricks.<br>Model file: <code id="garage-model"></code></p>
-        <div class="row end">
-          <button data-go="menu">Back</button>
-          <button data-go="play" class="primary">Start Riding</button>
+    <!-- GARAGE: view, compare, choose -->
+    <section id="garage" class="screen menu-screen" hidden>
+      <aside class="card garage-list">
+        <div class="seg cats" id="garage-cats"></div>
+        <div id="garage-vehicles" class="vehicle-cards"></div>
+      </aside>
+      <aside class="card garage-info">
+        <div class="tier" id="g-tier"></div>
+        <h2 id="g-name"></h2>
+        <p id="g-desc" class="desc"></p>
+        <div id="g-stats" class="stats"></div>
+        <div id="g-ups" class="ups"></div>
+        <h4>Paint</h4>
+        <div id="g-paint" class="swatches"></div>
+        <h4>Rider gear</h4>
+        <div id="g-gear" class="swatches"></div>
+        <div id="g-action" class="g-action"></div>
+      </aside>
+      <div class="view-hint">Drag to spin &bull; scroll to zoom</div>
+    </section>
+
+    <!-- SHOP: buy and unlock -->
+    <section id="shop" class="screen menu-screen" hidden>
+      <div class="card shop-panel">
+        <div class="shop-top">
+          <h2>Shop</h2>
+          <div class="tabs" id="shop-tabs"></div>
         </div>
+        <div id="shop-sub" class="seg"></div>
+        <div id="shop-grid" class="shop-grid"></div>
       </div>
-    </div>
+      <aside class="card shop-detail" id="shop-detail"></aside>
+    </section>
 
-    <!-- TRACKS -->
-    <div id="tracks" class="screen panel-screen" hidden>
-      <div class="panel wide">
-        <h2>Track Selection</h2>
-        <div id="track-list" class="track-list"></div>
-        <div class="row end"><button data-go="menu">Back</button></div>
+    <!-- FRIENDS -->
+    <section id="friends" class="screen overlay" hidden>
+      <div class="sheet wide">
+        <div class="sheet-head"><h2>Friends</h2><span id="friends-count" class="hint"></span></div>
+        <div id="friends-off" class="notice" hidden></div>
+        <div id="friends-on">
+          <div class="search-row">
+            <input id="friend-search" placeholder="Search riders by name" maxlength="16" autocomplete="off" spellcheck="false">
+            <button id="friend-add" class="primary">Add friend</button>
+          </div>
+          <div id="friend-msg" class="msg"></div>
+          <ul id="friend-results" class="people"></ul>
+          <div class="friends-cols">
+            <div>
+              <h4>Your friends</h4>
+              <ul id="friend-list" class="people"></ul>
+            </div>
+            <div>
+              <h4>Party invites</h4>
+              <ul id="invite-list" class="people"></ul>
+              <h4>Friend requests</h4>
+              <ul id="request-list" class="people"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="row end"><button data-go="home">Back</button></div>
       </div>
-    </div>
+    </section>
 
     <!-- SETTINGS -->
-    <div id="settings" class="screen panel-screen" hidden>
-      <div class="panel wide">
-        <h2>Settings</h2>
+    <section id="settings" class="screen overlay" hidden>
+      <div class="sheet wide">
+        <div class="sheet-head"><h2>Settings</h2></div>
         <div class="tabs" id="settings-tabs"></div>
         <div id="settings-body"></div>
         <div class="row end"><button id="settings-back">Back</button></div>
       </div>
-    </div>
+    </section>
 
     <!-- CONTROLS -->
-    <div id="controls" class="screen panel-screen" hidden>
-      <div class="panel">
-        <h2>Controls</h2>
+    <section id="controls" class="screen overlay" hidden>
+      <div class="sheet">
+        <div class="sheet-head"><h2>Controls</h2></div>
         <table class="keys">
           <tr><td><kbd>W</kbd> / <kbd>&uarr;</kbd></td><td>Throttle</td></tr>
           <tr><td><kbd>S</kbd> / <kbd>&darr;</kbd></td><td>Brake (hold when stopped to reverse)</td></tr>
-          <tr><td><kbd>A</kbd> <kbd>D</kbd> / <kbd>&larr;</kbd> <kbd>&rarr;</kbd></td><td>Steer / lean</td></tr>
+          <tr><td><kbd>A</kbd> <kbd>D</kbd></td><td>Steer &bull; in the air: whip / scrub (bikes)</td></tr>
+          <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>Lean back / forward &bull; in the air: backflip / front flip</td></tr>
+          <tr><td><kbd>Shift</kbd> + <kbd>A</kbd>/<kbd>D</kbd> in the air</td><td>Flat spin (360s)</td></tr>
+          <tr><td><kbd>Shift</kbd></td><td>Clutch - hold, rev, release for a burst (wheelies)</td></tr>
           <tr><td><kbd>Space</kbd></td><td>Rear brake - locks the rear for slides</td></tr>
-          <tr><td><kbd>Shift</kbd></td><td>Clutch - hold, rev, release for a burst (wheelies!)</td></tr>
-          <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>Lean back / forward (rotate in the air, shift weight on the ground)</td></tr>
-          <tr><td><kbd>R</kbd></td><td>Reset vehicle onto the track</td></tr>
-          <tr><td><kbd>T</kbd></td><td>Quick retry (Time Trial / Practice)</td></tr>
+          <tr><td><kbd>R</kbd></td><td>Reset onto the track</td></tr>
+          <tr><td><kbd>T</kbd></td><td>Quick retry (Time Trial / Practice / Freestyle)</td></tr>
           <tr><td><kbd>C</kbd></td><td>Change camera</td></tr>
           <tr><td>Right mouse + drag</td><td>Look around</td></tr>
           <tr><td><kbd>Esc</kbd> / <kbd>P</kbd></td><td>Pause</td></tr>
           <tr><td><kbd>F3</kbd></td><td>FPS counter</td></tr>
         </table>
-        <p class="hint">In the air: throttle lifts the nose, rear brake (Space) drops it. Land with both wheels matching the slope for a smooth landing.<br>Gamepad: triggers = throttle/brake, left stick = steer/lean, A = reset, Y = camera, X = rear brake, RB = clutch.</p>
+        <p class="hint">Tricks: land several in a row for a combo multiplier (up to x4). Land with the wheels matching the slope for a Perfect landing (x1.5).<br>Gamepad: triggers = throttle/brake, left stick = steer/lean, A = reset, Y = camera, X = rear brake, RB = clutch.</p>
         <div class="row end"><button data-go="back">Back</button></div>
       </div>
-    </div>
+    </section>
 
     <!-- CREDITS -->
-    <div id="credits" class="screen panel-screen" hidden>
-      <div class="panel">
-        <h2>Credits</h2>
-        <p><b>Ridgeline MX</b> - a browser motocross game.</p>
-        <p>Rendering: three.js (MIT licence). Everything else - physics, tracks, terrain, riders, sounds - is generated in code for this game.</p>
-        <p>Vehicle models: placeholders until you add your own .glb files (see MODELS.md).</p>
-        <div class="row end"><button data-go="menu">Back</button></div>
+    <section id="credits" class="screen overlay" hidden>
+      <div class="sheet">
+        <div class="sheet-head"><h2>Credits</h2></div>
+        <p><b>Ridgeline MX</b> - an off-road and motocross game for the browser.</p>
+        <p>Vehicle and helmet models supplied by the game's creator. Rendering: three.js (MIT licence). Physics, tracks, terrain, riders, sounds and menus are made in code for this game.</p>
+        <div class="row end"><button data-go="back">Back</button></div>
       </div>
-    </div>
-
-    <!-- MULTIPLAYER LOBBY -->
-    <div id="mp" class="screen panel-screen" hidden>
-      <div class="panel wide">
-        <h2>Multiplayer <span id="mp-status" class="status">Disconnected</span></h2>
-        <div id="mp-start">
-          <label class="field">Your name <input id="mp-name" maxlength="16" placeholder="Rider"></label>
-          <div class="mp-actions">
-            <div class="mp-box">
-              <h3>Create a party</h3>
-              <p>Get a code and send it to your friends.</p>
-              <button id="mp-create" class="primary">Create Party</button>
-            </div>
-            <div class="mp-box">
-              <h3>Join a party</h3>
-              <input id="mp-code" class="code-input" maxlength="6" placeholder="ABC123" autocomplete="off" spellcheck="false">
-              <button id="mp-join">Join</button>
-            </div>
-          </div>
-          <div id="mp-error" class="error"></div>
-          <details class="server-box">
-            <summary>Server: <span id="mp-server-show"></span></summary>
-            <p class="hint">Everyone in a party must use the same server. Friends on your Wi-Fi: <span id="mp-lan">start the server to see your address</span>.<br>To play with friends anywhere, put the server online (README.md) and type its address here.</p>
-            <input id="mp-server" placeholder="e.g. my-mx-server.onrender.com or 192.168.1.20:5323" spellcheck="false"> <button id="mp-server-save">Use this server</button> <button id="mp-server-reset">Default</button>
-          </details>
-        </div>
-        <div id="mp-party" hidden>
-          <div class="party-code">Party code <b id="mp-codeshow">------</b> <button id="mp-copy">Copy Code</button> <span id="mp-ping" class="ping"></span></div>
-          <div class="party-grid">
-            <div>
-              <h3>Riders <span id="mp-count"></span></h3>
-              <ul id="mp-members" class="members"></ul>
-            </div>
-            <div id="mp-settings">
-              <h3>Session</h3>
-              <label class="field">Track <select id="mp-track"></select></label>
-              <label class="field">Mode <select id="mp-mode"><option value="freeride">Free Ride</option><option value="race">Private Race</option><option value="timetrial">Time Trial</option></select></label>
-              <label class="field">Laps <select id="mp-laps"><option>1</option><option>2</option><option selected>3</option><option>5</option></select></label>
-              <p class="hint" id="mp-leader-note"></p>
-            </div>
-          </div>
-          <div class="row end">
-            <button id="mp-leave">Leave Party</button>
-            <button id="mp-garage">Change Vehicle</button>
-            <button id="mp-ready">Ready</button>
-            <button id="mp-startbtn" class="primary">Start Session</button>
-          </div>
-          <div id="mp-error2" class="error"></div>
-        </div>
-        <div class="row" id="mp-back-row"><button data-go="menu">Back</button></div>
-      </div>
-    </div>
+    </section>
 
     <!-- HUD -->
     <div id="hud" hidden>
@@ -213,6 +238,8 @@
         <div class="hud-pos" id="hud-pos"></div>
         <ol id="hud-standings" class="standings"></ol>
       </div>
+      <div id="hud-trick" class="hud-trick"></div>
+      <div id="trick-pop" class="trick-pop"></div>
       <div id="hud-center" class="hud-center"></div>
       <div id="toasts" class="toasts"></div>
       <canvas id="minimap" width="200" height="200"></canvas>
@@ -231,31 +258,34 @@
     </div>
 
     <!-- PAUSE -->
-    <div id="pause" class="screen panel-screen dim" hidden>
-      <div class="panel narrow">
-        <h2>Paused</h2>
+    <div id="pause" class="screen overlay dim" hidden>
+      <div class="sheet narrow">
+        <div class="sheet-head"><h2>Paused</h2></div>
         <div class="col">
           <button id="p-resume" class="primary">Resume</button>
           <button id="p-restart">Restart</button>
-          <button id="p-reset">Reset Vehicle</button>
-          <button id="p-camera">Change Camera</button>
+          <button id="p-reset">Reset vehicle</button>
+          <button id="p-camera">Change camera</button>
           <button id="p-settings">Settings</button>
-          <button id="p-menu">Main Menu</button>
+          <button id="p-menu">Back to lobby</button>
         </div>
       </div>
     </div>
 
     <!-- RESULTS -->
-    <div id="results" class="screen panel-screen dim" hidden>
-      <div class="panel wide">
-        <h2 id="results-title">Results</h2>
+    <div id="results" class="screen overlay dim" hidden>
+      <div class="sheet wide">
+        <div class="sheet-head"><h2 id="results-title">Results</h2></div>
         <table class="results" id="results-table"></table>
         <div class="row end">
-          <button id="r-menu">Main Menu</button>
-          <button id="r-again" class="primary">Race Again</button>
+          <button id="r-menu">Back to lobby</button>
+          <button id="r-again" class="primary">Go again</button>
         </div>
       </div>
     </div>
+
+    <!-- party invites + menu notices, shown over everything -->
+    <div id="popups" class="popups"></div>
   </div>
 
   <script type="module" src="js/main.js"></script>

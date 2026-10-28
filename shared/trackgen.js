@@ -64,6 +64,8 @@ function solveClosure(def) {
     m01 += winv[i] * dirs[i][0] * dirs[i][1];
     m11 += winv[i] * dirs[i][1] * dirs[i][1];
   }
+  // a tiny bit of regularisation keeps loops with parallel straights solvable
+  m00 += 1e-3; m11 += 1e-3;
   const det = m00 * m11 - m01 * m01;
   const l0 = (bx * m11 - bz * m01) / det, l1 = (m00 * bz - m01 * bx) / det;
   return t.map((ti, i) => ti + winv[i] * (dirs[i][0] * l0 + dirs[i][1] * l1));
@@ -142,6 +144,17 @@ export function featureKnots(f) {
       x += f.top; k.push({ x, h: f.h2, m: 0 });
       x += f.land * LAND_SCALE; k.push({ x, h: 0, m: 0 });
       break;
+    case 'kicker': {
+      // freestyle kicker: a steep ramp, an open gap, then a tall landing hill
+      const m = Math.min(0.66, (2.1 * f.h) / f.face); // past ~33 degrees cars get flipped off the lip
+      x += f.face; k.push({ x, h: f.h, m });
+      x += 0.5; k.push({ x, h: f.h + 0.12, m: 0.2 });
+      x += Math.max(2.5, f.h * 0.9); k.push({ x, h: 0, m: 0 });
+      x += f.gap; k.push({ x, h: 0, m: 0 });
+      x += Math.max(4, f.landH * 1.25); k.push({ x, h: f.landH, m: 0 });
+      x += f.land * LAND_SCALE; k.push({ x, h: 0, m: 0 });
+      break;
+    }
     default:
       return null;
   }

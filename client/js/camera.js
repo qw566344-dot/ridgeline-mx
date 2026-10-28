@@ -29,7 +29,15 @@ export class CameraRig {
     this.tvPoint = null; this.tvTimer = 0;
     this.snapNext = true;
     this.orbit = { yaw: 0, t: 0 };
+    // subtle effects (Settings > Speed effects): FOV kick on hard acceleration,
+    // a springy dip on landings, a little extra distance in the air
+    this.effects = true;
+    this.dip = 0; this.dipV = 0;
+    this.prevSpd = 0; this.accel = 0; this.airPull = 0;
   }
+
+  // a landing pushes the camera down; it springs back up
+  landing(strength) { if (this.effects) this.dipV -= Math.min(3, strength * 1.6); }
 
   cycle() { this.mode = (this.mode + 1) % CAMERA_MODES.length; this.snapNext = true; this.tvPoint = null; return CAMERA_MODES[this.mode]; }
   setMode(i) { this.mode = i % CAMERA_MODES.length; this.snapNext = true; this.tvPoint = null; }
@@ -59,13 +67,23 @@ export class CameraRig {
 
     const mode = CAMERA_MODES[this.mode];
     let fovTarget = 62 + Math.min(16, spd * 0.45);
+    if (dt > 0) {
+      const a = (spd - this.prevSpd) / dt;
+      this.prevSpd = spd;
+      this.accel += (Math.max(-15, Math.min(15, a)) - this.accel) * Math.min(1, dt * 4);
+      this.dipV += (-this.dip * 70 - this.dipV * 11) * dt;
+      this.dip = Math.max(-0.6, Math.min(0.3, this.dip + this.dipV * dt));
+      this.airPull += ((!target.grounded && (target.airTime || 0) > 0.35 ? 1 : 0) - this.airPull) * Math.min(1, dt * 2);
+    }
+    if (this.effects) fovTarget += Math.max(-2, Math.min(4.5, this.accel * 0.45));
+    const fx = this.effects ? 1 : 0;
     const shake = this.shake;
     this.shake = Math.max(0, this.shake - dt * 2.2);
     this.shakeT += dt * 32;
 
     if (mode === 'Chase' || mode === 'Close Chase') {
       const close = mode === 'Close Chase';
-      const dist = (close ? 3.6 : 5.6) + Math.min(close ? 1.0 : 2.2, spd * (close ? 0.04 : 0.08));
+      const dist = (close ? 3.6 : 5.6) + Math.min(close ? 1.0 : 2.2, spd * (close ? 0.04 : 0.08)) + this.airPull * fx * (close ? 0.8 : 1.4);
       const height = (close ? 1.45 : 2.2) + Math.min(0.6, spd * 0.02);
       const h = this.heading.clone();
       // mouse orbit
@@ -85,8 +103,9 @@ export class CameraRig {
       look.y = target.pos.y + (close ? 0.75 : 0.9);
       this.look.lerp(look, this.snapNext ? 1 : Math.min(1, dt * 10));
       cam.position.copy(this.pos);
+      cam.position.y += this.dip * fx;
       cam.up.set(0, 1, 0);
-      cam.lookAt(this.look);
+      cam.lookAt(_v2.copy(this.look).setY(this.look.y + this.dip * fx * 0.4));
     } else if (mode === 'Helmet') {
       // first person from the rider's eyes, follows the head (lean and all)
       const eye = riderHead ? riderHead.clone() : target.pos.clone().add(_v2.set(0, 0.9, 0));

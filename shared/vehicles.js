@@ -35,12 +35,13 @@ export const BIKE_COLORS = [
 // ---------------------------------------------------------------------
 export const MODELS = {
   bike: {
-    file: 'models/factory_450_mx.glb', kind: 'bike', comX: -0.02,
-    paint: ['plastic_red'], accent: [],
-    steerGroup: 'front_end', steerPivot: [0.39, 1.04, 0], steerAxisTo: [0.70, 0.39, 0],
+    // the user's 2-stroke bike, split into parts by tools/bake-kx-bike.py
+    file: 'models/kx_dirt_bike.glb', kind: 'bike', comX: -0.02,
+    paint: ['plastic_paint'], accent: [],
+    steerGroup: 'front_end', steerPivot: [0.284, 1.099, 0], steerAxisTo: [0.765, 0.345, 0],
     forkSlide: 'fork_lowers', wheelF: 'wheel_front', wheelR: 'wheel_rear',
-    swingarm: 'swingarm', swingPivot: [-0.12, 0.40, 0], shock: 'rear_shock',
-    attach: { seat: [-0.22, 1.03, 0], pegL: [-0.05, 0.37, -0.2], pegR: [-0.05, 0.37, 0.2], gripL: [0.29, 1.23, -0.38], gripR: [0.29, 1.23, 0.38] },
+    swingarm: 'swingarm', swingPivot: [-0.176, 0.488, 0], shock: null,
+    attach: { seat: [-0.25, 1.0, 0], pegL: [-0.077, 0.40, -0.15], pegR: [-0.077, 0.40, 0.15], gripL: [0.255, 1.175, -0.31], gripR: [0.255, 1.175, 0.31] },
   },
   quad: {
     file: 'models/pro_450r_quad.glb', kind: 'atv', comX: 0.0,
@@ -76,7 +77,7 @@ export const MODELS = {
       rl: { wheel: 'wheel_RL', carry: ['cv_axle_RL', 'radius_rods_RL'], trailing: 'trailing_arm_RL', shocks: ['shock_RL', 'bypass_RL'] },
       rr: { wheel: 'wheel_RR', carry: ['cv_axle_RR', 'radius_rods_RR'], trailing: 'trailing_arm_RR', shocks: ['shock_RR', 'bypass_RR'] },
     },
-    attach: { seat: [-0.29, 0.76, 0], pegL: [0.66, 0.6, -0.12], pegR: [0.66, 0.6, 0.12], gripL: [0.32, 1.10, -0.2], gripR: [0.32, 1.10, 0.2], wheel: [0.30, 1.10, 0] },
+    attach: { seat: [-0.29, 0.62, 0], pegL: [0.66, 0.6, -0.12], pegR: [0.66, 0.6, 0.12], gripL: [0.32, 1.10, -0.2], gripR: [0.32, 1.10, 0.2], wheel: [0.30, 1.10, 0] },
     seated: true,
   },
 };

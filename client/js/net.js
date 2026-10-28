@@ -1,24 +1,26 @@
 // =====================================================================
 //  MULTIPLAYER CLIENT
-//  Talks to the server over a WebSocket (same address as the page, /ws).
-//  - Lobby: create / join a party with a 6-character code, ready up,
-//    the leader picks track + mode + laps and starts the session.
-//  - Riding: your own bike is simulated here (instant, lag-free
-//    controls) and sent 20x a second. Other riders are drawn 120 ms in
-//    the past, smoothly interpolated between server snapshots, and
-//    briefly extrapolated if packets are late.
-//  - Race laps, positions and results come from the server.
-//  - Drops are handled: it reconnects with a token and puts you back in
-//    your party (and session) automatically.
-//  To point the game at a different server: add ?server=wss://your.host/ws
+//  Talks to a game server over a WebSocket (/ws).
+//  - Regions: every server in config.js REGIONS is pinged; parties go to
+//    the one you picked in Settings > Online, or the lowest ping (Auto).
+//    Joining a code that lives in another region finds it and switches.
+//  - Party: create / join with a 6-character code, ready up; the leader
+//    picks track + mode + laps and starts. The lobby screen (ui.js) and
+//    the 3D line-up (stage.js) draw this.party.
+//  - Riding: your own vehicle is simulated here (instant controls) and
+//    sent 20x a second. Other riders are drawn a little in the past,
+//    smoothly interpolated between server snapshots. How far in the past
+//    adapts to how evenly their packets arrive (less lag on a good line,
+//    no stutter on a bad one); late packets are briefly extrapolated.
+//  - Race laps, positions, freestyle scores and results come from the server.
+//  - Drops: reconnects with a token and puts you back in your party and
+//    session; your seat is kept for 60 s.
 // =====================================================================
 import * as THREE from 'three';
 import { PROTOCOL_VERSION, SEND_RATE, INTERP_DELAY, packState, cleanName, validCode, F_CRASHED, F_AIR } from '/shared/protocol.js';
-import { TRACKS, getTrack } from '/shared/tracks.js';
-import { getVehicle, BIKE_COLORS, paintFor } from '/shared/vehicles.js';
-import { escapeHtml } from './ui.js';
-import { fmtTime } from './settings.js';
-import { serverBase, setServerBase, wsUrl } from './config.js';
+import { getVehicle } from '/shared/vehicles.js';
+import { regionList, wsUrlFor, measurePing } from './config.js';
+import { escapeHtml, ordinal } from './util.js';
 
 const $ = (id) => document.getElementById(id);
 const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
@@ -39,57 +41,57 @@ export class Net {
     this.standings = null;
     this.retry = 0;
     this.wantOnline = false;
-    this.status('Disconnected', 'bad');
-    this.wireUI();
-    ui.on('screen', (name) => {
-      if (name === 'mp') { this.wantOnline = true; this.connect(); this.renderLobby(); this.renderServer(); }
-      if (name === 'garage' || name === 'mp') this.sendProfile();
-    });
-    // garage "Back"/"Start" return to the lobby while in a party
-    const origShow = ui.show.bind(ui);
-    ui.show = (name) => {
-      if (this.code && ui.screen === 'garage' && (name === 'menu' || name === 'play')) { this.sendProfile(); return origShow('mp'); }
-      return origShow(name);
-    };
+    const regs = regionList();
+    const saved = ssGet('mx.region');
+    this.region = regs.find((r) => r.id === saved) || regs.find((r) => r.id === settings.get('region')) || regs[0];
+    this.wire();
   }
 
-  // the one shared server everyone in a party connects to (see config.js)
-  serverUrl() { return wsUrl(); }
-
-  // server box in the lobby + addresses friends on the same Wi-Fi can use
-  renderServer() {
-    $('mp-server-show').textContent = serverBase().replace(/^https?:\/\//, '');
-    fetch(serverBase() + '/api/lan').then((r) => r.json()).then((d) => {
-      const list = (d.addresses || []).map((a) => 'http://' + a + ':' + d.port);
-      $('mp-lan').innerHTML = list.length ? 'they can open <b>' + list.join('</b> or <b>') + '</b> in their browser and join with your code' : 'no Wi-Fi address found';
-    }).catch(() => { $('mp-lan').textContent = 'the server is not running (double-click Play.bat or run: node server/server.js)'; });
+  // ------------------------------------------------------------- regions
+  // ping every region over HTTP; Auto picks the lowest
+  async pingRegions() {
+    const regs = regionList();
+    const out = this.ui.regionPings;
+    await Promise.all(regs.map(async (r) => { out[r.id] = await measurePing(r.url); }));
+    if ((this.settings.get('region') || 'auto') === 'auto' && !this.code) {
+      const best = regs.filter((r) => out[r.id] != null).sort((a, b) => out[a.id] - out[b.id])[0];
+      if (best && best.id !== this.region.id) this.useRegion(best.id, true);
+    }
+    this.ui.renderTop();
+    if (this.ui.screen === 'settings') this.ui.renderSettings();
+    return out;
   }
 
-  switchServer(url) {
-    setServerBase(url);
-    this.party = null; this.code = null; this.token = null;
-    try { sessionStorage.removeItem('mx.code'); sessionStorage.removeItem('mx.token'); } catch { /* ignore */ }
+  // switch region (leaves any party on the old one)
+  useRegion(id, quiet) {
+    const r = regionList().find((x) => x.id === id);
+    if (!r || (this.region && r.id === this.region.id && this.ws)) { if (r) this.region = r; return; }
+    if (this.code) { this.send({ t: 'leave' }); this.party = null; this.code = null; ssSet('mx.code', ''); }
+    this.region = r;
+    ssSet('mx.region', r.id);
     if (this.ws) { const w = this.ws; this.ws = null; w.onclose = null; w.close(); }
-    this.connected = false; this.retry = 0;
-    this.renderLobby(); this.renderServer();
-    this.connect();
+    this.connected = false; this.ping = null; this.id = null; this.token = null; ssSet('mx.token', '');
+    if (!quiet) this.ui.popup(`Server region: <b>${escapeHtml(r.name)}</b>`);
+    if (this.wantOnline) this.connect();
+    this.refresh();
   }
 
   serverNow() { return Date.now() + this.offset; }
-  isLeader() { return this.party && this.party.leader === this.id; }
+  isLeader() { return !!this.party && this.party.leader === this.id; }
+  me() { return this.party ? this.party.members.find((m) => m.id === this.id) : null; }
 
   // ------------------------------------------------------------- connection
   connect() {
     if (this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) return;
-    this.status(this.retry ? 'Reconnecting...' : 'Connecting...', 'warn');
     let ws;
-    try { ws = new WebSocket(this.serverUrl()); } catch (e) { this.status('Disconnected', 'bad'); this.error('Could not reach the server.'); return; }
+    try { ws = new WebSocket(wsUrlFor(this.region.url)); } catch { this.error('Could not reach the server.'); return; }
     this.ws = ws;
     ws.onopen = () => {
       this.retry = 0;
       this.connected = true;
       ws.send(JSON.stringify({ t: 'hello', v: PROTOCOL_VERSION, token: this.token, name: this.name(), vehicle: this.settings.get('vehicle'), color: this.settings.get('color'), gear: this.settings.get('gear') }));
       this.pingTimer = setInterval(() => this.sendPing(), 2000);
+      this.refresh();
     };
     ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } this.onMessage(m); };
     ws.onclose = () => {
@@ -100,22 +102,32 @@ export class Net {
       if (this.wantOnline || this.code) {
         this.retry++;
         const wait = Math.min(10000, 500 * 2 ** Math.min(5, this.retry));
-        this.status(`Disconnected - retrying in ${Math.round(wait / 1000)}s`, 'bad');
-        if (was && this.game.mode !== 'menu') this.game.toast('Connection lost - reconnecting...', 2.5, 'bad');
+        if (was && this.game.mode !== 'none' && this.game.state === 'running') this.game.toast('Connection lost - reconnecting...', 2.5, 'bad');
+        else if (was) this.ui.popup('Connection to the server lost - reconnecting...', 'bad');
         setTimeout(() => this.connect(), wait);
-      } else this.status('Disconnected', 'bad');
+      }
+      this.refresh();
     };
     ws.onerror = () => {};
   }
 
   send(o) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(o)); }
   sendPing() { this.send({ t: 'ping', c: Date.now(), rtt: this.ping }); }
-  name() { return cleanName($('mp-name').value || this.settings.get('playerName') || 'Rider'); }
+  name() { const A = this.ui.account; return cleanName((A && A.profile && A.profile.name) || this.settings.get('playerName') || 'Rider'); }
   sendProfile() { if (this.connected) this.send({ t: 'profile', name: this.name(), vehicle: this.settings.get('vehicle'), color: this.settings.get('color'), gear: this.settings.get('gear') }); }
 
-  autoRejoin() {
-    // page reloaded while in a party: reconnect and pick up where we left off
-    if (this.token && ssGet('mx.code')) { this.wantOnline = true; this.connect(); }
+  // page reloaded while in a party: reconnect and pick up where we left off
+  autoRejoin() { if (this.token && ssGet('mx.code')) { this.wantOnline = true; this.connect(); } }
+
+  whenOnline(f) {
+    this.wantOnline = true;
+    if (this.connected && this.id) return f();
+    this.connect();
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      if (this.connected && this.id) { clearInterval(iv); f(); }
+      else if (Date.now() - t0 > 25000) { clearInterval(iv); this.error(`Could not reach the ${this.region.name} server. Free servers sleep when nobody plays - wait a few seconds and try again, or pick another region in Settings > Online.`); }
+    }, 100);
   }
 
   onMessage(m) {
@@ -123,30 +135,44 @@ export class Net {
       case 'welcome':
         this.id = m.id; this.token = m.token; ssSet('mx.token', m.token);
         this.syncClock(m.s, 0);
-        this.status(this.code ? 'In Party' : 'Online', 'ok');
-        if (!this.party && ssGet('mx.code') && !this.code) { /* server restores membership via token */ }
+        this.refresh();
         break;
       case 'pong': {
-        const now = Date.now();
-        this.ping = now - m.c;
+        this.ping = Date.now() - m.c;
         this.syncClock(m.s, this.ping);
-        this.renderPing();
+        this.ui.renderTop();
         break;
       }
-      case 'party':
+      case 'party': {
+        const was = this.party;
         this.party = m; this.code = m.code; ssSet('mx.code', m.code);
-        this.status(this.game.opts && this.game.opts.mp && this.game.mode !== 'menu' ? 'In Session' : 'In Party', 'ok');
-        this.renderLobby();
+        if (!was) this.ui.popup(`You are in party <b>${m.code}</b>`, 'good');
+        // a party you just made starts with what you had picked solo
+        if (!was && m.leader === this.id && m.members.length === 1) {
+          const S = this.settings, mode = S.get('mode') === 'practice' ? 'freeride' : S.get('mode');
+          this.sendSettings({ track: S.get('track'), mode, laps: mode === 'freestyle' ? Math.max(1, S.get('freestyleTime') || 2) : S.get('laps') });
+        }
+        else {
+          const before = new Set(was.members.map((x) => x.id));
+          for (const x of m.members) if (!before.has(x.id)) this.ui.popup(`<b>${escapeHtml(x.name)}</b> joined the party`);
+          for (const x of was.members) if (!m.members.some((y) => y.id === x.id)) this.ui.popup(`<b>${escapeHtml(x.name)}</b> left the party`);
+          if (was.leader !== m.leader && m.leader === this.id) this.ui.popup('You are now the party leader', 'good');
+        }
+        this.refresh();
         this.syncSessionMembers();
+        if (this.waitParty) { this.waitParty(m.code); this.waitParty = null; }
         break;
+      }
       case 'left':
         this.party = null; this.code = null; ssSet('mx.code', '');
-        this.status('Online', 'ok');
-        this.renderLobby();
+        this.refresh();
         break;
       case 'error':
+        if (m.code === 'NO_PARTY' && this.joining && !this.joining.searched) { this.findElsewhere(this.joining.code); break; }
+        this.joining = null;
         this.error(m.msg || m.code);
-        if (this.game.mode !== 'menu') this.game.toast(m.msg || m.code, 2.5, 'bad');
+        if (this.game.state === 'running' && this.ui.screen === 'hud') this.game.toast(m.msg || m.code, 2.5, 'bad');
+        if (this.waitParty) { this.waitParty(null); this.waitParty = null; }
         break;
       case 'session': this.onSession(m); break;
       case 'snap': this.onSnap(m); break;
@@ -154,10 +180,9 @@ export class Net {
       case 'results': this.onResults(m); break;
       case 'ended':
         this.session = null;
-        if (this.game.opts && this.game.opts.mp && this.game.mode !== 'menu') {
+        if (this.game.opts && this.game.opts.mp && this.game.state === 'running') {
           this.game.toast('The leader ended the session', 2);
-          this.ui.hideHud(); this.ui.hideResults(); this.ui.hidePause();
-          this.game.startMenu().then(() => this.ui.show('mp'));
+          this.ui.emit('mainMenu');
         }
         break;
       default: break;
@@ -170,53 +195,68 @@ export class Net {
     else this.offset = this.offset * 0.85 + est * 0.15;
   }
 
-  // ------------------------------------------------------------- lobby UI
-  wireUI() {
-    $('mp-name').value = this.settings.get('playerName') || '';
-    $('mp-name').addEventListener('change', () => { this.settings.set('playerName', this.name()); this.sendProfile(); });
-    $('mp-create').addEventListener('click', () => { this.clearError(); this.settings.set('playerName', this.name()); this.wantOnline = true; this.whenOnline(() => { this.sendProfile(); this.send({ t: 'create' }); }); });
-    $('mp-join').addEventListener('click', () => this.joinFromInput());
-    $('mp-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') this.joinFromInput(); });
-    $('mp-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); });
-    $('mp-leave').addEventListener('click', () => { this.send({ t: 'leave' }); this.party = null; this.code = null; ssSet('mx.code', ''); this.renderLobby(); });
-    $('mp-ready').addEventListener('click', () => { const me = this.me(); this.send({ t: 'ready', ready: !(me && me.ready) }); });
-    $('mp-copy').addEventListener('click', () => this.copyCode());
-    $('mp-server-save').addEventListener('click', () => { const v = $('mp-server').value.trim(); if (v) this.switchServer(v); });
-    $('mp-server-reset').addEventListener('click', () => { $('mp-server').value = ''; this.switchServer(''); });
-    $('mp-garage').addEventListener('click', () => this.ui.show('garage'));
-    $('mp-startbtn').addEventListener('click', () => {
-      if (this.party && this.party.session && !this.isLeader()) { this.send({ t: 'rejoin' }); return; }
-      if (this.party && this.party.session && this.isLeader() && $('mp-startbtn').dataset.act === 'rejoin') { this.send({ t: 'rejoin' }); return; }
-      this.send({ t: 'start' });
-    });
-    $('mp-track').innerHTML = TRACKS.map((t) => `<option value="${t.id}">${t.name}</option>`).join('');
-    for (const id of ['mp-track', 'mp-mode', 'mp-laps']) $(id).addEventListener('change', () => this.send({ t: 'settings', track: $('mp-track').value, mode: $('mp-mode').value, laps: Number($('mp-laps').value) }));
+  // ------------------------------------------------------------- party actions
+  wire() {
+    $('party-create').addEventListener('click', () => this.createParty());
+    $('party-join').addEventListener('click', () => this.joinCode($('party-code').value));
+    $('party-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') this.joinCode($('party-code').value); });
+    $('party-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); });
+    $('party-leave').addEventListener('click', () => this.leave());
+    $('party-copy').addEventListener('click', () => this.copyCode());
+    $('party-invite').addEventListener('click', () => this.ui.show('friends'));
+    this.settings.onChange((k) => { if (['vehicle', 'color', 'gear'].includes(k)) this.sendProfile(); });
   }
 
-  whenOnline(f) {
-    if (this.connected && this.id) return f();
-    this.connect();
-    const t0 = Date.now();
-    const iv = setInterval(() => {
-      if (this.connected && this.id) { clearInterval(iv); f(); }
-      else if (Date.now() - t0 > 8000) { clearInterval(iv); this.error('Could not reach the multiplayer server at ' + serverBase() + '. Start it with Play.bat (or node server/server.js), or open "Server" below to use a different one.'); }
-    }, 100);
-  }
-
-  joinFromInput() {
+  // returns a promise of the new party code (null if it failed)
+  createParty() {
     this.clearError();
-    const code = $('mp-code').value.toUpperCase();
-    if (!validCode(code)) { this.error('Enter the 6-character party code (letters and numbers, e.g. MX7K2P).'); return; }
-    this.settings.set('playerName', this.name());
-    this.wantOnline = true;
-    this.status('Joining...', 'warn');
+    if (this.code) return Promise.resolve(this.code);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => { if (this.waitParty) { this.waitParty = null; resolve(null); } }, 30000);
+      this.waitParty = (code) => { clearTimeout(timer); resolve(code); };
+      this.whenOnline(() => { this.sendProfile(); this.send({ t: 'create' }); });
+    });
+  }
+
+  joinCode(raw, regionId = null) {
+    this.clearError();
+    const code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!validCode(code)) { this.error('Party codes are 6 letters and numbers, like MX7K2P.'); return; }
+    if (code === this.code) { this.ui.show('home'); return; }
+    if (regionId && regionId !== this.region.id && regionList().some((r) => r.id === regionId)) this.useRegion(regionId, false);
+    this.joining = { code, searched: false };
     this.whenOnline(() => { this.sendProfile(); this.send({ t: 'join', code }); });
   }
+
+  // the code is not on this region's server: ask the others
+  async findElsewhere(code) {
+    this.joining.searched = true;
+    for (const r of regionList()) {
+      if (r.id === this.region.id) continue;
+      try {
+        const d = await (await fetch(r.url + '/api/party?code=' + code)).json();
+        if (d.exists) { this.useRegion(r.id, false); this.joining = { code, searched: true }; this.whenOnline(() => { this.sendProfile(); this.send({ t: 'join', code }); }); return; }
+      } catch { /* that region is asleep or down */ }
+    }
+    this.joining = null;
+    this.error(`No party with code ${code}. It may have expired - ask your friend for a new code.`);
+  }
+
+  leave() {
+    this.send({ t: 'leave' });
+    this.party = null; this.code = null; ssSet('mx.code', '');
+    this.refresh();
+  }
+
+  toggleReady() { const me = this.me(); this.send({ t: 'ready', ready: !(me && me.ready) }); }
+  start() { this.send({ t: 'start' }); }
+  rejoin() { this.send({ t: 'rejoin' }); }
+  sendSettings(s) { this.send({ t: 'settings', track: s.track, mode: s.mode, laps: s.laps }); }
 
   copyCode() {
     const code = this.code;
     if (!code) return;
-    const done = () => { $('mp-copy').textContent = 'Copied!'; setTimeout(() => ($('mp-copy').textContent = 'Copy Code'), 1500); };
+    const done = () => { $('party-copy').textContent = 'Copied!'; setTimeout(() => ($('party-copy').textContent = 'Copy'), 1500); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => this.fallbackCopy(code, done));
     else this.fallbackCopy(code, done);
   }
@@ -227,79 +267,53 @@ export class Net {
     ta.remove();
   }
 
-  me() { return this.party ? this.party.members.find((m) => m.id === this.id) : null; }
-
-  status(text, kind) {
-    const el = $('mp-status');
-    if (!el) return;
-    el.textContent = text;
-    el.className = 'status ' + (kind || '');
+  error(msg) {
+    const el = $('party-error');
+    if (el) el.textContent = msg;
+    if (this.ui.screen !== 'home' && this.ui.screen !== 'hud') this.ui.popup(escapeHtml(msg), 'bad', null, 6);
   }
-  error(msg) { $('mp-error').textContent = msg; $('mp-error2').textContent = msg; }
-  clearError() { $('mp-error').textContent = ''; $('mp-error2').textContent = ''; }
-  renderPing() { const el = $('mp-ping'); if (el) el.textContent = this.ping != null ? `ping ${this.ping} ms` : ''; }
+  clearError() { const el = $('party-error'); if (el) el.textContent = ''; }
 
-  renderLobby() {
-    const inParty = !!this.party;
-    $('mp-start').hidden = inParty;
-    $('mp-party').hidden = !inParty;
-    $('mp-back-row').hidden = inParty;
-    if (!inParty) return;
-    const P = this.party, leader = this.isLeader();
-    $('mp-codeshow').textContent = P.code;
-    $('mp-count').textContent = `(${P.members.filter((m) => m.connected).length}/8)`;
-    $('mp-members').innerHTML = P.members.map((m) => {
-      const v = getVehicle(m.vehicle), col = paintFor(m.vehicle, m.color);
-      const tags = [];
-      if (m.id === P.leader) tags.push('<span class="tagl leader">Leader</span>');
-      tags.push(m.connected ? (m.ready ? '<span class="tagl ready">Ready</span>' : '<span class="tagl">Not ready</span>') : '<span class="tagl gone">Disconnected</span>');
-      return `<li><span><span style="color:#${col.body.toString(16).padStart(6, '0')}">&#9679;</span> <b>${escapeHtml(m.name)}</b>${m.id === this.id ? ' (you)' : ''} <small>#${m.number} ${v.name}</small></span><span>${m.ping != null ? m.ping + ' ms ' : ''}${tags.join('')}</span></li>`;
-    }).join('');
-    $('mp-track').value = P.settings.track; $('mp-mode').value = P.settings.mode; $('mp-laps').value = String(P.settings.laps);
-    for (const id of ['mp-track', 'mp-mode', 'mp-laps']) $(id).disabled = !leader;
-    $('mp-leader-note').textContent = leader ? 'You are the leader: pick the track and mode, then start.' : 'The party leader picks the track and mode.';
-    const me = this.me();
-    $('mp-ready').textContent = me && me.ready ? 'Not Ready' : 'Ready';
-    const sb = $('mp-startbtn');
-    if (P.session) { sb.hidden = false; sb.textContent = 'Join Session'; sb.dataset.act = 'rejoin'; }
-    else { sb.hidden = !leader; sb.textContent = 'Start Session'; sb.dataset.act = 'start'; }
-    this.renderPing();
+  // redraw everything that shows the party
+  refresh() { this.ui.renderTop(); this.ui.renderHome(); if (this.ui.screen === 'play') this.ui.renderPlay(); if (this.ui.screen === 'friends') this.ui.renderFriends(); }
+
+  // what friends see about you
+  presence() {
+    const g = this.game;
+    const riding = g.state === 'running' && g.mode !== 'none' && g.mode !== 'menu';
+    return { status: riding ? 'riding' : this.code ? 'party' : 'menu', code: this.code, region: this.region ? this.region.id : null, mode: riding ? g.mode : null, track: riding ? g.trackId : null };
   }
 
   // ------------------------------------------------------------- sessions
   async onSession(m) {
     const g = this.game;
-    // someone joined a running session: just add them
-    if (m.rejoin && this.session && this.session.id === m.id && g.opts && g.opts.mp && g.mode !== 'menu') {
+    if (m.rejoin && this.session && this.session.id === m.id && g.opts && g.opts.mp && g.state === 'running') {
       this.session = m;
       this.syncSessionMembers(m.players);
       return;
     }
     this.session = m;
     this.standings = null;
-    this.status('Joining Session', 'warn');
     const mine = m.players.find((p) => p.id === this.id);
     if (!mine) return;
     this.ui.hideResults(); this.ui.hidePause();
     await g.startSession({
       mode: m.mode, trackId: m.track, vehicleId: mine.vehicle, colorId: mine.color, gearId: mine.gear, laps: m.laps, number: mine.number,
-      mp: { myId: this.id, slot: mine.slot, players: m.players, startAt: m.mode === 'freeride' ? null : m.goAt + 1000, serverNow: () => this.serverNow() },
+      mp: { myId: this.id, slot: mine.slot, players: m.players, minutes: m.laps, startAt: m.mode === 'freeride' ? null : m.goAt + 1000, serverNow: () => this.serverNow() },
     });
     // late join: the gate already dropped
     if (m.mode !== 'freeride' && this.serverNow() > m.goAt + 1000 && g.phase === 'countdown') g.countdown = 0.95;
     g.net = this;
-    this.status('In Session', 'ok');
   }
 
   // add / remove remote riders to match the session + party
   syncSessionMembers(players) {
     const g = this.game;
-    if (!g.opts || !g.opts.mp || g.mode === 'menu' || !this.session) return;
+    if (!g.opts || !g.opts.mp || g.state !== 'running' || !this.session) return;
     const list = players || this.session.players;
     const inParty = new Set((this.party ? this.party.members : []).map((m) => m.id));
     for (const p of list) {
-      if (p.id === this.id) continue;
-      if (!inParty.has(p.id)) continue;
+      if (p.id === this.id || !inParty.has(p.id)) continue;
       if (!g.riders.some((r) => r.id === p.id)) {
         g.addRider({ id: p.id, name: p.name, vehicleId: p.vehicle, colorId: p.color, gearId: p.gear, number: p.number, remote: true });
         g.toast(`${p.name} joined`, 1.5);
@@ -316,21 +330,27 @@ export class Net {
     this.send({ t: 's', d: packState(game.player.veh) });
   }
 
-  sendEvent(e) { this.send({ t: 'ev', e: e.t }); }
+  sendEvent(e) { this.send({ t: 'ev', e: e.t, v: e.v }); }
 
   onSnap(m) {
     const g = this.game;
+    const now = this.serverNow();
     for (const row of m.p) {
       const id = row[0];
       if (id === this.id) continue;
       const r = g.riders.find((x) => x.id === id && x.remote);
       if (!r) continue;
-      const buf = r.remote.buf;
+      const R = r.remote, buf = R.buf;
       const t = row[1];
       if (buf.length && t <= buf[buf.length - 1].t) continue;
       buf.push({ t, d: row.slice(2) });
       if (buf.length > 40) buf.shift();
-      r.remote.lastRecv = Date.now();
+      // how late do this rider's states arrive, and how much does that wobble?
+      const age = now - t;
+      R.age = R.age == null ? age : R.age * 0.9 + age * 0.1;
+      R.jitter = R.jitter == null ? 0 : R.jitter * 0.9 + Math.abs(age - R.age) * 0.1;
+      if (R.lastRecv && Date.now() - R.lastRecv > 3000) g.toast(`${r.name} is back`, 1.5);
+      R.lastRecv = Date.now();
     }
   }
 
@@ -338,7 +358,10 @@ export class Net {
   interpolate(r, game) {
     const R = r.remote, buf = R.buf;
     if (!buf.length) return;
-    const rt = this.serverNow() - INTERP_DELAY;
+    // draw them far enough in the past to always have two states to blend
+    const want = Math.max(70, Math.min(260, 1000 / SEND_RATE + 1000 / 20 + (R.jitter || 0) * 3));
+    R.delay = R.delay == null ? INTERP_DELAY : R.delay + (want - R.delay) * 0.02;
+    const rt = this.serverNow() - R.delay - Math.max(0, (R.age || 0) - 40) * 0.5;
     let a = buf[0], b = buf[0], k = 0;
     if (rt <= buf[0].t) { a = b = buf[0]; }
     else if (rt >= buf[buf.length - 1].t) { a = b = buf[buf.length - 1]; }
@@ -356,6 +379,8 @@ export class Net {
     const late = (rt - buf[buf.length - 1].t) / 1000;
     if (late > 0) st.pos.addScaledVector(st.vel, Math.min(0.25, late));
     const stale = Date.now() - (R.lastRecv || 0) > 3000;
+    if (stale && !R.staleTold) { R.staleTold = true; game.toast(`${r.name} lost connection`, 2, 'bad'); }
+    if (!stale) R.staleTold = false;
     r.vis.root.visible = !stale;
     const def = getVehicle(r.vehicleId);
     const dt = 1 / 60;
@@ -383,7 +408,6 @@ export class Net {
   onRace(m) {
     const g = this.game;
     if (!g.opts || !g.opts.mp) return;
-    // mark finishers on our side for the HUD flags
     for (const row of m.rows) {
       const r = g.riders.find((x) => x.id === row.id);
       if (r) { r.finished = row.finished; r.finishTime = row.time; if (row.best != null) r.lap.bestLap = row.best; }
@@ -404,12 +428,13 @@ export class Net {
     const g = this.game;
     const rows = m.rows.map((r) => {
       const rider = g.riders.find((x) => x.id === r.id);
-      return { pos: r.pos, name: r.name, vehicle: rider ? getVehicle(rider.vehicleId).name : '', time: m.mode === 'race' ? r.time : r.best, best: r.best, laps: r.laps, me: r.id === this.id };
+      return { pos: r.pos, name: r.name, vehicle: rider ? getVehicle(rider.vehicleId).name : '', time: m.mode === 'race' ? r.time : r.best, best: r.best, laps: r.laps, score: r.score, me: r.id === this.id };
     });
     g.results = rows;
     const mine = rows.find((r) => r.me);
     if (mine && m.mode === 'race') g.award(mine.pos === 1 ? 'win' : 'race', [500, 320, 220, 150, 110, 90, 80, 70][Math.min(mine.pos, 8) - 1]);
-    setTimeout(() => this.ui.showResults(rows, g), m.mode === 'race' ? 1500 : 0);
+    if (mine && m.mode === 'freestyle') this.settings.saveScore(g.trackId, mine.score || 0);
+    setTimeout(() => this.ui.showResults(rows, g), m.mode === 'race' ? 1500 : 600);
   }
 
   requestRestart() {
@@ -417,13 +442,9 @@ export class Net {
     else this.game.toast('Only the party leader can restart', 2);
   }
 
-  leaveSession() {
-    // back to the menu: we stay in the party, we just stop riding
-    this.game.net = null;
-    this.status('In Party', 'ok');
-  }
+  // back to the lobby: we stay in the party, we just stop riding
+  leaveSession() { this.game.net = null; this.refresh(); }
 }
 
-function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 function ssGet(k) { try { return sessionStorage.getItem(k); } catch { return null; } }
 function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch { /* ignore */ } }

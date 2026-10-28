@@ -22,26 +22,31 @@ Shift clutch · **Q / E lean back / forward** · R reset · T quick retry · C c
 
 ## Play with friends
 
+**In the game:** Lobby > Create party, then share the 6-letter code (or Friends > Invite). Friends
+type the code under Join. The leader picks mode and track (Change), everyone else presses Ready Up,
+and the leader presses Start. Party members stand next to you in the 3D lobby.
+
 **Same Wi-Fi:** run Play.bat. The window prints an address like `http://192.168.1.20:5323`.
-Friends open that address in their browser, go to Multiplayer and type your party code.
+Friends open that address in their browser and join your party code.
 
-**Anywhere (different houses, phones on mobile data):** the server has to be on the internet.
-Free way, about 10 minutes:
-1. Put this folder on GitHub (github.com > New repository > upload the files).
-2. Go to render.com, sign up, click **New > Blueprint**, pick the repository. `render.yaml` does the rest.
-3. Render gives you an address like `https://ridgeline-mx.onrender.com`. Anyone can open it and play.
-4. To make the double-click file use it too: put the address in `client/js/config.js`
-   (`PUBLIC_SERVER`) and run `node tools/build-html.js`.
-   Or, in the game: Multiplayer > Server > type the address > Use this server.
+**Anywhere:** the game uses the online server `https://ridgeline-mx.onrender.com` (Render free
+tier, built from the GitHub repo). After pushing changes to GitHub, press **Manual Deploy** on Render.
 
-Free Render servers sleep when nobody plays (first connect takes ~30 s) and forget accounts when
-they restart. For accounts that never reset, add a Render disk and set `DATA_DIR` to it.
+### What the online side needs (and costs)
+| Thing | How it works now | To make it better |
+|---|---|---|
+| Accounts, coins, friends | Stored on the home server (`PUBLIC_SERVER` in `client/js/config.js`) | Free Render servers forget accounts when they restart. Add a Render disk (paid plan, about $7/month plus the disk) and set `DATA_DIR` to it |
+| Server regions | One region (North America, Oregon). The game pings every region and uses the closest; a party code is found in any region | Deploy another copy of the repo on Render in Frankfurt or Singapore, add it to `REGIONS` in `client/js/config.js`, rebuild. Free servers share 750 hours a month, so more than one always-on region needs a paid plan |
+| Sleeping | Free servers sleep after 15 minutes alone; the first connect takes about 30 s | A paid Render instance (about $7/month) never sleeps |
+| Ping | Shown top-right in the menus, top-centre while riding, and per rider in the party list | Closer regions (above) |
 
-## Your models
-Put `.glb` files in `client/models/` with the names in `shared/vehicles.js`
-(`dirtbike_450.glb`, `dirtbike_250.glb`, `atv_450.glb`, `atv_700.glb`). Name the wheel objects
-`Wheel_Front` / `Wheel_Rear` (bikes) or `Wheel_FL`, `Wheel_FR`, `Wheel_RL`, `Wheel_RR` (quads) so
-they spin; `Handlebar` turns with the steering. Missing files fall back to the built-in models.
+## Models
+- Dirt bikes: `client/models/kx_dirt_bike.glb`, made from the Tinkercad bike by `tools/bake-kx-bike.py`
+  (Blender), which splits it into wheels, fork, swingarm and body.
+- Rider helmet: `client/models/rider_helmet.glb`, made by `tools/bake-helmet.py` (logos removed; the
+  shell takes each rider's colour).
+- Quad, side-by-side and buggy: `pro_450r_quad.glb`, `viper_rs_turbo.glb`, `trophy_buggy.glb`.
+- Pivots and seat / grip / peg points for each model are in `MODELS` in `shared/vehicles.js`.
 
 ## Changing things (for later)
 | To change | Edit |

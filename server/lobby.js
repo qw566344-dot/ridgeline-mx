@@ -121,7 +121,14 @@ export class Lobby {
       case 'end': this.endSession(p); break;
       case 'rejoin': this.rejoin(p); break;
       case 's': this.state(p, m.d); break;
-      case 'ev': if (m.e === 'reset' || m.e === 'crash') p.resetAt = Date.now(); break;
+      case 'ev':
+        if (m.e === 'reset' || m.e === 'crash') p.resetAt = Date.now();
+        // freestyle jams: trick points count towards the party leaderboard
+        if (m.e === 'trick' && p.party && p.party.session && p.party.session.mode === 'freestyle' && !p.party.session.over) {
+          const v = Math.round(Number(m.v));
+          if (Number.isFinite(v) && v > 0) p.score = (p.score || 0) + Math.min(20000, v);
+        }
+        break;
       default: break;
     }
   }
@@ -219,7 +226,7 @@ export class Lobby {
     if (TRACKS.some((t) => t.id === m.track)) party.settings.track = m.track;
     if (MODES.includes(m.mode)) party.settings.mode = m.mode;
     const laps = Number(m.laps);
-    if (Number.isInteger(laps) && laps >= 1 && laps <= 10) party.settings.laps = laps;
+    if (Number.isInteger(laps) && laps >= 1 && laps <= 10) party.settings.laps = laps; // minutes in freestyle
     this.broadcastParty(party);
   }
 
@@ -230,7 +237,7 @@ export class Lobby {
     const info = trackInfo(S.track);
     p.lap = new LapTracker(info.T);
     p.lap.reset(S.mode === 'timetrial' ? 'flying' : 'race', 0);
-    p.finished = false; p.finishTime = null; p.state = null; p.lastPos = null; p.sHint = null; p.flags = 0;
+    p.finished = false; p.finishTime = null; p.score = 0; p.state = null; p.lastPos = null; p.sHint = null; p.flags = 0;
   }
 
   start(p) {
@@ -300,7 +307,7 @@ export class Lobby {
     }
     p.state = d; p.stateTime = now; p.lastPos = [x, y, z];
     // the server runs the lap rules itself
-    if (p.lap && trusted && S.mode !== 'freeride' && now >= S.goAt && !p.finished) {
+    if (p.lap && trusted && S.mode !== 'freeride' && S.mode !== 'freestyle' && now >= S.goAt && !p.finished) {
       const loc = locatePrecise(info.T, info.F, x, z, p.sHint);
       if (loc && Math.abs(loc.u) < 40) {
         p.sHint = loc.s;
@@ -318,6 +325,7 @@ export class Lobby {
   standings(party) {
     const S = party.session;
     const list = S.players.map((sp) => this.players.get(sp.id)).filter((p) => p && p.lap && p.party === party);
+    if (S.mode === 'freestyle') return list.sort((a, b) => (b.score || 0) - (a.score || 0));
     if (S.mode === 'timetrial') return list.sort((a, b) => (a.lap.bestLap ?? 1e9) - (b.lap.bestLap ?? 1e9));
     return list.sort((a, b) => {
       if (a.finished && b.finished) return a.finishTime - b.finishTime;
@@ -329,7 +337,7 @@ export class Lobby {
   sendRace(party) {
     const S = party.session;
     if (!S || S.mode === 'freeride') return;
-    const rows = this.standings(party).map((p, i) => ({ id: p.id, name: p.name, pos: i + 1, laps: p.lap.laps, best: p.lap.bestLap, last: p.lap.lastLap, finished: !!p.finished, time: p.finishTime, connected: p.connected }));
+    const rows = this.standings(party).map((p, i) => ({ id: p.id, name: p.name, pos: i + 1, laps: p.lap.laps, best: p.lap.bestLap, last: p.lap.lastLap, finished: !!p.finished, time: p.finishTime, score: p.score || 0, connected: p.connected }));
     const msg = JSON.stringify({ t: 'race', mode: S.mode, laps: S.laps, rows, over: !!S.over });
     for (const m of party.members.values()) if (m.conn) m.conn.send(msg);
     return rows;
@@ -369,6 +377,7 @@ export class Lobby {
         const live = racers.filter((x) => x.connected);
         if ((live.length && live.every((x) => x.finished)) || (S.firstFinish && now - S.firstFinish > RACE_LIMIT_AFTER_WINNER)) this.finishSession(party);
       }
+      if (S.mode === 'freestyle' && !S.over && now > S.goAt + S.laps * 60_000) this.finishSession(party);
       if (!S.over && now % 1000 < 50 && S.mode !== 'freeride' && now > S.goAt) this.sendRace(party);
     }
   }
@@ -411,6 +420,9 @@ export class Lobby {
   }
 
   err(p, code, msg) { if (p.conn) p.conn.send({ t: 'error', code, msg }); }
+
+  // is there a party with this code here? (lets a client find which region it is on)
+  hasParty(code) { return this.parties.has(String(code || '').toUpperCase()); }
 
   stats() { return { players: this.players.size, parties: this.parties.size, connections: this.conns }; }
 }

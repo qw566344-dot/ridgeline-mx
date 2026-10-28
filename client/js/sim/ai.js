@@ -18,7 +18,7 @@ const profiles = new Map();
 export function speedProfile(T, cfg) {
   const key = T.id + ':' + cfg.type + ':' + cfg.id;
   if (profiles.has(key)) return profiles.get(key);
-  const n = T.n, v = new Float32Array(n), want = new Float32Array(n).fill(0);
+  const n = T.n, v = new Float32Array(n), want = new Float32Array(n).fill(0), face = new Uint8Array(n);
   const mu = cfg.type === 'bike' ? 0.88 : 0.85;
   for (let i = 0; i < n; i++) {
     const k = Math.abs(T.kappa[i]);
@@ -55,6 +55,7 @@ export function speedProfile(T, cfg) {
       v[i] = Math.min(v[i], vFace);
       want[i] = vFace;
     }
+    for (let s = f.s0; s <= f.s0 + lip.x; s += T.step) face[((Math.floor(s / T.step) % n) + n) % n] = 1;
     // after the landing let it run
     void iFace;
   }
@@ -67,7 +68,7 @@ export function speedProfile(T, cfg) {
       if (v[i] > lim) v[i] = lim;
     }
   }
-  const prof = { v, want };
+  const prof = { v, want, face };
   profiles.set(key, prof);
   return prof;
 }
@@ -147,6 +148,8 @@ export class AIDriver {
     if (err > 0) { inp.throttle = clamp(err * 0.5 + 0.35, 0, 1); inp.brake = 0; }
     else if (err > -1.2) { inp.throttle = 0.15; inp.brake = 0; }
     else { inp.throttle = 0; inp.brake = clamp(-err * 0.35, 0, 1); }
+    // cars: once up to speed, ease off on a jump face - full power there wheelies them over backwards
+    if (v.cfg.type === 'car' && this.prof.face[((Math.floor(s / T.step) % T.n) + T.n) % T.n] && spd > want * 0.9) inp.throttle = Math.min(inp.throttle, 0.3);
     inp.lean = 0; inp.rearBrake = 0; inp.clutch = false;
   }
 }

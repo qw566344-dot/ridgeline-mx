@@ -613,7 +613,8 @@ export class Scenery {
   // --- grass tufts: only around the camera, rebuilt as it moves
   buildGrass() {
     const q = this.quality;
-    const density = q.grass; // tufts per 100 m^2
+    // tufts per 100 m^2 (mostly buried on snowy tracks)
+    const density = q.grass * (1 - ((this.world.def.look && this.world.def.look.snow) || 0) * 0.8);
     this.grassRange = q.detail === 'low' ? 35 : q.detail === 'high' ? 70 : 52;
     this.grassCell = 12;
     const cap = Math.ceil(((Math.PI * this.grassRange * this.grassRange) / 100) * density * 1.3) + 50;

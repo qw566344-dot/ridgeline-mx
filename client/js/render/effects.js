@@ -38,6 +38,10 @@ export class Effects {
     this.world = world;
     this.max = 3000;
     this.budget = quality.particles;
+    // dust takes the track's dirt colour; snowy tracks throw up white powder
+    const look = (world.def && world.def.look) || {};
+    const d = look.dirt || [1, 1, 1], sn = look.snow || 0;
+    this.tint = [d[0] * (1 - sn) + 1.45 * sn, d[1] * (1 - sn) + 1.6 * sn, d[2] * (1 - sn) + 1.85 * sn];
     const n = this.max;
     this.pos = new Float32Array(n * 3); this.vel = new Float32Array(n * 3);
     this.size = new Float32Array(n); this.alpha = new Float32Array(n); this.color = new Float32Array(n * 3);
@@ -101,13 +105,22 @@ export class Effects {
         // drifting dust cloud
         this.spawn(cp.x + (Math.random() - 0.5) * 0.5, cp.y + 0.15, cp.z + (Math.random() - 0.5) * 0.5,
           -veh.vel.x * 0.1 + (Math.random() - 0.5) * 1.2, 0.6 + Math.random() * 0.8, -veh.vel.z * 0.1 + (Math.random() - 0.5) * 1.2,
-          0.6 + t * 0.6, 1.6 + spd * 0.06, 1.4 + Math.random() * 1.4, 0.32 * Math.min(1, 0.3 + dirt), shade, shade * 0.86, shade * 0.7, -0.15, 0.9);
+          0.6 + t * 0.6, 1.6 + spd * 0.06, 1.4 + Math.random() * 1.4, 0.32 * Math.min(1, 0.3 + dirt), ...this.dust(shade), -0.15, 0.9);
         // roost: clods thrown back when the rear spins / accelerates hard
         if (w.cfg.driven && (slip > 0.15 || veh.input.throttle > 0.7) && Math.random() < 0.55 * dirt) {
           const back = 3 + slip * 6;
           this.spawn(cp.x, cp.y + 0.1, cp.z,
             -veh.fwd.x * back + (Math.random() - 0.5) * 2, 1.8 + Math.random() * 2.5, -veh.fwd.z * back + (Math.random() - 0.5) * 2,
-            0.09 + Math.random() * 0.08, 0, 0.6 + Math.random() * 0.4, 0.95, 0.34, 0.25, 0.17, 9.8, 0.2);
+            0.09 + Math.random() * 0.08, 0, 0.6 + Math.random() * 0.4, 0.95, ...this.dust(0.4, 0.85), 9.8, 0.2);
+        }
+        // sliding sideways: a fan of dirt thrown off the outside of the turn
+        const side = w.slipLat || 0;
+        if (side > 1.2 && spd > 5 && Math.random() < 0.5 * dirt) {
+          const lv = veh.left, sgn = Math.sign(veh.vel.x * lv.x + veh.vel.z * lv.z) || 1;
+          const out = 2 + Math.min(4, side);
+          this.spawn(cp.x, cp.y + 0.1, cp.z,
+            lv.x * sgn * out - veh.fwd.x * 1.5 + (Math.random() - 0.5), 1.2 + Math.random() * 2, lv.z * sgn * out - veh.fwd.z * 1.5 + (Math.random() - 0.5),
+            0.08 + Math.random() * 0.07, 0, 0.55 + Math.random() * 0.4, 0.9, ...this.dust(0.42, 0.85), 9.8, 0.25);
         }
       }
       if (dirt > 0.4 && spd > 1) this.marks.add(key, w, 0.18 + Math.min(0.5, slip * 0.5));
@@ -117,13 +130,25 @@ export class Effects {
     this.emitAcc.set(key, acc);
   }
 
+  // r, g, b for dust of this brightness on this track (clods are darker and wetter)
+  dust(shade, wet = 1) {
+    const t = this.tint;
+    return [Math.min(1, shade * t[0] * wet), Math.min(1, shade * 0.86 * t[1] * wet), Math.min(1, shade * 0.7 * t[2] * wet)];
+  }
+
   landing(pos, strength) {
     const n = Math.floor(18 * strength * this.budget);
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, s = 1.5 + Math.random() * 3 * strength;
       const shade = 0.6 + Math.random() * 0.1;
       this.spawn(pos.x, pos.y + 0.1, pos.z, Math.cos(a) * s, 0.4 + Math.random(), Math.sin(a) * s,
-        0.8, 2.2, 1.5 + Math.random(), 0.4, shade, shade * 0.86, shade * 0.7, -0.1, 1.4);
+        0.8, 2.2, 1.5 + Math.random(), 0.4, ...this.dust(shade), -0.1, 1.4);
+    }
+    // clods kicked out by a hard landing
+    for (let i = 0; i < n * 0.6; i++) {
+      const a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 3 * strength;
+      this.spawn(pos.x, pos.y + 0.05, pos.z, Math.cos(a) * s, 1.5 + Math.random() * 2.5 * strength, Math.sin(a) * s,
+        0.08 + Math.random() * 0.08, 0, 0.6 + Math.random() * 0.4, 0.95, ...this.dust(0.4, 0.85), 9.8, 0.2);
     }
   }
 
@@ -131,7 +156,7 @@ export class Effects {
     for (let i = 0; i < 40 * this.budget; i++) {
       const shade = 0.55 + Math.random() * 0.1;
       this.spawn(pos.x, pos.y, pos.z, vel.x * 0.3 + (Math.random() - 0.5) * 4, Math.random() * 3, vel.z * 0.3 + (Math.random() - 0.5) * 4,
-        0.9, 2.5, 1.8 + Math.random(), 0.45, shade, shade * 0.86, shade * 0.7, -0.05, 1.2);
+        0.9, 2.5, 1.8 + Math.random(), 0.45, ...this.dust(shade), -0.05, 1.2);
     }
   }
 

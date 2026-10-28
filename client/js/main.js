@@ -1,6 +1,7 @@
 // =====================================================================
-//  RIDGELINE MX - entry point. Creates the renderer, game, UI, audio and
-//  network objects, wires the menus to the game, and runs the frame loop.
+//  RIDGELINE MX - entry point. Creates the renderer, game, UI, audio,
+//  network and friends objects, wires the menus to the game, and runs the
+//  frame loop: the 3D lobby stage while a menu is up, the track otherwise.
 // =====================================================================
 import { Renderer } from './render/renderer.js';
 import { Settings } from './settings.js';
@@ -8,10 +9,12 @@ import { Input } from './input.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
 import { Game } from './game.js';
-import { Garage } from './garage.js';
+import { Stage } from './stage.js';
 import { Net } from './net.js';
 import { Account } from './account.js';
+import { Social } from './social.js';
 import { preloadModels } from './render/modelRig.js';
+import { escapeHtml } from './util.js';
 
 const settings = new Settings();
 const R = new Renderer(document.getElementById('game'));
@@ -20,10 +23,14 @@ const input = new Input();
 const audio = new Audio(settings);
 const ui = new UI(settings);
 const game = new Game({ renderer: R, settings, audio, input, ui });
-const garage = new Garage(R);
-const net = new Net(ui, game, settings);
+const stage = new Stage(R);
 const account = new Account();
-ui.account = account; game.account = account;
+const social = new Social(account);
+ui.account = account; ui.game = game; ui.stage = stage; ui.social = social;
+game.account = account;
+const net = new Net(ui, game, settings);
+ui.net = net;
+social.presence = () => net.presence();
 
 // make sure what's selected is something this account owns
 function syncEquipped() {
@@ -34,28 +41,39 @@ function syncEquipped() {
   }
   settings.set('playerName', account.profile.name);
 }
-account.onChange(() => { if (ui.screen === 'menu') ui.renderSummary(); });
-ui.on('loggedIn', () => { syncEquipped(); ui.show('menu'); });
-ui.on('logout', () => { account.logout(); ui.showAccount(); });
+account.onChange(() => { ui.renderTop(); if (ui.screen === 'home') ui.renderHome(); });
+ui.on('loggedIn', () => { syncEquipped(); ui.show('home'); social.start(); net.sendProfile(); });
+ui.on('logout', () => { account.logout(); social.start(); ui.showAccount(); });
+
+// friends: keep the lists fresh, pop up party invites wherever you are
+social.onChange(() => {
+  ui.renderTop();
+  if (ui.screen === 'friends') ui.renderFriends();
+  if (ui.screen === 'home') ui.renderFriendsMini();
+});
+social.onInvite((inv) => {
+  ui.popup(`<b>${escapeHtml(inv.from)}</b> invited you to their party`, '', [
+    ['Join', () => { ui.emit('joinParty', inv); social.dismiss(inv); }, true],
+    ['Not now', () => social.dismiss(inv)],
+  ], 25);
+});
+ui.on('joinParty', async (inv) => {
+  // riding in another session? leave it first
+  if (game.state === 'running') await backToLobby();
+  net.joinCode(inv.code, inv.region);
+  ui.show('home');
+});
 
 // expose for debugging / automated tests in the console
-window.MX = { game, ui, settings, R, net, garage, input, account };
+window.MX = { game, ui, settings, R, net, stage, input, account, social };
 
 // ---- menu wiring
-ui.on('screen', (name) => {
-  if (name === 'garage') { const l = ui.garageLook(); garage.show(l.vehicle, l.color, l.gear); }
-  garage.active = name === 'garage';
-  if (name !== 'loading') audio.unlock();
-});
-ui.on('garageChange', () => { const l = ui.garageLook(); garage.show(l.vehicle, l.color, l.gear); });
-ui.on('trackChange', async () => {
-  ui.showLoading('Loading track...');
-  await game.startMenu();
-  ui.show('tracks');
-});
+ui.on('screen', (name) => { if (name !== 'loading') audio.unlock(); });
 ui.on('startMode', async (opts) => {
   audio.unlock();
+  social.fast = false;
   await game.startSession(opts);
+  social.refresh();
 });
 ui.on('pause', () => { game.paused = true; input.enabled = false; ui.showPause(); });
 ui.on('resume', () => { game.paused = false; input.enabled = true; ui.hidePause(); ui.showHud(game); });
@@ -67,33 +85,34 @@ ui.on('restart', async () => {
 });
 ui.on('resetVehicle', () => { if (game.player && game.player.veh) game.resetRider(game.player); ui.emit('resume'); });
 ui.on('camera', () => { game.cam.cycle(); settings.set('camera', game.cam.mode); });
-ui.on('mainMenu', async () => {
+async function backToLobby() {
   ui.hidePause(); ui.hideResults(); ui.hideHud();
   input.enabled = true;
   if (game.opts && game.opts.mp) net.leaveSession();
-  ui.showLoading('Back to the menu...');
-  await game.startMenu();
-  ui.show(game.opts && game.opts.mp && net.code ? 'mp' : 'menu');
+  game.stop();
+  social.fast = true;
+  stage.snap = true;
+  ui.show('home');
+  social.refresh();
+}
+ui.on('mainMenu', backToLobby);
+ui.on('region', (id) => {
+  settings.set('region', id);
+  if (id === 'auto') net.pingRegions(); else net.useRegion(id);
 });
+ui.on('pingRegions', () => { ui.regionPings = {}; ui.renderSettings(); net.pingRegions(); });
 ui.on('quality', async () => {
   R.applyQuality(settings.quality());
   game.applySettings();
   // grass / detail / shadows need the scenery rebuilt
-  if (game.world) {
-    const keepPlaying = game.mode !== 'menu';
-    const id = game.trackId;
-    game.trackId = null;
-    const riders = game.riders;
-    // rebuild scenery only (keeps riders + physics)
+  if (game.world && game.state === 'running') {
     const { Scenery } = await import('./render/scenery.js');
     game.scenery.dispose();
     game.scenery = new Scenery(game.world, R, settings.quality());
     R.scene.add(game.scenery.group);
     game.terrain.setShadowCasting(settings.get('shadows') === 'high');
-    game.trackId = id;
     game.scenery.forceUpdate(R.camera);
-    if (keepPlaying && game.phase === 'go') game.scenery.dropGate(true), game.scenery.setGate(-Math.PI / 2 * 0.96);
-    void riders;
+    if (game.phase === 'go') { game.scenery.dropGate(true); game.scenery.setGate(-Math.PI / 2 * 0.96); }
   }
 });
 
@@ -104,29 +123,25 @@ window.addEventListener('keydown', () => audio.unlock());
 (async () => {
   ui.showLoading('Loading vehicles...');
   try { await preloadModels((m) => ui.showLoading(m)); } catch (e) { console.warn(e); }
-  ui.showLoading('Building the track...');
-  try {
-    await game.startMenu();
-  } catch (e) {
-    console.error(e);
-    ui.showLoading('Something went wrong loading the game: ' + e.message);
-    return;
-  }
+  ui.showLoading('Connecting...');
   await account.init();
-  if (account.loggedIn) { syncEquipped(); ui.show('menu'); } else ui.showAccount();
+  net.pingRegions();
+  if (account.loggedIn) { syncEquipped(); ui.show('home'); } else ui.showAccount();
+  social.start();
   net.autoRejoin();
 })();
 
 // ---- frame loop
 let last = performance.now();
+const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'friends', 'settings', 'controls', 'credits']);
 function loop(now) {
   const raw = (now - last) / 1000;
   const dt = Math.min(0.1, raw);
   game.rawDt = raw;
   last = now;
   input.update(dt);
-  if (ui.screen === 'garage') garage.render(dt);
-  else game.frame(dt);
+  if (STAGE_SCREENS.has(ui.screen) && game.state !== 'running') stage.render(dt);
+  else { stage.active = false; game.frame(dt); }
   input.endFrame();
   requestAnimationFrame(loop);
 }

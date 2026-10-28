@@ -10,7 +10,7 @@
 // =====================================================================
 import * as THREE from '../../vendor/three.module.js';
 import { groundAt, dirtAt } from '../../../shared/terrain.js';
-import { prepareVehicle, getVehicle } from '../../../shared/vehicles.js';
+import { prepareVehicle, getVehicle, applyUpgrades } from '../../../shared/vehicles.js';
 import { locatePrecise, locate, sampleArr, pointAt, wrapS, deltaS } from '../../../shared/trackgen.js';
 import { BikeController } from './bike.js';
 import { AtvController } from './atv.js';
@@ -26,7 +26,8 @@ const _m = new THREE.Matrix4();
 
 export class Vehicle {
   constructor(vehicleId, world, opts = {}) {
-    this.def = getVehicle(vehicleId);
+    // shop upgrades (engine / suspension / tyres) tweak the base numbers
+    this.def = applyUpgrades(getVehicle(vehicleId), opts.upgrades || {});
     this.cfg = prepareVehicle(this.def);
     this.world = world;
     this.id = opts.id ?? 0;
@@ -85,6 +86,12 @@ export class Vehicle {
   resetToTrack(s = this.safeS, u = 0) {
     const T = this.world.T;
     let ss = wrapS(T, s);
+    // never put you right in front of a jump with no run-up: back off before its approach
+    for (const f of T.features) {
+      if (f.type === 'whoops' || f.type === 'rollers') continue;
+      const d = deltaS(T, f.s0, ss); // metres past the jump's foot (negative = before it)
+      if (d > -28 && d < 3) { ss = wrapS(T, f.s0 - 34); break; }
+    }
     for (let k = 0; k < 200; k++) {
       const i = Math.floor(ss / T.step) % T.n;
       if (T.flatSpawn[i]) break;

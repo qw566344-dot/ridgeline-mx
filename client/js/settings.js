@@ -37,6 +37,9 @@ const DEFAULTS = {
   gear: 'match',
   track: 'ridgeline',
   camera: 0,
+  mode: 'freeride',
+  freestyleTime: 2,   // minutes (0 = no limit)
+  region: 'auto',
 };
 
 function load(key, fallback) {
@@ -84,6 +87,14 @@ export class Settings {
   saveSection(track, vehicle, name, t) {
     const k = `sec:${track}:${vehicle}:${name}`;
     if (!this.records[k] || t < this.records[k]) { this.records[k] = t; save(REC, this.records); return true; }
+    return false;
+  }
+
+  // best freestyle score per track
+  bestScore(track) { return this.records[`trick:${track}`] || null; }
+  saveScore(track, pts) {
+    const k = `trick:${track}`;
+    if (!this.records[k] || pts > this.records[k]) { this.records[k] = pts; save(REC, this.records); return true; }
     return false;
   }
 }

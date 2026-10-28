@@ -3,13 +3,13 @@
 //  Messages are small JSON objects with a type field `t`.
 //  Rider state is packed into a flat array to keep packets small.
 // =====================================================================
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 export const SEND_RATE = 20;          // rider state updates per second
 export const SNAPSHOT_RATE = 20;      // server snapshots per second
 export const INTERP_DELAY = 120;      // ms remote riders are drawn "in the past" for smoothness
 export const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
 export const CODE_LENGTH = 6;
-export const MODES = ['freeride', 'race', 'timetrial'];
+export const MODES = ['freeride', 'race', 'timetrial', 'freestyle'];
 
 // flags bitfield
 export const F_CRASHED = 1, F_AIR = 2, F_REVERSE = 4;

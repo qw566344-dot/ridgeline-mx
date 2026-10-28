@@ -28,8 +28,10 @@ const LOD_DIST = 45;          // metres: beyond this the simplified meshes are u
 const V = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 
 // ---------------------------------------------------------------- loading
-function loadOne(key) {
-  const M = MODELS[key];
+function loadOne(key) { return loadFile(MODELS[key].file); }
+
+function loadFile(file) {
+  const M = { file };
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
   // the single-file build embeds the models; otherwise fetch them
@@ -53,7 +55,66 @@ export async function preloadModels(onProgress = () => {}) {
       catch (e) { console.warn('Model rig failed for', k, e); }
     }
   }
+  if (!helmet) {
+    onProgress('Loading rider gear...');
+    const g = await loadFile(HELMET_FILE);
+    if (g) { try { helmet = buildHelmet(g.scene); } catch (e) { console.warn('Helmet failed', e); } }
+  }
   return templates;
+}
+
+// ---------------------------------------------------------------- rider helmet
+// The helmet model sits on the rider's head bone (y up, z towards the face):
+// scaled to 30 cm wide, turned to face +z, back of the shell just behind the neck.
+// The shell is marked magenta in its texture; helmetMaterial swaps that for
+// each rider's jersey colour, keeping the trim, vents and goggles.
+const HELMET_FILE = 'models/rider_helmet.glb';
+let helmet = null;
+function buildHelmet(root) {
+  root.updateMatrixWorld(true);
+  let mesh = null;
+  root.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
+  const g = mesh.geometry.clone();
+  g.applyMatrix4(mesh.matrixWorld);
+  g.rotateY(Math.PI); // the model faces -z
+  g.computeBoundingBox();
+  const b = g.boundingBox;
+  const s = 0.3 / (b.max.x - b.min.x);
+  g.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -b.min.z);
+  g.scale(s, s, s);
+  g.translate(0, -0.035, -0.175);
+  const map = mesh.material.map;
+  return { geometry: g, image: map ? map.image : null, flipY: map ? map.flipY : false };
+}
+export function helmetModel() { return helmet; }
+
+const helmetMats = new Map();
+export function helmetMaterial(tint) {
+  if (!helmet) return null;
+  if (helmetMats.has(tint)) return helmetMats.get(tint);
+  const opts = { vertexColors: !!helmet.geometry.attributes.color, roughness: 0.38, metalness: 0.05, envMapIntensity: 0.8 };
+  let mat;
+  if (helmet.image) {
+    const c = document.createElement('canvas');
+    c.width = helmet.image.width; c.height = helmet.image.height;
+    const x = c.getContext('2d');
+    x.drawImage(helmet.image, 0, 0);
+    // swap the magenta key (the shell) for the rider's colour
+    const d = x.getImageData(0, 0, c.width, c.height), p = d.data;
+    const tr = (tint >> 16) & 255, tg = (tint >> 8) & 255, tb = tint & 255;
+    for (let i = 0; i < p.length; i += 4) {
+      const k = Math.min(p[i], p[i + 2]) - p[i + 1]; // how magenta this pixel is (0..255)
+      if (k > 60) { const t = Math.min(1, (k - 60) / 150); p[i] += (tr - p[i]) * t; p[i + 1] += (tg - p[i + 1]) * t; p[i + 2] += (tb - p[i + 2]) * t; }
+    }
+    x.putImageData(d, 0, 0);
+    const tex = new THREE.CanvasTexture(c);
+    tex.flipY = helmet.flipY;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    mat = new THREE.MeshStandardMaterial({ map: tex, ...opts });
+  } else mat = new THREE.MeshStandardMaterial({ color: tint, ...opts });
+  helmetMats.set(tint, mat);
+  return mat;
 }
 
 export function hasModel(key) { return templates.has(key); }
@@ -192,7 +253,7 @@ function buildTemplate(key, scene) {
     const wr = find(M.wheelR);
     const spinR = pivot('rig_spin_rear', wr, swing, centre(wr));
     meta.swingLen = V(M.swingPivot).distanceTo(centre(wr));
-    if (find(M.shock)) groups.push(shockPivot('rig_shock_rear', find(M.shock), root, meta));
+    if (M.shock && find(M.shock)) groups.push(shockPivot('rig_shock_rear', find(M.shock), root, meta));
     groups.push(steer, fork, spinF, swing, spinR);
   } else {
     if (M.steerGroup) {

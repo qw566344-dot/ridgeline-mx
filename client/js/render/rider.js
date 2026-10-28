@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { box, cyl, sphere, torus, merge, colorize, clean, place, roundBox } from './geo.js';
 import { heightAt } from '/shared/terrain.js';
+import { helmetModel, helmetMaterial } from './modelRig.js';
 
 const B = { root: 0, pelvis: 1, torso: 2, head: 3, uaL: 4, faL: 5, hL: 6, uaR: 7, faR: 8, hR: 9, thL: 10, shL: 11, ftL: 12, thR: 13, shR: 14, ftR: 15 };
 const BONES = 16;
@@ -43,15 +44,10 @@ function partGeo(scheme) {
   add(box(0.22, 0.2, 0.012, 0xffffff, [0, 0.3, -0.125]), B.torso);
   add(box(0.08, 0.12, 0.014, dark, [-0.03, 0.31, -0.13]), B.torso);
   add(box(0.08, 0.12, 0.014, dark, [0.05, 0.31, -0.13]), B.torso);
-  // head: helmet shell, chin bar, peak, goggles + strap
-  add(sphere(0.155, jersey, [0, 0.13, 0.0], [1.0, 1.04, 1.13], 16, 12), B.head);
-  add(sphere(0.157, 0xffffff, [0, 0.14, -0.005], [0.35, 1.05, 1.13], 12, 10), B.head);
-  add(torus(0.12, 0.04, accent, [0, 0.04, 0.06], [-0.35, 0, 0], 8, 14, Math.PI), B.head);
-  add(box(0.13, 0.05, 0.06, dark, [0, 0.03, 0.18], [0.3, 0, 0]), B.head);
-  add(box(0.24, 0.018, 0.17, accent, [0, 0.27, 0.15], [-0.32, 0, 0]), B.head);
-  add(roundBoxC(0.2, 0.075, 0.05, 0.02, 0xd97706, [0, 0.15, 0.165]), B.head);
-  add(box(0.17, 0.05, 0.02, 0x7c2d12, [0, 0.15, 0.188]), B.head);
-  add(torus(0.158, 0.012, dark, [0, 0.15, 0.0], [Math.PI / 2, 0, 0], 4, 20), B.head);
+  // head: the helmet model is its own mesh on the head bone (see Rider); this is the face
+  // inside it, plus a plain shell in case the helmet model could not be loaded
+  add(sphere(0.1, 0xd9a07a, [0, 0.1, 0.03], [1, 1.1, 1], 10, 8), B.head);
+  if (!helmetModel()) add(sphere(0.155, jersey, [0, 0.13, 0.0], [1.0, 1.04, 1.13], 16, 12), B.head);
   // arms
   for (const [ua, fa, h] of [[B.uaL, B.faL, B.hL], [B.uaR, B.faR, B.hR]]) {
     add(capsule(0.058, LEN.ua, jersey), ua);
@@ -136,6 +132,12 @@ export class Rider {
     this.mesh.receiveShadow = true;
     this.group.add(this.mesh);
     this.mesh.bind(new THREE.Skeleton(this.bones, this.bones.map(() => new THREE.Matrix4())), new THREE.Matrix4());
+    const hm = helmetModel();
+    if (hm) {
+      this.helmet = new THREE.Mesh(hm.geometry, helmetMaterial(scheme.gear[0]));
+      this.helmet.castShadow = true;
+      this.bones[B.head].add(this.helmet);
+    }
     // pose state
     this.j = {
       pelvis: V(), neck: V(), head: V(), shL: V(), shR: V(), elL: V(), elR: V(), haL: V(), haR: V(),

@@ -22,7 +22,7 @@
 export const TRACKS = [
   {
     id: 'ridgeline',
-    name: 'Ridgeline National',
+    name: 'Ridgeline National', difficulty: 'Medium',
     desc: 'A big outdoor national track carved into rolling hills. Tall berms, a ridge-top triple, a long downhill with big air and a split rhythm lane.',
     worldSize: 700,
     seed: 1207,
@@ -52,7 +52,7 @@ export const TRACKS = [
       { turn: 70, r: 30, berm: 0.5 },
       { len: 120, name: 'Ridge Triple', features: [{ at: 36, type: 'triple', h: 2.2, face: 9, gap: 9, h2: 1.9, land: 12 }] },
       { turn: 110, r: 16, berm: 1 },
-      { len: 70, name: 'Step-Up', features: [{ at: 18, type: 'step', h: 1.5, face: 6.5, gap: 6, h2: 2.4, top: 8, land: 10 }] },
+      { len: 70, name: 'Step-Up', features: [{ at: 18, type: 'step', h: 1.4, face: 6, gap: 4.5, h2: 2.0, top: 9, land: 10 }] },
       { turn: -90, r: 18, berm: 1 },
       { len: 110, w: 22, name: 'Split Lanes', features: [
         { at: 20, type: 'triple', h: 1.8, face: 7.5, gap: 5, h2: 1.6, land: 10, lane: 'L' },
@@ -73,7 +73,7 @@ export const TRACKS = [
   },
   {
     id: 'quarry',
-    name: 'Quarry Arenacross',
+    name: 'Quarry Arenacross', difficulty: 'Expert',
     desc: 'Tight, technical and fast on the floor of an old stone quarry. Hairpin switchbacks, rhythm after rhythm and a long wall-side straight.',
     worldSize: 460,
     seed: 4471,
@@ -127,7 +127,7 @@ export const TRACKS = [
   },
   {
     id: 'canyon',
-    name: 'Canyon Creek',
+    name: 'Canyon Creek', difficulty: 'Hard',
     desc: 'Red dirt on a desert canyon floor. A massive canyon gap, deep sand whoops and long, fast mesa straights.',
     worldSize: 760,
     seed: 9083,
@@ -166,7 +166,7 @@ export const TRACKS = [
   },
   {
     id: 'pine',
-    name: 'Pine Hollow',
+    name: 'Pine Hollow', difficulty: 'Medium',
     desc: 'A tight, hilly track cut through a pine forest. Rollers, rhythm and off-camber corners - flow is everything.',
     worldSize: 640,
     seed: 3361,
@@ -201,7 +201,115 @@ export const TRACKS = [
     gateAt: 14,
     finishAt: 95,
   },
+  {
+    id: 'practice',
+    name: 'Practice Ground', difficulty: 'Easy',
+    desc: 'A wide, forgiving loop to learn on: small tables, then medium, then big ones, plus friendly rollers and berms.',
+    worldSize: 560,
+    seed: 5150,
+    start: { x: -110, z: 110, heading: 0 },
+    defaultWidth: 16,
+    look: { dirt: [1.05, 0.95, 0.85], grass: [0.95, 1.08, 0.9], trees: 0.8, pines: 0.3, rocks: 0.6 },
+    terrain: {
+      hills: 5, hillScale: 170,
+      rim: 28, rimStart: 225,
+      bumps: [{ x: 0, z: -20, r: 60, h: -2 }],
+    },
+    segments: [
+      { len: 140, w: 20, free: true, name: 'Start Straight' },
+      { turn: 90, r: 30, berm: 0.6 },
+      { len: 160, name: 'Small Tables', features: [
+        { at: 20, type: 'table', h: 1.0, face: 5, top: 4, land: 6 },
+        { at: 58, type: 'table', h: 1.3, face: 6, top: 5, land: 7 },
+        { at: 102, type: 'table', h: 1.6, face: 7, top: 6, land: 8 },
+      ] },
+      { turn: 90, r: 24, berm: 1 },
+      { len: 120, free: true, name: 'Berms & Rollers', features: [{ at: 15, type: 'rollers', n: 4, len: 12, h: 0.7 }] },
+      { turn: 90, r: 18, berm: 1 },
+      { len: 160, name: 'Big Tables', features: [
+        { at: 18, type: 'table', h: 1.9, face: 8, top: 8, land: 9 },
+        { at: 66, type: 'double', h: 1.7, face: 7, gap: 6, h2: 1.5, land: 9 },
+        { at: 112, type: 'table', h: 2.2, face: 9, top: 10, land: 10 },
+      ] },
+      { turn: 90, r: 24, berm: 0.8 },
+    ],
+    gateAt: 14,
+    finishAt: 100,
+  },
+  {
+    id: 'frostbite',
+    name: 'Frostbite MX', difficulty: 'Medium',
+    desc: 'A winter national cut through snowy hills. Icy rhythm, a pine-ridge triple and an avalanche step-up.',
+    worldSize: 680,
+    seed: 7311,
+    start: { x: -150, z: 160, heading: 0 },
+    defaultWidth: 12,
+    look: { dirt: [0.72, 0.62, 0.56], grass: [0.9, 1.0, 0.95], snow: 0.9, trees: 1.5, pines: 1, rocks: 0.7, fog: 0xdfe6ee, skyTop: 0x8aa4c4, horizon: 0xe8eef4 },
+    terrain: {
+      hills: 12, hillScale: 160,
+      rim: 45, rimStart: 260,
+      bumps: [{ x: 60, z: -120, r: 90, h: 12 }, { x: -170, z: -40, r: 60, h: 6 }],
+    },
+    segments: [
+      { len: 150, w: 20, name: 'Start Straight' },
+      { turn: 120, r: 24, berm: 1 },
+      { len: 90, name: 'Frost Table', features: [{ at: 22, type: 'table', h: 1.8, face: 8, top: 8, land: 10 }] },
+      { turn: -120, r: 16, berm: 1 },
+      { len: 115, name: 'Ice Rhythm', features: [
+        { at: 8, type: 'rollers', n: 2, len: 9, h: 0.8 },
+        { at: 36, type: 'double', h: 1.6, face: 6.5, gap: 6, h2: 1.4, land: 9 },
+      ] },
+      { turn: 90, r: 20, berm: 1 },
+      { len: 115, name: 'Glacier Whoops', features: [{ at: 15, type: 'whoops', n: 16, len: 4.6, h: 0.45 }] },
+      { turn: 90, r: 18, berm: 1 },
+      { len: 140, free: true, name: 'Pine Ridge Triple', features: [{ at: 32, type: 'triple', h: 2.1, face: 9, gap: 8, h2: 1.8, land: 11 }] },
+      { turn: 90, r: 22, berm: 1 },
+      { len: 110, name: 'Avalanche Step', features: [{ at: 20, type: 'step', h: 1.5, face: 6.5, gap: 6, h2: 2.4, top: 9, land: 10 }] },
+      { turn: 60, r: 30, berm: 0.5 },
+      { len: 75, name: 'Snowdrift Double', features: [{ at: 14, type: 'double', h: 1.6, face: 7, gap: 6, h2: 1.4, land: 9 }] },
+      { turn: -60, r: 30, berm: 0.5 },
+      { turn: 90, r: 24, berm: 0.9 },
+    ],
+    gateAt: 14,
+    finishAt: 110,
+  },
+  {
+    id: 'freestyle',
+    name: 'Freestyle Compound', difficulty: 'Freestyle',
+    desc: 'A wide arena built for tricks: freestyle kickers with open gaps up to 20 m, a huge table and room to land anything.',
+    worldSize: 600,
+    seed: 2219,
+    start: { x: -120, z: 60, heading: 0 },
+    defaultWidth: 24,
+    look: { dirt: [1.1, 0.88, 0.7], grass: [1.05, 1.02, 0.78], trees: 0.4, pines: 0.4, rocks: 1.2 },
+    terrain: {
+      hills: 3, hillScale: 150,
+      rim: 34, rimStart: 230,
+      bumps: [],
+    },
+    segments: [
+      { len: 240, w: 24, free: true, name: 'Kicker Row', features: [
+        { at: 40, type: 'kicker', h: 2.4, face: 8.5, gap: 8, landH: 3.0, land: 14 },
+        { at: 108, type: 'kicker', h: 3.0, face: 10.5, gap: 12, landH: 3.5, land: 16 },
+        { at: 172, type: 'kicker', h: 3.5, face: 12, gap: 16, landH: 4.2, land: 18 },
+      ] },
+      { turn: 180, r: 34, berm: 0.5 },
+      { len: 240, w: 24, free: true, name: 'Big Air', features: [
+        { at: 26, type: 'table', h: 3.0, face: 12, top: 14, land: 16 },
+        { at: 105, type: 'kicker', h: 4.0, face: 13.5, gap: 20, landH: 4.5, land: 20 },
+        { at: 196, type: 'rollers', n: 2, len: 14, h: 1.2 },
+      ] },
+      { turn: 180, r: 34, berm: 0.5 },
+    ],
+    gateAt: 14,
+    finishAt: 60,
+    freestyle: true,
+  },
 ];
+
+// easiest first (used by the menus)
+export const DIFFICULTY_ORDER = ['Easy', 'Medium', 'Hard', 'Expert', 'Freestyle'];
+TRACKS.sort((a, b) => DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty));
 
 export function getTrack(id) {
   return TRACKS.find((t) => t.id === id) || TRACKS[0];

@@ -1,39 +1,84 @@
 // =====================================================================
-//  UI: menus, HUD, minimap, toasts, settings screen, results.
-//  Screens are plain HTML (index.html); this file wires them up.
+//  UI: every menu, the HUD, the minimap, toasts and popups.
+//  Screens are plain HTML (index.html); this file fills them in.
+//   - Lobby (home): your party lined up in 3D (stage.js), party panel,
+//     friends online, and the PLAY dock (mode + track).
+//   - Match setup: game mode cards + track grid with difficulty.
+//   - Garage: look at, compare and choose vehicles, paint and gear.
+//   - Shop: buy vehicles, paint, gear and performance upgrades.
+//   - Friends: search, add, accept, remove, invite, join.
+//   - Settings (incl. Online: server regions + ping), Controls, Credits.
+//  The party itself lives in net.js; friends in social.js.
 // =====================================================================
-import { TRACKS, getTrack } from '/shared/tracks.js';
-import { VEHICLES, BIKE_COLORS, getVehicle, paintFor } from '/shared/vehicles.js';
-import { GEAR_SETS, shopItem } from '/shared/shop.js';
-import { buildTrack, sampleArr } from '/shared/trackgen.js';
-import { PRESETS, fmtTime } from './settings.js';
+import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
+import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES } from '/shared/vehicles.js';
+import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds } from '/shared/shop.js';
+import { buildTrack } from '/shared/trackgen.js';
+import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
+import { escapeHtml, ordinal, hex, ago } from './util.js';
+import { liveTrick } from './sim/tricks.js';
+import { regionList, customServer, setServerBase, serverBase } from './config.js';
 
+export { escapeHtml };
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['loading', 'account', 'menu', 'play', 'garage', 'tracks', 'settings', 'controls', 'credits', 'mp', 'pause', 'results'];
+const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'friends', 'settings', 'controls', 'credits', 'pause', 'results'];
+const MENUS = new Set(['home', 'play', 'garage', 'shop', 'friends', 'settings', 'controls', 'credits']);
+const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', friends: 'friends', settings: 'settings' };
+
+export const MODES = [
+  { id: 'freeride', name: 'Free Ride', desc: 'Ride at your own pace. No timer, no pressure.', party: true },
+  { id: 'timetrial', name: 'Time Trial', desc: 'Hot laps against the clock. T restarts the lap.', party: true },
+  { id: 'race', name: 'Race', desc: 'Line up on the gate - against AI riders, or your party.', party: true },
+  { id: 'practice', name: 'Practice', desc: 'Drill one section until it is perfect. T retries it.', party: false },
+  { id: 'freestyle', name: 'Freestyle', desc: 'Flips, whips and spins for points. Chain combos!', party: true },
+];
+export const modeName = (id) => (MODES.find((m) => m.id === id) || MODES[0]).name;
+
+// rough effect of each upgrade level on the 0-10 stat bars
+const UP_STAT = { engine: { speed: 0.35, accel: 0.45 }, suspension: { suspension: 0.35, stability: 0.25 }, tyres: { handling: 0.4, stability: 0.15 } };
+const UP_TEXT = {
+  engine: (L) => `+${Math.round((L.power - 1) * 100)}% engine power`,
+  suspension: (L) => `+${Math.round((L.travel - 1) * 100)}% travel, +${Math.round((L.damp - 1) * 100)}% damping`,
+  tyres: (L) => `+${Math.round((L.grip - 1) * 100)}% grip`,
+};
+const STATS = [['speed', 'Top speed'], ['accel', 'Acceleration'], ['handling', 'Handling'], ['stability', 'Stability'], ['suspension', 'Suspension']];
 
 export class UI {
   constructor(settings) {
     this.settings = settings;
     this.screen = 'loading';
-    this.prev = 'menu';
+    this.prev = 'home';
     this.handlers = {};
-    this.selMode = 'freeride';
     this.selSection = null;
     this.hudTimer = 0;
     this.trackCache = new Map();
-    this.toastEls = [];
     this.settingsTab = 'Graphics';
-    // generic navigation buttons
+    this.trackFilter = 'All';
+    this.garageCat = null;
+    this.gView = null;           // vehicle being looked at in the garage
+    this.shopTab = 'Vehicles';
+    this.shopSel = null;         // { slot, id }
+    this.shopUpVehicle = null;
+    this.friendMsg = '';
+    this.removeArm = null;
+    this.regionPings = {};
+    // navigation
     document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
       const go = b.dataset.go;
       this.emit('click');
-      if (go === 'back') this.show(this.prev === 'controls' ? 'menu' : this.prev);
+      $('profile-menu').hidden = true;
+      if (go === 'back') this.show(this.inGame() ? 'pause' : MENUS.has(this.prev) ? this.prev : 'home');
       else this.show(go);
     }));
-    document.querySelectorAll('.mode').forEach((b) => b.addEventListener('click', () => { this.selMode = b.dataset.mode; this.renderPlay(); }));
-    $('start-mode').addEventListener('click', () => this.emit('startMode', this.playOptions()));
-    $('settings-back').addEventListener('click', () => this.show(this.settingsReturn || 'menu'));
+    $('profile-chip').addEventListener('click', (e) => { e.stopPropagation(); $('profile-menu').hidden = !$('profile-menu').hidden; this.renderProfile(); });
+    document.addEventListener('click', (e) => { if (!$('profile-menu').hidden && !$('profile-menu').contains(e.target)) $('profile-menu').hidden = true; });
+    $('logout-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('logout'); });
+    $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
+    $('dock-setup').addEventListener('click', () => this.show('play'));
+    $('play-btn').addEventListener('click', () => this.onPlay());
+    $('play-confirm').addEventListener('click', () => this.show('home'));
+    $('settings-back').addEventListener('click', () => this.show(this.settingsReturn || 'home'));
     $('p-resume').addEventListener('click', () => this.emit('resume'));
     $('p-restart').addEventListener('click', () => this.emit('restart'));
     $('p-reset').addEventListener('click', () => this.emit('resetVehicle'));
@@ -42,6 +87,12 @@ export class UI {
     $('p-menu').addEventListener('click', () => this.emit('mainMenu'));
     $('r-menu').addEventListener('click', () => this.emit('mainMenu'));
     $('r-again').addEventListener('click', () => this.emit('restart'));
+    // friends screen
+    let st = null;
+    $('friend-search').addEventListener('input', () => { clearTimeout(st); st = setTimeout(() => this.searchFriends(), 280); });
+    $('friend-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') this.addFriend(); });
+    $('friend-add').addEventListener('click', () => this.addFriend());
+    // HUD
     this.minimap = $('minimap');
     this.mctx = this.minimap.getContext('2d');
     const fg = $('tach-fg');
@@ -51,164 +102,558 @@ export class UI {
 
   on(name, f) { (this.handlers[name] = this.handlers[name] || []).push(f); }
   emit(name, arg) { (this.handlers[name] || []).forEach((f) => f(arg)); }
+  inGame() { return this.game && this.game.state === 'running' && this.game.mode !== 'menu' && this.game.mode !== 'none'; }
+  inParty() { return !!(this.net && this.net.party); }
 
   show(name) {
-    if (name === 'shop' || name === 'garage') { this.shopMode = name === 'shop'; name = 'garage'; this.preview = null; this.shopError = ''; }
-    if (name !== this.screen && !['pause', 'settings', 'controls'].includes(this.screen)) this.prev = this.screen;
-    if (name === 'settings' && this.screen !== 'pause') this.settingsReturn = this.screen === 'settings' ? this.settingsReturn : this.screen;
+    if (name === 'menu' || name === 'mp') name = 'home';
+    if (name === 'settings') this.settingsReturn = this.screen === 'pause' ? 'pause' : (this.screen === 'settings' ? this.settingsReturn : (MENUS.has(this.screen) ? this.screen : 'home'));
+    if (name !== this.screen && MENUS.has(this.screen)) this.prev = this.screen;
     this.screen = name;
     for (const s of SCREENS) $(s).hidden = s !== name;
-    if (name === 'menu') this.renderSummary();
+    const menu = MENUS.has(name) && this.settingsReturn !== 'pause' || (MENUS.has(name) && name !== 'settings' && name !== 'controls');
+    const showTop = MENUS.has(name) && !this.inGame();
+    $('topbar').hidden = !showTop;
+    void menu;
+    document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('sel', b.dataset.go === NAV[name]));
+    if (name === 'pause') $('pause').hidden = false;
+    if (name === 'home') this.renderHome();
     if (name === 'play') this.renderPlay();
-    if (name === 'garage') this.renderGarage();
-    if (name === 'tracks') this.renderTracks();
+    if (name === 'garage') { this.gView = null; this.renderGarage(); }
+    if (name === 'shop') this.renderShop();
+    if (name === 'friends') { this.renderFriends(); if (this.social) this.social.refresh(); }
     if (name === 'settings') this.renderSettings();
+    this.renderTop();
     this.emit('screen', name);
+    this.syncStage();
   }
 
-  showLoading(text) { $('loading-text').textContent = text; if (this.screen !== 'loading') { for (const s of SCREENS) $(s).hidden = s !== 'loading'; this.screen = 'loading'; } }
+  showLoading(text) {
+    $('loading-text').textContent = text;
+    if (this.screen !== 'loading') { for (const s of SCREENS) $(s).hidden = s !== 'loading'; $('topbar').hidden = true; this.screen = 'loading'; }
+  }
   hideLoading() { $('loading').hidden = true; if (this.screen === 'loading') this.screen = 'none'; }
 
-  // ------------------------------------------------------------- main menu
-  renderSummary() {
-    const v = getVehicle(this.settings.get('vehicle'));
-    const t = getTrack(this.settings.get('track'));
-    const col = paintFor(this.settings.get('vehicle'), this.settings.get('color'));
-    const best = this.settings.bestLap(t.id, v.id);
+  // ------------------------------------------------------------- top bar
+  renderTop() {
     const A = this.account;
-    const who = A && A.profile ? `Rider: <b>${escapeHtml(A.profile.name)}</b> <small>${A.mode === 'online' ? '(online)' : A.mode === 'guest' ? '(guest)' : '(this computer)'}</small><br>Coins: <b>${A.coins.toLocaleString()}</b><br>` : '';
-    $('menu-summary').innerHTML = who + `Vehicle: <b>${v.name}</b> <span style="color:#${col.body.toString(16).padStart(6, '0')}">&#9679;</span><br>Track: <b>${t.name}</b><br>Best lap: <b>${fmtTime(best)}</b>` + (A && A.profile ? '<br><button id="logout-btn" style="margin-top:8px;padding:6px 12px;font-size:13px">' + (A.mode === 'guest' ? 'Log in / Create account' : 'Log out') + '</button>' : '');
-    const lo = $('logout-btn');
-    if (lo) lo.onclick = () => this.emit('logout');
+    $('top-coins').textContent = A ? A.coins.toLocaleString() : '0';
+    $('profile-name').textContent = A && A.profile ? A.profile.name : 'Rider';
+    $('profile-mode').textContent = !A ? '' : A.mode === 'online' ? '' : A.mode === 'guest' ? 'guest' : 'offline';
+    const n = this.social ? this.social.data.incoming.length + this.social.data.invites.length : 0;
+    $('friends-badge').hidden = !n; $('friends-badge').textContent = n;
+    this.renderRegionChip();
   }
 
-  // ------------------------------------------------------------- play
-  renderPlay() {
-    document.querySelectorAll('.mode').forEach((b) => b.classList.toggle('sel', b.dataset.mode === this.selMode));
-    const o = $('mode-options');
+  renderRegionChip() {
+    const net = this.net;
+    const dot = $('region-chip').querySelector('.dot');
+    let text = 'Offline', cls = 'bad';
+    if (net) {
+      const reg = net.region;
+      const ping = net.connected ? net.ping : (reg ? this.regionPings[reg.id] : null);
+      if (reg) text = reg.name + (ping != null ? ` · ${ping} ms` : net.connected ? '' : ' · checking');
+      if (ping != null) cls = ping < 90 ? 'good' : ping < 170 ? 'ok' : 'bad';
+      else if (reg && this.regionPings[reg.id] === null) { text = reg.name + ' · waking up'; cls = 'ok'; }
+      else cls = '';
+    }
+    $('region-text').textContent = text;
+    dot.className = 'dot ' + cls;
+  }
+
+  renderProfile() {
+    const A = this.account;
+    if (!A || !A.profile) return;
+    const s = A.profile.stats || {};
+    $('profile-stats').innerHTML = `<b>${escapeHtml(A.profile.name)}</b><br>${A.mode === 'online' ? 'Online account' : A.mode === 'guest' ? 'Guest - progress saved in this browser' : 'Offline account (this computer)'}<br>Laps <b>${s.laps || 0}</b> &bull; Wins <b>${s.wins || 0}</b> &bull; Tricks <b>${s.tricks || 0}</b>`;
+    $('logout-btn').textContent = A.mode === 'guest' ? 'Log in / create account' : 'Log out';
+  }
+
+  // what the 3D stage should show for the current screen
+  syncStage() {
+    const st = this.stage;
+    if (!st) return;
     const S = this.settings;
-    const t = getTrack(S.get('track'));
-    let html = `<span class="hint">Track: <b>${t.name}</b> &nbsp; Vehicle: <b>${getVehicle(S.get('vehicle')).name}</b></span>`;
-    if (this.selMode === 'race') {
-      html += `<label class="field">Laps <select id="opt-laps">${[1, 2, 3, 5, 8].map((n) => `<option ${n === S.get('laps') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <label class="field">AI riders <select id="opt-ai">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option ${n === S.get('aiCount') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <label class="field">AI skill <select id="opt-skill">${['easy', 'medium', 'hard'].map((n) => `<option value="${n}" ${n === S.get('aiSkill') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`;
+    if (this.screen === 'garage') {
+      const v = this.gView || S.get('vehicle');
+      st.setLineup([{ key: 'view', vehicleId: v, colorId: v === S.get('vehicle') ? S.get('color') : 'stock', gearId: S.get('gear') || 'match', name: '' }]);
+      st.setView('focus', 'view'); st.screenShift = 0;
+    } else if (this.screen === 'shop') {
+      const sel = this.shopSel;
+      let v = S.get('vehicle'), c = S.get('color'), g = S.get('gear') || 'match';
+      if (sel && sel.slot === 'vehicle') { v = sel.id; c = 'stock'; }
+      if (sel && sel.slot === 'color') c = sel.id;
+      if (sel && sel.slot === 'gear') g = sel.id;
+      if (sel && sel.slot === 'upgrade') v = shopItem('upgrade', sel.id).vehicle, c = v === S.get('vehicle') ? c : 'stock';
+      st.setLineup([{ key: 'view', vehicleId: v, colorId: c, gearId: g, name: '' }]);
+      st.setView('focus', 'view'); st.screenShift = window.innerWidth > 820 ? 0.17 : 0;
+    } else {
+      st.setLineup(this.lineup());
+      st.setView('lobby'); st.screenShift = 0;
     }
-    if (this.selMode === 'timetrial') {
-      html += `<span class="hint">Personal best: <b>${fmtTime(S.bestLap(t.id, S.get('vehicle')))}</b></span>`;
+    st.showTags = this.screen === 'home';
+  }
+
+  // party members (or just you) for the lobby stage
+  lineup() {
+    const S = this.settings, net = this.net, A = this.account;
+    const myName = A && A.profile ? A.profile.name : S.get('playerName') || 'You';
+    if (net && net.party) {
+      const P = net.party;
+      const me = P.members.find((m) => m.id === net.id);
+      const others = P.members.filter((m) => m.id !== net.id);
+      return [me, ...others].filter(Boolean).map((m) => ({
+        key: 'p' + m.id, vehicleId: m.vehicle, colorId: m.color, gearId: m.gear || 'match', name: m.id === net.id ? myName : m.name,
+        ready: m.id === P.leader ? undefined : !!m.ready, away: !m.connected, leader: m.id === P.leader, me: m.id === net.id, ping: m.id === net.id ? net.ping : m.ping, number: m.number,
+      }));
     }
-    if (this.selMode === 'practice') {
-      const T = this.track(t.id);
+    return [{ key: 'me', vehicleId: S.get('vehicle'), colorId: S.get('color'), gearId: S.get('gear') || 'match', name: myName, me: true }];
+  }
+
+  // ------------------------------------------------------------- lobby
+  renderHome() {
+    if (this.screen !== 'home') { this.syncStage(); return; }
+    const net = this.net, S = this.settings;
+    const P = net && net.party;
+    $('party-solo').hidden = !!P;
+    $('party-in').hidden = !P;
+    const stEl = $('party-status');
+    if (P) {
+      const live = P.members.filter((m) => m.connected).length;
+      stEl.textContent = P.session ? 'In session' : `${live}/8 riders`;
+      stEl.className = 'status ok';
+      $('party-codeshow').textContent = P.code;
+      $('party-members').innerHTML = P.members.map((m) => {
+        const v = getVehicle(m.vehicle), col = paintFor(m.vehicle, m.color);
+        const tags = [];
+        if (m.id === P.leader) tags.push('<span class="pill leader">LEADER</span>');
+        else if (!m.connected) tags.push('<span class="pill gone">AWAY</span>');
+        else tags.push(m.ready ? '<span class="pill ready">READY</span>' : '<span class="pill">NOT READY</span>');
+        const ping = m.id === net.id ? net.ping : m.ping;
+        return `<li class="${m.id === net.id ? 'me' : ''}"><span class="who"><i class="pdot" style="background:${hex(col.body)}"></i><span><b>${escapeHtml(m.name)}</b>${m.id === net.id ? ' <small style="display:inline">(you)</small>' : ''}<small>${v.name}${ping != null ? ' &bull; ' + ping + ' ms' : ''}</small></span></span>${tags.join('')}</li>`;
+      }).join('');
+    } else {
+      stEl.textContent = net && net.connected ? 'Solo · online' : 'Solo';
+      stEl.className = 'status';
+    }
+    // dock: mode + track, and what the big button does
+    const mode = P ? P.settings.mode : S.get('mode');
+    const track = P ? P.settings.track : S.get('track');
+    $('dock-mode').textContent = modeName(mode) + (mode === 'race' ? ` · ${P ? P.settings.laps : S.get('laps')} laps` : mode === 'freestyle' ? ` · ${fsLabel(P ? P.settings.laps : S.get('freestyleTime'))}` : '');
+    $('dock-track').textContent = getTrack(track).name;
+    const btn = $('play-btn'), note = $('dock-note');
+    btn.classList.remove('ready');
+    btn.disabled = false;
+    if (!P) { btn.textContent = 'PLAY'; note.textContent = ''; }
+    else if (P.session) { btn.textContent = 'JOIN'; note.textContent = `${modeName(P.session.mode)} in progress - jump in`; }
+    else if (net.isLeader()) {
+      const others = P.members.filter((m) => m.id !== net.id && m.connected);
+      const ready = others.filter((m) => m.ready).length;
+      btn.textContent = 'START';
+      note.textContent = others.length ? `${ready}/${others.length} ready${ready < others.length ? ' - you can start anyway' : ''}` : 'Invite friends or share the code - or start on your own';
+    } else {
+      const me = net.me();
+      btn.textContent = me && me.ready ? 'READY ✓' : 'READY UP';
+      if (me && me.ready) btn.classList.add('ready');
+      note.textContent = 'The party leader picks the mode and starts';
+    }
+    this.renderFriendsMini();
+    this.syncStage();
+  }
+
+  onPlay() {
+    const net = this.net;
+    if (net && net.party) {
+      const P = net.party;
+      if (P.session) return net.rejoin();
+      if (net.isLeader()) return net.start();
+      return net.toggleReady();
+    }
+    this.emit('startMode', this.playOptions());
+  }
+
+  renderFriendsMini() {
+    const el = $('friends-mini');
+    if (!el) return;
+    const So = this.social;
+    if (!So || !So.available) { el.innerHTML = '<li class="empty">Log in with an online account to see friends.</li>'; return; }
+    const on = So.online();
+    if (!on.length) { el.innerHTML = `<li class="empty">${So.data.friends.length ? 'No friends online right now.' : 'No friends yet - add some!'}</li>`; return; }
+    el.innerHTML = on.slice(0, 8).map((f) => `<li><span class="who"><i class="pdot ${f.status === 'menu' ? 'online' : f.status}"></i><span><b>${escapeHtml(f.name)}</b><small>${statusText(f)}</small></span></span><button class="small" data-inv="${escapeHtml(f.name)}">Invite</button></li>`).join('');
+    el.querySelectorAll('[data-inv]').forEach((b) => b.onclick = () => this.inviteFriend(b.dataset.inv, b));
+  }
+
+  // ------------------------------------------------------------- match setup
+  renderPlay() {
+    const S = this.settings, net = this.net;
+    const P = net && net.party;
+    const canEdit = !P || net.isLeader();
+    const mode = P ? P.settings.mode : S.get('mode');
+    const track = P ? P.settings.track : S.get('track');
+    $('play-who').textContent = P ? (canEdit ? 'You are the party leader - this is what everyone rides' : 'The party leader chooses - you can look') : 'Solo';
+    $('mode-cards').innerHTML = MODES.map((m) => `<button class="mode ${m.id === mode ? 'sel' : ''}" data-mode="${m.id}" ${!canEdit || (P && !m.party) ? 'disabled' : ''}><b>${m.name}</b><span>${m.desc}${P && !m.party ? '<br><i>Solo only</i>' : ''}</span></button>`).join('');
+    $('mode-cards').querySelectorAll('[data-mode]').forEach((b) => b.onclick = () => this.setMatch({ mode: b.dataset.mode }));
+    const filters = ['All', ...DIFFICULTY_ORDER];
+    $('track-filter').innerHTML = filters.map((f) => `<button class="${f === this.trackFilter ? 'sel' : ''}" data-f="${f}">${f}</button>`).join('');
+    $('track-filter').querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { this.trackFilter = b.dataset.f; this.renderPlay(); });
+    const grid = $('track-grid');
+    grid.innerHTML = '';
+    for (const def of TRACKS) {
+      if (this.trackFilter !== 'All' && def.difficulty !== this.trackFilter) continue;
+      const T = this.track(def.id);
+      const b = document.createElement('button');
+      b.className = 'track-card' + (def.id === track ? ' sel' : '');
+      b.disabled = !canEdit;
+      const c = document.createElement('canvas');
+      c.width = c.height = 148;
+      this.drawTrack(c.getContext('2d'), T, 148, null);
+      b.appendChild(c);
+      const d = document.createElement('div');
+      const jumps = T.features.filter((f) => !['whoops', 'rollers'].includes(f.type)).length;
+      const rec = mode === 'freestyle' ? `Best ${(S.bestScore(def.id) || 0).toLocaleString()} pts` : `Best lap ${fmtTime(S.bestLap(def.id, S.get('vehicle')))}`;
+      d.innerHTML = `<b>${def.name}</b><span class="diff ${def.difficulty}">${def.difficulty.toUpperCase()}</span><p>${(T.L / 1000).toFixed(2)} km &bull; ${jumps} jumps</p><p>${rec}</p>`;
+      d.title = def.desc;
+      b.appendChild(d);
+      b.onclick = () => this.setMatch({ track: def.id });
+      grid.appendChild(b);
+    }
+    // options for the chosen mode
+    const o = $('mode-options');
+    let html = '';
+    const sel = (id, label, opts, cur) => `<label class="field">${label} <select id="${id}" ${canEdit ? '' : 'disabled'}>${opts.map(([v, n]) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`;
+    if (mode === 'race') {
+      html += sel('opt-laps', 'Laps', [1, 2, 3, 5, 8].map((n) => [n, n]), P ? P.settings.laps : S.get('laps'));
+      if (!P) {
+        html += sel('opt-ai', 'AI riders', [1, 2, 3, 4, 5, 6, 7].map((n) => [n, n]), S.get('aiCount'));
+        html += sel('opt-skill', 'AI skill', [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard']], S.get('aiSkill'));
+      }
+    }
+    if (mode === 'timetrial' && P) html += sel('opt-laps', 'Session length (laps for the leaderboard)', [1, 2, 3, 5, 8].map((n) => [n, n]), P.settings.laps);
+    if (mode === 'timetrial' && !P) html += `<span class="hint">Personal best on this track: <b>${fmtTime(S.bestLap(track, S.get('vehicle')))}</b></span>`;
+    if (mode === 'freestyle') html += sel('opt-fs', 'Time limit', (P ? [1, 2, 3, 5] : [0, 1, 2, 3, 5]).map((n) => [n, fsLabel(n)]), P ? P.settings.laps : S.get('freestyleTime'));
+    if (mode === 'freestyle') html += `<span class="hint">Tip: the Freestyle Compound is built for this, but every track has air.</span>`;
+    if (mode === 'practice') {
+      const T = this.track(track);
       if (!this.selSection || !T.sections.find((s) => s.name === this.selSection)) this.selSection = T.sections[1] ? T.sections[1].name : T.sections[0].name;
-      html += `<div class="sections" style="width:100%">${T.sections.map((s) => `<button data-sec="${s.name}" class="${s.name === this.selSection ? 'sel' : ''}">${s.name} <small>${fmtTime(S.bestSection(t.id, S.get('vehicle'), s.name))}</small></button>`).join('')}</div>`;
+      html += `<div class="sections">${T.sections.map((s) => `<button data-sec="${escapeHtml(s.name)}" class="${s.name === this.selSection ? 'sel' : ''}">${escapeHtml(s.name)} <small>${fmtTime(S.bestSection(track, S.get('vehicle'), s.name))}</small></button>`).join('')}</div>`;
     }
+    if (mode === 'freeride') html += '<span class="hint">No timer. Explore the track, practise jumps, try tricks.</span>';
     o.innerHTML = html;
-    if (this.selMode === 'race') {
-      $('opt-laps').onchange = (e) => S.set('laps', Number(e.target.value));
-      $('opt-ai').onchange = (e) => S.set('aiCount', Number(e.target.value));
-      $('opt-skill').onchange = (e) => S.set('aiSkill', e.target.value);
-    }
+    const on = (id, f) => { const e = $(id); if (e) e.onchange = (ev) => f(ev.target.value); };
+    on('opt-laps', (v) => this.setMatch({ laps: Number(v) }));
+    on('opt-fs', (v) => this.setMatch({ laps: Number(v), freestyleTime: Number(v) }));
+    on('opt-ai', (v) => S.set('aiCount', Number(v)));
+    on('opt-skill', (v) => S.set('aiSkill', v));
     o.querySelectorAll('[data-sec]').forEach((b) => b.addEventListener('click', () => { this.selSection = b.dataset.sec; this.renderPlay(); }));
+    $('play-confirm').textContent = canEdit ? 'Done' : 'Back';
+  }
+
+  // change mode / track / laps - the party's if you lead one, your own otherwise
+  setMatch(ch) {
+    const S = this.settings, net = this.net;
+    if (net && net.party) {
+      if (!net.isLeader()) return;
+      const cur = net.party.settings;
+      const next = { track: ch.track || cur.track, mode: ch.mode || cur.mode, laps: ch.laps || cur.laps };
+      if (ch.mode === 'freestyle' && !ch.laps) next.laps = Math.max(1, Math.min(5, S.get('freestyleTime') || 2));
+      if (ch.mode === 'race' && !ch.laps && cur.mode === 'freestyle') next.laps = S.get('laps');
+      net.sendSettings(next);
+      Object.assign(net.party.settings, next); // show it straight away
+    } else {
+      if (ch.mode) S.set('mode', ch.mode);
+      if (ch.track) S.set('track', ch.track);
+      if (ch.laps && S.get('mode') === 'race') S.set('laps', ch.laps);
+      if (ch.freestyleTime !== undefined) S.set('freestyleTime', ch.freestyleTime);
+    }
+    this.renderPlay();
   }
 
   playOptions() {
     const S = this.settings;
-    return { mode: this.selMode, trackId: S.get('track'), vehicleId: S.get('vehicle'), colorId: S.get('color'), gearId: S.get('gear') || 'match', laps: S.get('laps'), aiCount: S.get('aiCount'), section: this.selSection };
+    return { mode: S.get('mode'), trackId: S.get('track'), vehicleId: S.get('vehicle'), colorId: S.get('color'), gearId: S.get('gear') || 'match', laps: S.get('laps'), aiCount: S.get('aiCount'), section: this.selSection || this.defaultSection(S.get('track')), freestyleTime: S.get('freestyleTime') };
   }
+  defaultSection(track) { const T = this.track(track); return T.sections[1] ? T.sections[1].name : T.sections[0].name; }
 
   track(id) {
     if (!this.trackCache.has(id)) this.trackCache.set(id, buildTrack(getTrack(id)));
     return this.trackCache.get(id);
   }
 
-  // ------------------------------------------------------------- garage + shop
-  // Everything is listed. Items you own can be equipped with one click;
-  // locked ones show their price - click to preview them in 3D, then Buy.
+  // ------------------------------------------------------------- garage
+  // look, compare, choose. Locked things are shown with what they cost and
+  // a button that takes you to them in the shop.
   renderGarage() {
     const S = this.settings, A = this.account;
-    const shop = this.shopMode;
-    $('garage-title').textContent = shop ? 'Shop' : 'Vehicle Selection';
-    $('garage-coins').textContent = A ? A.coins.toLocaleString() : '0';
-    const pv = this.preview; // { slot, id } of an item being looked at but not owned
-    const cur = (slot) => (pv && pv.slot === slot ? pv.id : slot === 'vehicle' ? S.get('vehicle') : slot === 'color' ? S.get('color') : S.get('gear') || 'match');
     const owns = (slot, id) => !A || A.owns(slot, id);
-    const price = (slot, id) => { const it = shopItem(slot, id); return it ? it.price : 0; };
-    const pick = async (slot, id) => {
-      this.shopError = '';
-      if (owns(slot, id)) {
-        this.preview = null;
-        if (A) { const e = await A.equip(slot, id); if (e) this.shopError = e; }
-        S.set(slot === 'gear' ? 'gear' : slot, id);
-      } else this.preview = { slot, id };
-      this.renderGarage();
-      this.emit('garageChange');
-    };
-    const list = $('vehicle-list');
+    const cur = S.get('vehicle');
+    const view = this.gView || cur;
+    const vv = getVehicle(view);
+    if (!this.garageCat) this.garageCat = getVehicle(cur).category;
+    $('garage-cats').innerHTML = CATEGORIES.map((c) => `<button class="${c === this.garageCat ? 'sel' : ''}" data-cat="${c}">${c}</button>`).join('');
+    $('garage-cats').querySelectorAll('[data-cat]').forEach((b) => b.onclick = () => { this.garageCat = b.dataset.cat; this.renderGarage(); });
+    const list = $('garage-vehicles');
     list.innerHTML = '';
-    for (const type of ['bike', 'atv']) {
-      const h = document.createElement('h3');
-      h.textContent = type === 'bike' ? 'Dirt bikes' : 'Quads / ATVs';
-      list.appendChild(h);
-      for (const v of VEHICLES.filter((x) => x.type === type)) {
-        const b = document.createElement('button');
-        const own = owns('vehicle', v.id);
-        b.className = 'vehicle-item' + (v.id === S.get('vehicle') ? ' sel' : '') + (own ? '' : ' locked') + (pv && pv.slot === 'vehicle' && pv.id === v.id ? ' preview' : '');
-        b.innerHTML = `<span>${v.name}</span><small>${own ? (type === 'bike' ? 'Bike' : 'Quad') : price('vehicle', v.id).toLocaleString() + ' coins'}</small>`;
-        b.onclick = () => pick('vehicle', v.id);
-        list.appendChild(b);
-      }
+    for (const v of VEHICLES.filter((x) => x.category === this.garageCat)) {
+      const own = owns('vehicle', v.id);
+      const b = document.createElement('button');
+      b.className = 'vcard' + (v.id === view ? ' sel' : '') + (own ? '' : ' locked');
+      b.style.setProperty('--swatch', hex(paintFor(v.id, 'stock').body));
+      const tag = v.id === cur ? '<span class="tag on">RIDING</span>' : own ? '<span class="tag">OWNED</span>' : `<span class="tag lock">${shopItem('vehicle', v.id).price.toLocaleString()}</span>`;
+      b.innerHTML = `<b>${v.name}</b>${tag}<small>${v.tier} &bull; ${v.category.replace(/ies$/, 'y').replace(/s$/, '')}</small>`;
+      b.onclick = () => { this.gView = v.id; this.renderGarage(); this.syncStage(); };
+      list.appendChild(b);
     }
-    const swatches = (el, items, slot, colorsOf, nameOf) => {
+    // details
+    const tierEl = $('g-tier');
+    tierEl.textContent = `${vv.tier} · ${vv.category.replace(/ies$/, 'y').replace(/s$/, '')}`;
+    tierEl.className = 'tier ' + vv.tier;
+    $('g-name').textContent = vv.name;
+    $('g-desc').textContent = vv.desc;
+    const ups = A && A.profile ? upgradeLevels(A.profile.owned, view) : {};
+    const base = getVehicle(cur);
+    const curUps = A && A.profile ? upgradeLevels(A.profile.owned, cur) : {};
+    const rated = (v, u) => { const o = { ...v.stats }; for (const [p, L] of Object.entries(u)) for (const [k, d] of Object.entries(UP_STAT[p])) o[k] = Math.min(10, o[k] + d * L); return o; };
+    const mine = rated(base, curUps), shown = rated(vv, ups);
+    $('g-stats').innerHTML = STATS.map(([k, n]) => {
+      const b0 = vv.stats[k], b1 = shown[k];
+      const diff = view !== cur ? Math.round((b1 - mine[k]) * 10) / 10 : 0;
+      const d = diff ? `<em class="${diff > 0 ? 'up' : 'down'}">${diff > 0 ? '+' : ''}${diff}</em>` : '';
+      return `<div class="stat"><div class="lbl"><span>${n}</span><span>${d} ${b1.toFixed(1).replace(/\.0$/, '')}</span></div><div class="bar"><i style="width:${b0 * 10}%"></i>${b1 > b0 ? `<i class="plus" style="width:${(b1 - b0) * 10}%"></i>` : ''}</div></div>`;
+    }).join('') + (view !== cur ? `<p class="hint">Green / red numbers compare it with the ${escapeHtml(base.name)} you ride now.</p>` : '');
+    $('g-ups').innerHTML = owns('vehicle', view) ? Object.entries(UPGRADES).map(([p, U]) => `<span>${U.name} <b>${ups[p] ? 'L' + ups[p] : '-'}</b></span>`).join('') : '';
+    // paint + gear (owned ones apply straight away; locked ones go to the shop)
+    const ownV = owns('vehicle', view);
+    const sw = (el, items, slot, colorsOf, nameOf, curId) => {
       el.innerHTML = '';
       for (const it of items) {
-        const b = document.createElement('button');
         const own = owns(slot, it.id);
+        const b = document.createElement('button');
         const [c1, c2] = colorsOf(it);
-        b.className = 'swatch' + (it.id === cur(slot) && !(pv && pv.slot === slot) ? ' sel' : '') + (own ? '' : ' locked') + (pv && pv.slot === slot && pv.id === it.id ? ' preview' : '');
-        b.title = nameOf(it) + (own ? '' : ` - ${price(slot, it.id)} coins`);
-        b.style.background = `linear-gradient(135deg, #${c1.toString(16).padStart(6, '0')} 55%, #${c2.toString(16).padStart(6, '0')} 55%)`;
-        b.onclick = () => pick(slot, it.id);
+        b.className = 'swatch' + (it.id === curId ? ' sel' : '') + (own ? '' : ' locked');
+        b.title = nameOf(it) + (own ? '' : ` - ${shopItem(slot, it.id).price.toLocaleString()} coins in the shop`);
+        b.style.background = `linear-gradient(135deg, ${hex(c1)} 55%, ${hex(c2)} 55%)`;
+        b.onclick = async () => {
+          if (!own) { this.openShop(slot === 'color' ? 'Paint' : 'Rider Gear', { slot, id: it.id }); return; }
+          if (A) await A.equip(slot, it.id);
+          S.set(slot, it.id);
+          this.renderGarage(); this.syncStage(); this.renderTop();
+          this.emit('garageChange');
+        };
         el.appendChild(b);
       }
     };
-    swatches($('color-list'), BIKE_COLORS, 'color', (c) => [c.body, c.accent], (c) => c.name);
-    const paint = BIKE_COLORS.find((c) => c.id === cur('color')) || BIKE_COLORS[0];
-    swatches($('gear-list'), GEAR_SETS, 'gear', (g) => (g.colors ? [g.colors[0], g.colors[2]] : [paint.gear[0], paint.gear[2]]), (g) => g.name);
-    // details panel: what is selected / previewed
-    const vid = cur('vehicle');
-    const v = getVehicle(vid);
-    $('garage-name').textContent = v.name;
-    $('garage-desc').textContent = v.desc;
-    $('garage-model').textContent = 'client/' + v.model;
-    const st = v.stats;
-    $('garage-stats').innerHTML = [['Top speed', st.speed], ['Acceleration', st.accel], ['Handling', st.handling], ['Stability', st.stability], ['Suspension', st.suspension]]
-      .map(([n, x]) => `<div class="stat"><div class="lbl"><span>${n}</span><span>${x}/10</span></div><div class="bar"><i style="width:${x * 10}%"></i></div></div>`).join('');
-    const box = $('garage-buy');
-    if (pv) {
-      const p = price(pv.slot, pv.id);
-      const nm = pv.slot === 'vehicle' ? getVehicle(pv.id).name : pv.slot === 'color' ? (BIKE_COLORS.find((c) => c.id === pv.id) || {}).name + ' paint' : (GEAR_SETS.find((g) => g.id === pv.id) || {}).name + ' gear';
-      const can = A && A.coins >= p;
-      box.innerHTML = `<div>Preview: <b>${nm}</b> &mdash; <span class="price">${p.toLocaleString()} coins</span></div>
-        <button id="buy-btn" class="primary" ${can ? '' : 'disabled'}>${can ? 'Buy for ' + p.toLocaleString() : 'Need ' + (p - (A ? A.coins : 0)).toLocaleString() + ' more coins'}</button>
-        <button id="buy-cancel">Back to my stuff</button><div class="error">${this.shopError || ''}</div>`;
-      $('buy-btn').onclick = async () => {
-        const e = await A.buy(pv.slot, pv.id);
-        if (e) this.shopError = e;
-        else { S.set(pv.slot, pv.id); this.preview = null; this.toast('Bought ' + nm + '!', 2, 'good'); }
-        this.renderGarage(); this.emit('garageChange');
-      };
-      $('buy-cancel').onclick = () => { this.preview = null; this.renderGarage(); this.emit('garageChange'); };
-    } else box.innerHTML = this.shopError ? `<div class="error">${this.shopError}</div>` : '';
+    const paintItems = [{ id: 'stock', name: 'Factory colours' }, ...BIKE_COLORS];
+    sw($('g-paint'), paintItems, 'color', (c) => { const p = paintFor(view, c.id); return [p.body, p.accent]; }, (c) => c.name, view === cur ? S.get('color') : 'stock');
+    const paint = paintFor(cur, S.get('color'));
+    sw($('g-gear'), GEAR_SETS, 'gear', (g) => (g.colors ? [g.colors[0], g.colors[2]] : [paint.gear[0], paint.gear[2]]), (g) => g.name, S.get('gear') || 'match');
+    $('g-paint').style.opacity = view === cur ? '' : '0.45';
+    $('g-paint').style.pointerEvents = view === cur ? '' : 'none';
+    const act = $('g-action');
+    if (view === cur) act.innerHTML = '<button disabled class="wide">Riding this one</button>';
+    else if (ownV) act.innerHTML = `<button id="g-choose" class="primary wide">Ride the ${escapeHtml(vv.name)}</button>`;
+    else act.innerHTML = `<button id="g-shop" class="primary wide">Unlock in the shop - ${shopItem('vehicle', view).price.toLocaleString()} coins</button>`;
+    act.innerHTML += ownV ? `<button id="g-up" class="wide">Upgrades for this ${vv.category.replace(/ies$/, 'y').replace(/s$/, '').toLowerCase()}</button>` : '';
+    if ($('g-choose')) $('g-choose').onclick = async () => {
+      if (A) await A.equip('vehicle', view);
+      S.set('vehicle', view);
+      this.gView = null;
+      this.renderGarage(); this.syncStage();
+      this.emit('garageChange');
+      this.popup(`Now riding the <b>${escapeHtml(vv.name)}</b>`, 'good');
+    };
+    if ($('g-shop')) $('g-shop').onclick = () => this.openShop('Vehicles', { slot: 'vehicle', id: view });
+    if ($('g-up')) $('g-up').onclick = () => { this.shopUpVehicle = view; this.openShop('Upgrades', null); };
   }
 
-  // what the 3D showroom should show right now
-  garageLook() {
-    const S = this.settings, pv = this.preview;
-    return {
-      vehicle: pv && pv.slot === 'vehicle' ? pv.id : S.get('vehicle'),
-      color: pv && pv.slot === 'color' ? pv.id : S.get('color'),
-      gear: pv && pv.slot === 'gear' ? pv.id : S.get('gear') || 'match',
+  // ------------------------------------------------------------- shop
+  openShop(tab, sel) { this.shopTab = tab; this.shopSel = sel; this.show('shop'); }
+
+  renderShop() {
+    const S = this.settings, A = this.account;
+    const tabs = ['Vehicles', 'Paint', 'Rider Gear', 'Upgrades'];
+    $('shop-tabs').innerHTML = tabs.map((t) => `<button class="${t === this.shopTab ? 'sel' : ''}" data-t="${t}">${t}</button>`).join('');
+    $('shop-tabs').querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { this.shopTab = b.dataset.t; this.shopSel = null; this.renderShop(); this.syncStage(); });
+    const owns = (slot, id) => !A || A.owns(slot, id);
+    const grid = $('shop-grid'), sub = $('shop-sub');
+    sub.innerHTML = '';
+    const cards = [];
+    const card = (slot, id, title, small, c1, c2, big = '') => {
+      const it = shopItem(slot, id);
+      const own = owns(slot, id);
+      let price = own ? '<span class="price owned">OWNED</span>' : `<span class="price"><i class="coin"></i>${it.price.toLocaleString()}</span>`;
+      if (slot === 'upgrade' && !own) {
+        const need = upgradeNeeds(it).find((n) => { const [s2, i2] = n.split(':'); return !owns(s2, i2); });
+        if (need) price = `<span class="price need">${need.startsWith('vehicle') ? 'Needs the vehicle' : 'Needs level ' + (it.level - 1)}</span>`;
+      }
+      const isSel = this.shopSel && this.shopSel.slot === slot && this.shopSel.id === id;
+      cards.push(`<button class="item ${isSel ? 'sel' : ''}" data-slot="${slot}" data-id="${id}"><div class="thumb" style="--c1:${hex(c1)};--c2:${hex(c2)}"><span class="big">${big}</span></div><div class="info"><b>${title}</b><small>${small}</small>${price}</div></button>`);
     };
+    if (this.shopTab === 'Vehicles') {
+      for (const v of VEHICLES) { const p = paintFor(v.id, 'stock'); card('vehicle', v.id, v.name, `${v.tier} ${v.category.replace(/ies$/, 'y').replace(/s$/, '')}`, p.body, p.accent, v.category === 'Dirt Bikes' ? 'MX' : v.category === 'Quads' ? 'ATV' : v.category === 'Buggies' ? 'BUGGY' : 'UTV'); }
+    } else if (this.shopTab === 'Paint') {
+      for (const c of BIKE_COLORS) card('color', c.id, c.name, 'Paint for every vehicle', c.body, c.accent);
+    } else if (this.shopTab === 'Rider Gear') {
+      const paint = paintFor(S.get('vehicle'), S.get('color'));
+      for (const g of GEAR_SETS) { const cs = g.colors || paint.gear; card('gear', g.id, g.name, g.desc || 'Jersey, pants, gloves', cs[0], cs[2]); }
+    } else {
+      const ownedV = VEHICLES.filter((v) => owns('vehicle', v.id));
+      if (!this.shopUpVehicle || !ownedV.some((v) => v.id === this.shopUpVehicle)) this.shopUpVehicle = ownedV.some((v) => v.id === S.get('vehicle')) ? S.get('vehicle') : (ownedV[0] || VEHICLES[0]).id;
+      sub.innerHTML = ownedV.map((v) => `<button class="${v.id === this.shopUpVehicle ? 'sel' : ''}" data-uv="${v.id}">${v.name}</button>`).join('');
+      sub.querySelectorAll('[data-uv]').forEach((b) => b.onclick = () => { this.shopUpVehicle = b.dataset.uv; this.shopSel = null; this.renderShop(); this.syncStage(); });
+      for (const [part, U] of Object.entries(UPGRADES)) {
+        U.levels.forEach((L, i) => card('upgrade', `${this.shopUpVehicle}.${part}.${i + 1}`, `${U.name} L${i + 1}`, UP_TEXT[part](L), part === 'engine' ? 0xb91c1c : part === 'tyres' ? 0x27272a : 0x1d4ed8, 0x0f1115, 'L' + (i + 1)));
+      }
+    }
+    grid.innerHTML = cards.join('');
+    grid.querySelectorAll('.item').forEach((b) => b.onclick = () => { this.shopSel = { slot: b.dataset.slot, id: b.dataset.id }; this.renderShop(); this.syncStage(); });
+    this.renderShopDetail();
+  }
+
+  renderShopDetail() {
+    const el = $('shop-detail'), A = this.account, S = this.settings;
+    const sel = this.shopSel;
+    const coins = A ? A.coins : 0;
+    if (!sel) {
+      el.innerHTML = `<h3>Shop</h3><p class="hint">Pick something to see it on your vehicle. Coins come from riding: laps, records, races, big air and tricks.</p><div class="price-big"><i class="coin"></i>${coins.toLocaleString()}</div>`;
+      return;
+    }
+    const it = shopItem(sel.slot, sel.id);
+    const own = !A || A.owns(sel.slot, sel.id);
+    let title = '', body = '';
+    if (sel.slot === 'vehicle') { const v = getVehicle(sel.id); title = v.name; body = `<p class="desc">${v.desc}</p>` + STATS.map(([k, n]) => `<div class="stat"><div class="lbl"><span>${n}</span><span>${v.stats[k]}</span></div><div class="bar"><i style="width:${v.stats[k] * 10}%"></i></div></div>`).join(''); }
+    if (sel.slot === 'color') { const c = BIKE_COLORS.find((x) => x.id === sel.id); title = c.name + ' paint'; body = '<p class="desc">Works on every vehicle you own, with matching rider kit when your gear is set to Team Kit.</p>'; }
+    if (sel.slot === 'gear') { const g = GEAR_SETS.find((x) => x.id === sel.id); title = g.name + ' gear'; body = '<p class="desc">Jersey, pants and gloves for your rider.</p>'; }
+    if (sel.slot === 'upgrade') { const U = UPGRADES[it.part]; title = `${getVehicle(it.vehicle).name}: ${U.name} level ${it.level}`; body = `<p class="desc">${UP_TEXT[it.part](U.levels[it.level - 1])}. Only for this vehicle. Upgrades stack - each level replaces the one below.</p>`; }
+    let need = null;
+    if (sel.slot === 'upgrade' && !own) need = upgradeNeeds(it).find((n) => { const [s2, i2] = n.split(':'); return A && !A.owns(s2, i2); });
+    const can = !own && !need && coins >= it.price;
+    let btn;
+    if (own) {
+      const equipped = sel.slot === 'upgrade' || S.get(sel.slot) === sel.id;
+      btn = equipped ? '<button class="wide" disabled>Owned</button>' : '<button id="shop-equip" class="primary wide">Use it now</button>';
+    } else if (need) btn = `<button class="wide" disabled>${need.startsWith('vehicle') ? 'Buy the vehicle first' : 'Buy level ' + (it.level - 1) + ' first'}</button>`;
+    else btn = `<button id="shop-buy" class="primary wide" ${can ? '' : 'disabled'}>${can ? 'Buy for ' + it.price.toLocaleString() + ' coins' : 'Need ' + (it.price - coins).toLocaleString() + ' more coins'}</button>`;
+    el.innerHTML = `<h2>${escapeHtml(title)}</h2>${body}${own ? '' : `<div class="price-big"><i class="coin"></i>${it.price.toLocaleString()}</div>`}${btn}<div class="lock-note">You have ${coins.toLocaleString()} coins.</div><div class="error" id="shop-err"></div>`;
+    const buy = $('shop-buy');
+    if (buy) buy.onclick = async () => {
+      buy.disabled = true;
+      const e = await A.buy(sel.slot, sel.id);
+      if (e) { $('shop-err').textContent = e; buy.disabled = false; return; }
+      if (sel.slot !== 'upgrade') S.set(sel.slot, sel.id);
+      this.popup(`Unlocked <b>${escapeHtml(title)}</b>${sel.slot === 'upgrade' ? '' : ' - equipped'}`, 'good');
+      this.emit('garageChange');
+      this.renderShop(); this.renderTop(); this.syncStage();
+    };
+    const eq = $('shop-equip');
+    if (eq) eq.onclick = async () => { if (A) await A.equip(sel.slot, sel.id); S.set(sel.slot, sel.id); this.emit('garageChange'); this.renderShop(); this.syncStage(); };
+  }
+
+  // ------------------------------------------------------------- friends
+  renderFriends() {
+    const So = this.social, A = this.account;
+    const off = !So || !So.available;
+    $('friends-off').hidden = !off;
+    $('friends-on').hidden = off;
+    if (off) {
+      $('friends-off').innerHTML = `Friends need an <b>online account</b> on the game server${A && A.mode === 'guest' ? ' - you are playing as a guest' : A && A.mode === 'offline' ? ' - this account only lives on this computer because the server could not be reached when it was made' : ''}.<div class="row"><button id="friends-login" class="primary">Log in / create account</button></div>`;
+      $('friends-login').onclick = () => this.emit('logout');
+      return;
+    }
+    const D = So.data;
+    $('friends-count').textContent = `${D.friends.length}/${D.max || 100} friends · ${So.online().length} online`;
+    const msg = $('friend-msg');
+    msg.textContent = this.friendMsg || So.error || '';
+    msg.className = 'msg' + (this.friendBad || So.error ? ' bad' : '');
+    const fl = $('friend-list');
+    fl.innerHTML = D.friends.length ? D.friends.map((f) => {
+      const canJoin = f.code && f.status !== 'menu' && !(this.net && this.net.code === f.code);
+      return `<li><span class="who"><i class="pdot ${f.online ? (f.status === 'menu' ? 'online' : f.status) : ''}"></i><span><b>${escapeHtml(f.name)}</b><small>${statusText(f)}</small></span></span><span class="acts">
+        ${canJoin ? `<button data-join="${escapeHtml(f.name)}" class="primary">Join</button>` : ''}
+        <button data-inv="${escapeHtml(f.name)}" ${f.online ? '' : 'disabled title="Offline"'}>Invite</button>
+        <button data-rem="${escapeHtml(f.name)}" class="danger">${this.removeArm === f.name ? 'Sure?' : 'Remove'}</button></span></li>`;
+    }).join('') : '<li class="empty">No friends yet. Search for a rider name above.</li>';
+    fl.querySelectorAll('[data-inv]').forEach((b) => b.onclick = () => this.inviteFriend(b.dataset.inv, b));
+    fl.querySelectorAll('[data-join]').forEach((b) => b.onclick = () => { const f = D.friends.find((x) => x.name === b.dataset.join); if (f) this.emit('joinParty', { code: f.code, region: f.region, from: f.name }); });
+    fl.querySelectorAll('[data-rem]').forEach((b) => b.onclick = async () => {
+      const n = b.dataset.rem;
+      if (this.removeArm !== n) { this.removeArm = n; this.renderFriends(); setTimeout(() => { if (this.removeArm === n) { this.removeArm = null; this.renderFriends(); } }, 3000); return; }
+      this.removeArm = null;
+      this.result(await So.remove(n));
+    });
+    const il = $('invite-list');
+    il.innerHTML = D.invites.length ? D.invites.map((i) => `<li><span class="who"><span><b>${escapeHtml(i.from)}</b><small>Party ${i.code} &bull; ${ago(Date.now() - i.at)}</small></span></span><span class="acts"><button class="primary" data-ij="${i.code}" data-from="${escapeHtml(i.from)}">Join</button><button data-ix="${i.code}" data-from="${escapeHtml(i.from)}">Dismiss</button></span></li>`).join('') : '<li class="empty">No invites.</li>';
+    il.querySelectorAll('[data-ij]').forEach((b) => b.onclick = () => { const inv = D.invites.find((x) => x.code === b.dataset.ij && x.from === b.dataset.from); if (inv) { this.emit('joinParty', { code: inv.code, region: inv.region, from: inv.from }); So.dismiss(inv); } });
+    il.querySelectorAll('[data-ix]').forEach((b) => b.onclick = () => { const inv = D.invites.find((x) => x.code === b.dataset.ix && x.from === b.dataset.from); if (inv) So.dismiss(inv); });
+    const rl = $('request-list');
+    const reqs = D.incoming.map((r) => `<li><span class="who"><span><b>${escapeHtml(r.name)}</b><small>wants to be friends</small></span></span><span class="acts"><button class="primary" data-acc="${escapeHtml(r.name)}">Accept</button><button data-dec="${escapeHtml(r.name)}">Decline</button></span></li>`)
+      .concat(D.outgoing.map((r) => `<li><span class="who"><span><b>${escapeHtml(r.name)}</b><small>request sent</small></span></span><span class="acts"><button data-can="${escapeHtml(r.name)}">Cancel</button></span></li>`));
+    rl.innerHTML = reqs.length ? reqs.join('') : '<li class="empty">No requests.</li>';
+    rl.querySelectorAll('[data-acc]').forEach((b) => b.onclick = async () => this.result(await So.accept(b.dataset.acc)));
+    rl.querySelectorAll('[data-dec]').forEach((b) => b.onclick = async () => this.result(await So.decline(b.dataset.dec)));
+    rl.querySelectorAll('[data-can]').forEach((b) => b.onclick = async () => this.result(await So.cancel(b.dataset.can)));
+  }
+
+  result(r) {
+    this.friendMsg = r.error || r.ok || '';
+    this.friendBad = !!r.error;
+    if (this.screen === 'friends') { this.renderFriends(); this.searchFriends(); }
+    clearTimeout(this.msgTimer);
+    this.msgTimer = setTimeout(() => { this.friendMsg = ''; if (this.screen === 'friends') this.renderFriends(); }, 4000);
+  }
+
+  async searchFriends() {
+    const q = $('friend-search').value.trim();
+    const out = $('friend-results');
+    if (q.length < 2 || !this.social) { out.innerHTML = ''; return; }
+    const r = await this.social.search(q);
+    if (r.error) { out.innerHTML = `<li class="empty">${escapeHtml(r.error)}</li>`; return; }
+    out.innerHTML = r.results.length ? r.results.map((x) => {
+      const act = x.you ? '<span class="pill">YOU</span>' : x.friend ? '<span class="pill ready">FRIENDS</span>' : x.sent ? '<span class="pill">REQUESTED</span>' : x.received ? `<button class="primary" data-acc="${escapeHtml(x.name)}">Accept</button>` : `<button data-add="${escapeHtml(x.name)}">Add</button>`;
+      return `<li><span class="who"><i class="pdot ${x.online ? 'online' : ''}"></i><b>${escapeHtml(x.name)}</b></span>${act}</li>`;
+    }).join('') : `<li class="empty">No rider called "${escapeHtml(q)}"</li>`;
+    out.querySelectorAll('[data-add]').forEach((b) => b.onclick = async () => this.result(await this.social.request(b.dataset.add)));
+    out.querySelectorAll('[data-acc]').forEach((b) => b.onclick = async () => this.result(await this.social.accept(b.dataset.acc)));
+  }
+
+  async addFriend() {
+    const q = $('friend-search').value.trim();
+    if (!q) { this.result({ error: 'Type a rider name first' }); return; }
+    this.result(await this.social.request(q));
+  }
+
+  // invite: makes a party first if you are not in one
+  async inviteFriend(name, btn) {
+    if (btn) btn.disabled = true;
+    const net = this.net;
+    const code = net.code || await net.createParty();
+    if (!code) { this.popup('Could not make a party - the server is not reachable', 'bad'); if (btn) btn.disabled = false; return; }
+    const r = await this.social.invite(name, code, net.region ? net.region.id : null);
+    this.popup(r.error ? escapeHtml(r.error) : `Invite sent to <b>${escapeHtml(name)}</b>`, r.error ? 'bad' : 'good');
+    if (btn) { btn.textContent = r.error ? 'Invite' : 'Sent'; setTimeout(() => { btn.disabled = false; btn.textContent = 'Invite'; }, 3000); }
+  }
+
+  // ------------------------------------------------------------- popups
+  popup(html, kind = '', actions = null, time = 4) {
+    const box = $('popups');
+    const el = document.createElement('div');
+    el.className = 'popup ' + kind;
+    el.innerHTML = html;
+    if (actions) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      for (const [label, f, primary] of actions) {
+        const b = document.createElement('button');
+        b.className = 'small' + (primary ? ' primary' : '');
+        b.textContent = label;
+        b.onclick = () => { el.remove(); f(); };
+        row.appendChild(b);
+      }
+      el.appendChild(row);
+    }
+    box.appendChild(el);
+    while (box.children.length > 4) box.removeChild(box.firstChild);
+    if (time) setTimeout(() => el.remove(), time * 1000);
+    return el;
   }
 
   // ------------------------------------------------------------- account
@@ -236,32 +681,11 @@ export class UI {
     $('acct-go').onclick = go;
     $('acct-pass').onkeydown = (e) => { if (e.key === 'Enter') go(); };
     $('acct-guest').onclick = () => { this.account.guest(); this.emit('loggedIn'); };
-    $('acct-note').textContent = 'Your account keeps your coins, bikes, paint and gear. Accounts are stored on the game server; if it is not running, the account is saved in this browser only.';
+    $('acct-note').textContent = 'Your account keeps your coins, vehicles, upgrades and friends, on every device. Guests save in this browser only and can not use friends.';
     setMode('login');
   }
 
-  // ------------------------------------------------------------- tracks
-  renderTracks() {
-    const S = this.settings;
-    const el = $('track-list');
-    el.innerHTML = '';
-    for (const def of TRACKS) {
-      const T = this.track(def.id);
-      const b = document.createElement('button');
-      b.className = 'track-card' + (def.id === S.get('track') ? ' sel' : '');
-      const c = document.createElement('canvas');
-      c.width = 120; c.height = 120;
-      this.drawTrack(c.getContext('2d'), T, 120, null);
-      b.appendChild(c);
-      const d = document.createElement('div');
-      const jumps = T.features.filter((f) => !['whoops', 'rollers'].includes(f.type)).length;
-      d.innerHTML = `<b>${def.name}</b><p>${def.desc}</p><p>${(T.L / 1000).toFixed(2)} km &bull; ${jumps} jumps &bull; ${T.sections.length} sections<br>Best lap: ${fmtTime(S.bestLap(def.id, S.get('vehicle')))}</p>`;
-      b.appendChild(d);
-      b.onclick = () => { S.set('track', def.id); this.renderTracks(); this.emit('trackChange', def.id); };
-      el.appendChild(b);
-    }
-  }
-
+  // ------------------------------------------------------------- maps
   drawTrack(ctx, T, size, riders) {
     let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
     for (let i = 0; i < T.n; i += 8) { x0 = Math.min(x0, T.xs[i]); x1 = Math.max(x1, T.xs[i]); z0 = Math.min(z0, T.zs[i]); z1 = Math.max(z1, T.zs[i]); }
@@ -277,6 +701,7 @@ export class UI {
     const f = Math.floor(T.finishS / T.step);
     ctx.fillStyle = '#fff';
     ctx.fillRect(T.xs[f] * sc + ox - 3, T.zs[f] * sc + oz - 3, 6, 6);
+    void riders;
     return { sc, ox, oz };
   }
 
@@ -291,12 +716,12 @@ export class UI {
   // ------------------------------------------------------------- settings
   renderSettings() {
     const S = this.settings;
-    const tabs = ['Graphics', 'Audio', 'Camera & Controls', 'Riding Assists'];
+    const tabs = ['Graphics', 'Audio', 'Camera & Controls', 'Riding Assists', 'Online'];
     $('settings-tabs').innerHTML = tabs.map((t) => `<button class="${t === this.settingsTab ? 'sel' : ''}" data-tab="${t}">${t}</button>`).join('');
     $('settings-tabs').querySelectorAll('button').forEach((b) => b.onclick = () => { this.settingsTab = b.dataset.tab; this.renderSettings(); });
     const body = $('settings-body');
     const rows = [];
-    const seg = (key, label, opts, fmt) => rows.push(`<div class="setting"><span>${label}</span><div class="seg">${opts.map(([v, n]) => `<button data-key="${key}" data-val="${v}" class="${String(S.get(key)) === String(v) ? 'sel' : ''}">${n}</button>`).join('')}</div><span class="val"></span></div>`);
+    const seg = (key, label, opts) => rows.push(`<div class="setting"><span>${label}</span><div class="seg">${opts.map(([v, n]) => `<button data-key="${key}" data-val="${v}" class="${String(S.get(key)) === String(v) ? 'sel' : ''}">${n}</button>`).join('')}</div><span class="val"></span></div>`);
     const range = (key, label, min, max, step, fmt = (x) => x) => rows.push(`<div class="setting"><span>${label}</span><input type="range" data-key="${key}" min="${min}" max="${max}" step="${step}" value="${S.get(key)}"><span class="val" data-val-for="${key}">${fmt(S.get(key))}</span></div>`);
     const pct = (x) => Math.round(x * 100) + '%';
     if (this.settingsTab === 'Graphics') {
@@ -320,12 +745,14 @@ export class UI {
       range('cameraSensitivity', 'Camera follow speed', 0.4, 2, 0.05, (x) => x.toFixed(2) + 'x');
       range('mouseSensitivity', 'Mouse look sensitivity', 0.2, 3, 0.1, (x) => x.toFixed(1) + 'x');
       range('cameraShake', 'Camera shake', 0, 1.5, 0.05, pct);
-      seg('screenEffects', 'Speed effects (FOV)', [[true, 'On'], [false, 'Off']]);
-    } else {
+      seg('screenEffects', 'Speed effects (FOV, landing dip)', [[true, 'On'], [false, 'Off']]);
+    } else if (this.settingsTab === 'Riding Assists') {
       range('landingAssist', 'Landing assist (auto-level in the air)', 0, 1, 0.05, (x) => (x > 0 ? pct(x) : 'off'));
       seg('tractionAssist', 'Traction control', [[true, 'On'], [false, 'Off']]);
       seg('wheelieAssist', 'Wheelie / stoppie control', [[true, 'On'], [false, 'Off']]);
       rows.push(`<p class="hint">Assists only help you ride - they never change the track or other riders. Turn them off for full control (and more crashes).</p>`);
+    } else {
+      this.renderOnline(rows);
     }
     body.innerHTML = rows.join('');
     body.querySelectorAll('[data-preset]').forEach((b) => b.onclick = () => { S.applyPreset(b.dataset.preset); this.emit('quality'); this.renderSettings(); });
@@ -347,36 +774,71 @@ export class UI {
     });
     const fs = $('fullscreen-btn');
     if (fs) fs.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); setTimeout(() => this.renderSettings(), 300); };
+    body.querySelectorAll('[data-region]').forEach((b) => b.onclick = () => { this.emit('region', b.dataset.region); this.renderSettings(); });
+    const save = $('srv-save');
+    if (save) save.onclick = () => { const v = $('srv-input').value.trim(); if (v) { setServerBase(v); location.reload(); } };
+    const reset = $('srv-reset');
+    if (reset) reset.onclick = () => { setServerBase(''); location.reload(); };
+    const rp = $('region-ping');
+    if (rp) rp.onclick = () => this.emit('pingRegions');
+  }
+
+  // Settings > Online: pick a server region (auto = lowest ping)
+  renderOnline(rows) {
+    const S = this.settings, net = this.net;
+    const regs = regionList();
+    const chosen = S.get('region') || 'auto';
+    const p = (id) => (this.regionPings[id] === undefined ? 'checking...' : this.regionPings[id] === null ? 'asleep / unreachable' : this.regionPings[id] + ' ms');
+    rows.push('<h4>Server region</h4><p class="hint">Parties are hosted in the region you pick. Auto chooses the one with the lowest ping. A party code works from any region - the game finds it.</p>');
+    rows.push(`<div class="region-list"><button class="region ${chosen === 'auto' ? 'sel' : ''}" data-region="auto"><span><b>Auto (lowest ping)</b><br><small>${net && net.region ? 'Using ' + escapeHtml(net.region.name) : ''}</small></span><span></span></button>` +
+      regs.map((r) => `<button class="region ${chosen === r.id ? 'sel' : ''}" data-region="${r.id}"><span><b>${escapeHtml(r.name)}</b><br><small>${escapeHtml(r.place)}</small></span><span class="ping ${pingCls(this.regionPings[r.id])}">${p(r.id)}</span></button>`).join('') + '</div>');
+    rows.push(`<div class="row"><button id="region-ping" class="small">Measure ping again</button><span class="hint">${net && net.connected ? 'Connected' + (net.ping != null ? ` · ${net.ping} ms` : '') : 'Not connected - the game connects when you make or join a party'}</span></div>`);
+    rows.push(`<h4>Custom server</h4><p class="hint">For your own server (Play.bat on this computer or on your Wi-Fi). Everyone in a party must use the same one. Accounts live on the server: ${escapeHtml(serverBase().replace(/^https?:\/\//, ''))}</p>
+      <div class="server-box"><input id="srv-input" placeholder="e.g. 192.168.1.20:5323" value="${escapeHtml(customServer())}" spellcheck="false"> <button id="srv-save" class="small">Use this server</button> <button id="srv-reset" class="small">Default</button></div>`);
+    if (regs.length === 1 && regs[0].id !== 'local') rows.push('<p class="hint">Only one region is online right now. More regions appear here once they are added to the server list.</p>');
   }
 
   // ------------------------------------------------------------- HUD
   showHud(game) {
     for (const s of SCREENS) $(s).hidden = true;
+    $('topbar').hidden = true;
     this.screen = 'hud';
     $('hud').hidden = false;
-    const race = game.mode === 'race';
-    $('hud-pos').hidden = !race && !(game.opts && game.opts.mp);
-    $('hud-standings').hidden = !race && !(game.opts && game.opts.mp);
+    const mp = !!(game.opts && game.opts.mp);
+    const ranked = game.mode === 'race' || (mp && game.mode !== 'freeride');
+    $('hud-pos').hidden = !ranked;
+    $('hud-standings').hidden = !ranked;
     $('hud-center').textContent = '';
+    $('hud-trick').textContent = '';
+    $('trick-pop').innerHTML = '';
     $('toasts').innerHTML = '';
+    $('hud-hint').innerHTML = game.mode === 'freestyle' ? 'Q/E flip &nbsp; A/D whip &nbsp; Shift+A/D spin &nbsp; T restart' : 'R reset &nbsp; C camera &nbsp; Esc pause';
+    if (this.stage) this.stage.hideTags();
   }
   hideHud() { $('hud').hidden = true; }
+
+  // a landed trick: name, landing grade, points and combo
+  trickPopup(e, pts, combo, mult) {
+    const el = $('trick-pop');
+    el.innerHTML = `<div class="tp"><div class="tp-name">${escapeHtml(e.name)}</div><div class="tp-land ${e.landing}">${e.landing.toUpperCase()} LANDING</div><div class="tp-pts">+${pts.toLocaleString()}</div>${combo > 1 ? `<div class="combo">COMBO x${combo} &bull; ${mult.toFixed(1)}x points</div>` : ''}</div>`;
+  }
 
   updateHud(game, dt) {
     const S = this.settings;
     $('hud-fps').hidden = !S.get('showFps');
     if (S.get('showFps')) $('hud-fps').textContent = `${Math.round(game.fps || 0)} FPS`;
-    if (game.mode === 'menu' || $('hud').hidden) return;
+    if ($('hud').hidden) return;
     const p = game.player;
     if (!p || !p.veh) return;
     const v = p.veh;
-    // fast parts every frame
     const mph = Math.round(v.speed * 2.237);
     $('hud-speed').textContent = mph;
-    $('hud-gear').textContent = v.engine.reverse ? 'R' : v.grounded || true ? v.engine.gear : '-';
+    $('hud-gear').textContent = v.engine.reverse ? 'R' : v.engine.gear;
     const rpmFrac = Math.min(1, v.engine.rpm / (v.cfg.engine.redline * 1.03));
     $('tach-fg').style.strokeDashoffset = this.tachLen * (1 - rpmFrac);
-    // countdown
+    // what you are doing in the air right now
+    const tr = v.controller && v.controller.trick;
+    $('hud-trick').textContent = !v.grounded && tr ? liveTrick(tr) : '';
     const c = $('hud-center');
     if (game.phase === 'countdown') {
       const n = Math.ceil(game.countdown - 1);
@@ -394,7 +856,13 @@ export class UI {
       const sec = game.world.T.sections.find((x) => v.trackS >= x.s0 && v.trackS < x.s1);
       $('hud-lap').textContent = 'FREE RIDE';
       $('hud-time').textContent = sec ? sec.name : '';
-      $('hud-sub').innerHTML = `Lap ${L.laps}${L.lastLap ? ' &bull; last ' + fmtTime(L.lastLap) : ''}`;
+      $('hud-sub').innerHTML = `Lap ${L.laps}${L.lastLap ? ' &bull; last ' + fmtTime(L.lastLap) : ''}${game.trickScore ? `<br>Tricks ${game.trickScore.toLocaleString()} pts` : ''}`;
+    } else if (mode === 'freestyle') {
+      const F = game.fs;
+      const left = F.limit ? Math.max(0, F.limit - (game.phase === 'go' ? now : 0)) : null;
+      $('hud-lap').textContent = 'FREESTYLE';
+      $('hud-time').textContent = (game.trickScore || 0).toLocaleString() + ' pts';
+      $('hud-sub').innerHTML = `${left != null ? `Time left <b>${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</b>` : 'No time limit'}${game.combo > 1 ? `<br>Combo x${game.combo}` : ''}<br>Best ${(F.best || 0).toLocaleString()}`;
     } else if (mode === 'practice') {
       const P = game.practice;
       $('hud-lap').textContent = 'PRACTICE: ' + P.sec.name.toUpperCase();
@@ -408,18 +876,18 @@ export class UI {
       $('hud-time').textContent = mode === 'race' ? fmtTime(game.phase === 'countdown' ? 0 : now) : fmtTime(t || 0);
       $('hud-sub').innerHTML = `Lap ${fmtTime(t)}<br>Last ${fmtTime(L.lastLap)}<br>Best ${fmtTime(L.bestLap)}${mode === 'timetrial' ? '<br>Record ' + fmtTime(best) : ''}`;
     }
-    // race positions
     if (!$('hud-pos').hidden) {
       const st = game.net && game.net.standings ? game.net.orderedRiders(game) : game.standings();
       const me = st.indexOf(p) + 1;
       $('hud-pos').innerHTML = `P${me}<small>/${st.length}</small>`;
-      $('hud-standings').innerHTML = st.slice(0, 8).map((r, i) => `<li class="${r === p ? 'me' : ''}">${i + 1}. ${escapeHtml(r.name)}${r.finished ? ' &#127937;' : ''}</li>`).join('');
+      const score = (r) => (mode === 'freestyle' && game.net ? ' ' + ((game.net.standings || []).find((x) => x.id === r.id) || {}).score || '' : '');
+      $('hud-standings').innerHTML = st.slice(0, 8).map((r, i) => `<li class="${r === p ? 'me' : ''}">${i + 1}. ${escapeHtml(r.name)}${r.finished ? ' &#127937;' : ''}${score(r)}</li>`).join('');
     }
-    // network
     const net = $('hud-net');
     if (game.net && game.net.connected !== undefined) {
       net.hidden = false;
-      net.textContent = `Party ${game.net.code || ''} • ${game.net.connected ? (game.net.ping != null ? game.net.ping + ' ms' : 'online') : 'reconnecting...'}`;
+      const ping = game.net.ping;
+      net.innerHTML = `<span>Party ${game.net.code || ''}</span><span class="ping ${pingCls(ping)}">${game.net.connected ? (ping != null ? ping + ' ms' : 'online') : 'reconnecting...'}</span>`;
     } else net.hidden = true;
   }
 
@@ -440,8 +908,8 @@ export class UI {
   }
 
   toast(text, time = 1.6, kind = '') {
+    if (this.screen !== 'hud' && this.screen !== 'pause' && this.screen !== 'results') { this.popup(escapeHtml(text), kind === 'bad' ? 'bad' : kind === 'good' || kind === 'coins' ? 'good' : '', null, time + 1); return; }
     const box = $('toasts');
-    if (!box) return;
     const el = document.createElement('div');
     el.className = 'toast ' + kind;
     el.textContent = text;
@@ -456,19 +924,34 @@ export class UI {
   }
 
   showPause() { $('pause').hidden = false; this.screen = 'pause'; }
-  hidePause() { $('pause').hidden = true; $('settings').hidden = true; this.screen = 'hud'; }
+  hidePause() { $('pause').hidden = true; $('settings').hidden = true; $('controls').hidden = true; this.settingsReturn = null; this.screen = 'hud'; }
 
   showResults(rows, game) {
     $('results').hidden = false;
     this.screen = 'results';
     const me = rows.find((r) => r.me);
-    $('results-title').textContent = me ? `You finished ${ordinal(me.pos)}` : 'Results';
-    $('results-table').innerHTML = `<tr><th>Pos</th><th>Rider</th><th>Vehicle</th><th>Time</th><th>Best lap</th></tr>` +
-      rows.map((r) => `<tr class="${r.me ? 'me' : ''}"><td>${r.pos}</td><td>${escapeHtml(r.name)}</td><td>${r.vehicle}</td><td>${r.time != null ? fmtTime(r.time) : r.laps + ' laps'}</td><td>${fmtTime(r.best)}</td></tr>`).join('');
+    const fs = game.mode === 'freestyle';
+    if (fs) {
+      $('results-title').textContent = rows.length > 1 && me ? `Freestyle: ${ordinal(me.pos)} place` : `Freestyle: ${(me ? me.score : 0).toLocaleString()} points${me && me.record ? ' - NEW BEST!' : ''}`;
+      $('results-table').innerHTML = `<tr><th>Pos</th><th>Rider</th><th>Vehicle</th><th>Score</th></tr>` +
+        rows.map((r) => `<tr class="${r.me ? 'me' : ''}"><td>${r.pos}</td><td>${escapeHtml(r.name)}</td><td>${r.vehicle}</td><td>${(r.score || 0).toLocaleString()}</td></tr>`).join('') +
+        (rows.length === 1 && me ? `<tr><td></td><td colspan="2">Your best on this track</td><td>${Math.max(me.best || 0, me.score || 0).toLocaleString()}</td></tr>` : '');
+    } else {
+      $('results-title').textContent = me ? `You finished ${ordinal(me.pos)}` : 'Results';
+      $('results-table').innerHTML = `<tr><th>Pos</th><th>Rider</th><th>Vehicle</th><th>Time</th><th>Best lap</th></tr>` +
+        rows.map((r) => `<tr class="${r.me ? 'me' : ''}"><td>${r.pos}</td><td>${escapeHtml(r.name)}</td><td>${r.vehicle}</td><td>${r.time != null ? fmtTime(r.time) : r.laps + ' laps'}</td><td>${fmtTime(r.best)}</td></tr>`).join('');
+    }
     $('r-again').hidden = !!(game.opts && game.opts.mp && !game.net.isLeader());
   }
   hideResults() { $('results').hidden = true; }
 }
 
-export function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+function statusText(f) {
+  if (!f.online) return f.lastSeen ? 'Offline · seen ' + ago(Date.now() - f.lastSeen) : 'Offline';
+  if (f.status === 'riding') return `Riding ${modeName(f.mode)}${f.track ? ' · ' + getTrack(f.track).name : ''}`;
+  if (f.status === 'party') return 'In a party lobby';
+  return 'Online · in the menus';
+}
+function fsLabel(n) { return n ? n + ' min' : 'No limit'; }
+function pingCls(p) { return p == null ? '' : p < 90 ? 'good' : p < 170 ? 'ok' : 'bad'; }
+void ordinal;

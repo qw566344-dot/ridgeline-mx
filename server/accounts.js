@@ -17,6 +17,7 @@ import fs from 'fs';
 import path from 'path';
 import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
+import { Friends } from './friends.js';
 
 const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
 
@@ -30,6 +31,7 @@ export class Accounts {
     for (const u of Object.values(this.db.users)) for (const t of u.tokens || []) this.tokens.set(t, u.key);
     this.attempts = new Map();
     this.saveTimer = null;
+    this.friends = new Friends(this);
   }
 
   save() {
@@ -166,6 +168,7 @@ export class Accounts {
       if (r === 'equip') return send(200, this.equip(u, m.slot, m.id));
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));
       if (r === 'logout') return send(200, this.logout(token));
+      if (r === 'friends' || r.startsWith('friends/')) { const out = this.friends.handle(r, u, m, url); if (out) return send(200, out); }
       return send(404, { error: 'Unknown' });
     });
   }

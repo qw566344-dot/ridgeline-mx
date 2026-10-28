@@ -71,7 +71,7 @@ for (const def of TRACKS) {
     const after = seg.s1 - f.s1;
     const line = [`${f.type.padEnd(6)} ${String(f.lane || '').padEnd(1)} @${f.segName.padEnd(16)}`];
     if (after < 4) { line.push(`LANDING RUNS INTO THE TURN (${after.toFixed(1)} m left)`); problems++; }
-    for (const vid of ['mx450', 'atv450']) {
+    for (const vid of (process.argv[3] ? process.argv[3].split(',') : ['mx450', 'atv450'])) {
       const res = [];
       for (let v0 = 8; v0 <= 30; v0 += 1) res.push({ v0, ...shoot(W, f, vid, v0) });
       const good = res.filter((r) => !r.crashed && r.landX !== null && r.landX >= z.sweet0 && r.landX <= z.sweet1);

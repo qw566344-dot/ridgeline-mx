@@ -2,6 +2,7 @@
 //   node tools/mp-test.js [ws://localhost:5323/ws]
 import { getTrack } from '../shared/tracks.js';
 import { buildTrack, pointAt } from '../shared/trackgen.js';
+import { PROTOCOL_VERSION } from '../shared/protocol.js';
 
 const URL = process.argv[2] || 'ws://localhost:5323/ws';
 const T = buildTrack(getTrack('quarry'));
@@ -27,8 +28,8 @@ function client(name) {
 
 const A = client('Alice'), B = client('Bob');
 await Promise.all([A.open, B.open]);
-A.send({ t: 'hello', v: 1, name: 'Alice', vehicle: 'mx450', color: 'red' });
-B.send({ t: 'hello', v: 1, name: 'Bob', vehicle: 'atv450', color: 'blue' });
+A.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Alice', vehicle: 'mx450', color: 'red' });
+B.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Bob', vehicle: 'atv450', color: 'blue' });
 await A.wait((m) => m.t === 'welcome'); await B.wait((m) => m.t === 'welcome');
 A.send({ t: 'create' });
 const party = await A.wait((m) => m.t === 'party');
@@ -59,11 +60,20 @@ clearInterval(timer);
 console.log('results after', ((Date.now() - t0) / 1000).toFixed(1), 's:', res.rows.map((r) => `${r.pos}. ${r.name} ${r.time ? r.time.toFixed(2) + 's' : ''}`).join('  '));
 const snaps = B.msgs.filter((m) => m.t === 'snap').length;
 console.log('Bob received', snaps, 'snapshots; Alice received', A.msgs.filter((m) => m.t === 'snap').length);
+// freestyle jam: trick points from each rider land on the party leaderboard
+A.send({ t: 'settings', track: 'freestyle', mode: 'freestyle', laps: 1 });
+await A.wait((m) => m.t === 'party' && m.settings.mode === 'freestyle');
+A.send({ t: 'start' });
+const fsS = await B.wait((m) => m.t === 'session' && m.mode === 'freestyle');
+await new Promise((r) => setTimeout(r, Math.max(0, fsS.goAt - Date.now()) + 300));
+B.send({ t: 'ev', e: 'trick', v: 750 }); A.send({ t: 'ev', e: 'trick', v: 300 });
+const board = await A.wait((m) => m.t === 'race' && m.mode === 'freestyle' && m.rows.some((r) => r.score === 750), 5000).catch(() => null);
+console.log('freestyle board:', board ? board.rows.map((r) => r.name + ' ' + r.score).join(', ') : 'none');
 // Bob leaves: Alice should see it
 B.send({ t: 'leave' });
 const after = await A.wait((m) => m.t === 'party' && m.members.length === 1);
 console.log('after Bob left, party has', after.members.map((m) => m.name).join(', '));
 A.ws.close(); B.ws.close();
-const ok = res.rows[0].name === 'Alice' && res.rows.length === 2 && snaps > 10 && refused;
+const ok = res.rows[0].name === 'Alice' && res.rows.length === 2 && snaps > 10 && refused && board && board.rows[0].name === 'Bob';
 console.log(ok ? 'MULTIPLAYER TEST PASSED' : 'MULTIPLAYER TEST FAILED');
 process.exit(ok ? 0 : 1);
