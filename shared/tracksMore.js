@@ -1424,6 +1424,342 @@ export const MORE_TRACKS = [
   finishAt: 100
  },
  {
+  id: "riverbed",
+  name: "Riverbed Canyon",
+  difficulty: "Medium",
+  recommend: [
+   "Dirt Bikes",
+   "Quads"
+  ],
+  seed: 9121,
+  defaultWidth: 13,
+  desc: "A dry riverbed between sandstone walls: rocky rhythm, a gap over the old channel and sweeping sand berms.",
+  look: {
+   dirt: [
+    1.15,
+    0.92,
+    0.72
+   ],
+   grass: [
+    1.05,
+    0.98,
+    0.72
+   ],
+   trees: 0.5,
+   pines: 0.1,
+   rocks: 2.8,
+   fog: 15325373,
+   skyTop: 5015241,
+   horizon: 15852232
+  },
+  terrain: {
+   hills: 9,
+   hillScale: 170,
+   rim: 50,
+   bumps: [
+    {
+     x: 0,
+     z: 0,
+     r: 100,
+     h: -5
+    }
+   ],
+   rimStart: 211
+  },
+  segments: [
+   {
+    len: 150,
+    name: "Start Straight",
+    features: [],
+    w: 18,
+    free: true
+   },
+   {
+    turn: 90,
+    r: 22,
+    berm: 1
+   },
+   {
+    len: 120,
+    name: "Channel Gap",
+    features: [
+     {
+      at: 18,
+      type: "double",
+      h: 1.7,
+      face: 7.5,
+      gap: 6,
+      h2: 1.5,
+      land: 9
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 20,
+    berm: 1
+   },
+   {
+    len: 110,
+    name: "Pebble Rhythm",
+    features: [
+     {
+      at: 12,
+      type: "rollers",
+      n: 3,
+      len: 11,
+      h: 0.9
+     },
+     {
+      at: 56,
+      type: "table",
+      h: 1.6,
+      face: 7,
+      top: 6,
+      land: 8
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -90,
+    r: 18,
+    berm: 1
+   },
+   {
+    len: 100,
+    name: "Dry Falls Step",
+    features: [
+     {
+      at: 30,
+      type: "step",
+      h: 1.4,
+      face: 6,
+      gap: 4.5,
+      h2: 2,
+      top: 9,
+      land: 10
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 20,
+    berm: 1
+   },
+   {
+    len: 130,
+    name: "Sandbar Whoops",
+    features: [
+     {
+      at: 14,
+      type: "whoops",
+      n: 12,
+      len: 4.8,
+      h: 0.5
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 22,
+    berm: 1
+   },
+   {
+    len: 110,
+    name: "Canyon Table",
+    features: [
+     {
+      at: 22,
+      type: "table",
+      h: 1.9,
+      face: 8.5,
+      top: 8,
+      land: 10
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 22,
+    berm: 1
+   }
+  ],
+  worldSize: 602,
+  start: {
+   x: -129,
+   z: 140,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "highlands",
+  name: "Highland Heath",
+  difficulty: "Hard",
+  recommend: [
+   "Dirt Bikes"
+  ],
+  seed: 9132,
+  defaultWidth: 11,
+  desc: "Windswept hilltops and heather: big uphill tables, a cliff-top triple and fast off-camber turns.",
+  look: {
+   dirt: [
+    0.82,
+    0.7,
+    0.62
+   ],
+   grass: [
+    0.82,
+    0.9,
+    0.7
+   ],
+   trees: 0.4,
+   pines: 0.6,
+   rocks: 2.2,
+   fog: 13226444,
+   skyTop: 4878234,
+   horizon: 13949910
+  },
+  terrain: {
+   hills: 15,
+   hillScale: 160,
+   rim: 52,
+   bumps: [
+    {
+     x: 50,
+     z: -40,
+     r: 110,
+     h: 12
+    }
+   ],
+   rimStart: 191
+  },
+  segments: [
+   {
+    len: 150,
+    name: "Start Straight",
+    features: [],
+    w: 17,
+    free: false
+   },
+   {
+    turn: 120,
+    r: 18,
+    berm: 1
+   },
+   {
+    len: 120,
+    name: "Heather Tables",
+    features: [
+     {
+      at: 16,
+      type: "table",
+      h: 1.8,
+      face: 8,
+      top: 7,
+      land: 9
+     },
+     {
+      at: 66,
+      type: "table",
+      h: 2,
+      face: 9,
+      top: 8,
+      land: 10
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -60,
+    r: 22,
+    berm: 1
+   },
+   {
+    len: 110,
+    name: "Cliff Triple",
+    features: [
+     {
+      at: 30,
+      type: "triple",
+      h: 2,
+      face: 8.5,
+      gap: 8,
+      h2: 1.8,
+      land: 10
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 120,
+    r: 18,
+    berm: 1
+   },
+   {
+    len: 100,
+    name: "Bog Rhythm",
+    features: [
+     {
+      at: 12,
+      type: "double",
+      h: 1.5,
+      face: 6.5,
+      gap: 5,
+      h2: 1.3,
+      land: 8
+     },
+     {
+      at: 56,
+      type: "rollers",
+      n: 3,
+      len: 11,
+      h: 0.9
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 18,
+    berm: 1
+   },
+   {
+    len: 120,
+    name: "Moor Whoops",
+    features: [
+     {
+      at: 14,
+      type: "whoops",
+      n: 12,
+      len: 4.6,
+      h: 0.5
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 20,
+    berm: 1
+   }
+  ],
+  worldSize: 562,
+  start: {
+   x: -72,
+   z: 131,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
   id: "twilight",
   name: "Twilight Valley",
   difficulty: "Medium",

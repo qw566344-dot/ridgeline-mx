@@ -12,7 +12,7 @@
 // =====================================================================
 import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES } from '/shared/vehicles.js';
-import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf } from '/shared/shop.js';
+import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop } from '/shared/shop.js';
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
@@ -495,47 +495,24 @@ export class UI {
   // DAILY rotate every day at midnight UTC (the same for everyone), then
   // BROWSE has every vehicle, skin, gear set and upgrade.
   renderShop() {
-    const S = this.settings, A = this.account;
-    const owns = (slot, id) => !A || A.owns(slot, id);
-    const day = Math.floor(Date.now() / 86400000);
-    const rot = (list, n, salt) => {
-      const r = seeded(day * 97 + salt), out = [...list];
-      for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
-      return out.slice(0, n);
-    };
-    const skinIds = BIKE_COLORS.filter((c) => c.pattern).map((c) => c.id);
-    const featuredPool = [...skinIds.filter((id) => ['Legendary', 'Epic'].includes(rarityOf(shopItem('color', id)))).map((id) => ({ slot: 'color', id })),
-      ...VEHICLES.filter((v) => shopItem('vehicle', v.id).price >= 6000).map((v) => ({ slot: 'vehicle', id: v.id }))];
-    const featured = rot(featuredPool, 3, 1);
-    const dailyPool = [...BIKE_COLORS.filter((c) => !featured.some((x) => x.id === c.id) && shopItem('color', c.id).price > 0).map((c) => ({ slot: 'color', id: c.id })),
-      ...GEAR_SETS.filter((g) => shopItem('gear', g.id).price > 0).map((g) => ({ slot: 'gear', id: g.id })),
-      ...VEHICLES.filter((v) => { const p = shopItem('vehicle', v.id).price; return p > 0 && p < 6000; }).map((v) => ({ slot: 'vehicle', id: v.id }))];
-    const daily = rot(dailyPool, 6, 2);
-    const left = 86400000 - (Date.now() % 86400000);
-    const hh = String(Math.floor(left / 3600000)).padStart(2, '0'), mm = String(Math.floor(left / 60000) % 60).padStart(2, '0');
-    const browseTabs = ['Vehicles', 'Skins & Paint', 'Rider Gear', 'Upgrades'];
-    if (!browseTabs.includes(this.shopTab)) this.shopTab = this.shopTab === 'Paint' ? 'Skins & Paint' : 'Vehicles';
-    let browse = [];
-    let sub = '';
-    if (this.shopTab === 'Vehicles') browse = VEHICLES.map((v) => ({ slot: 'vehicle', id: v.id }));
-    else if (this.shopTab === 'Skins & Paint') browse = BIKE_COLORS.map((c) => ({ slot: 'color', id: c.id })).sort((x, y) => shopItem('color', x.id).price - shopItem('color', y.id).price);
-    else if (this.shopTab === 'Rider Gear') browse = GEAR_SETS.map((g) => ({ slot: 'gear', id: g.id }));
-    else {
-      const ownedV = VEHICLES.filter((v) => owns('vehicle', v.id));
-      if (!this.shopUpVehicle || !ownedV.some((v) => v.id === this.shopUpVehicle)) this.shopUpVehicle = ownedV.some((v) => v.id === S.get('vehicle')) ? S.get('vehicle') : (ownedV[0] || VEHICLES[0]).id;
-      sub = '<div class="seg">' + ownedV.map((v) => `<button class="${v.id === this.shopUpVehicle ? 'sel' : ''}" data-uv="${v.id}">${v.name}</button>`).join('') + '</div>';
-      for (const [part, U] of Object.entries(UPGRADES)) U.levels.forEach((L, i) => browse.push({ slot: 'upgrade', id: `${this.shopUpVehicle}.${part}.${i + 1}` }));
-    }
+    const R = shopRotation();
+    const left = Math.max(0, R.endsAt - Date.now());
+    const mm = String(Math.floor(left / 60000)).padStart(2, '0'), ss = String(Math.floor(left / 1000) % 60).padStart(2, '0');
     const grid = $('shop-grid');
-    grid.innerHTML = `<div class="shop-head"><div><h2>Item Shop</h2><small>Coins come from riding - laps, records, races, big air and tricks</small></div><div class="reset">NEW ITEMS IN <b>${hh}:${mm}</b></div></div>
-      <h3 class="fsec">Featured</h3><div class="fgrid featured">${featured.map((x) => this.shopCard(x, true)).join('')}</div>
-      <h3 class="fsec">Daily</h3><div class="fgrid">${daily.map((x) => this.shopCard(x)).join('')}</div>
-      <h3 class="fsec">Browse</h3><div class="tabs">${browseTabs.map((t) => `<button class="${t === this.shopTab ? 'sel' : ''}" data-t="${t}">${t}</button>`).join('')}</div>${sub}
-      <div class="fgrid">${browse.map((x) => this.shopCard(x)).join('')}</div>`;
+    grid.innerHTML = `<div class="shop-head"><div><h2>Item Shop</h2><small>Skins and gear are only here while they are in the shop. Vehicles are always for sale.</small></div><div class="reset">NEW ITEMS IN <b id="shop-timer">${mm}:${ss}</b></div></div>
+      <h3 class="fsec">Featured</h3><div class="fgrid featured">${R.featured.map((x) => this.shopCard(x, true)).join('')}</div>
+      <h3 class="fsec">Daily</h3><div class="fgrid">${R.daily.map((x) => this.shopCard(x)).join('')}</div>
+      <h3 class="fsec">Vehicles</h3><div class="fgrid">${VEHICLES.map((v) => this.shopCard({ slot: 'vehicle', id: v.id })).join('')}</div>`;
     $('shop-tabs').innerHTML = ''; $('shop-sub').innerHTML = '';
-    grid.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { this.shopTab = b.dataset.t; this.shopSel = null; this.renderShop(); this.syncStage(); });
-    grid.querySelectorAll('[data-uv]').forEach((b) => b.onclick = () => { this.shopUpVehicle = b.dataset.uv; this.shopSel = null; this.renderShop(); this.syncStage(); });
     grid.querySelectorAll('.fcard').forEach((b) => b.onclick = () => { this.shopSel = { slot: b.dataset.slot, id: b.dataset.id }; grid.querySelectorAll('.fcard.sel').forEach((x) => x.classList.remove('sel')); grid.querySelectorAll(`.fcard[data-slot="${b.dataset.slot}"][data-id="${b.dataset.id}"]`).forEach((x) => x.classList.add('sel')); this.renderShopDetail(); this.syncStage(); });
+    // count down, and swap the items when the hour turns over
+    clearInterval(this.shopTick);
+    this.shopTick = setInterval(() => {
+      if (this.screen !== 'shop') { clearInterval(this.shopTick); return; }
+      const l = Math.max(0, shopRotation().endsAt - Date.now());
+      if (shopRotation().slot !== R.slot) { this.shopSel = null; const y = grid.scrollTop; this.renderShop(); grid.scrollTop = y; this.popup('The item shop has new items!', 'good'); return; }
+      const t = $('shop-timer'); if (t) t.textContent = String(Math.floor(l / 60000)).padStart(2, '0') + ':' + String(Math.floor(l / 1000) % 60).padStart(2, '0');
+    }, 1000);
     this.renderShopDetail();
   }
 
@@ -582,6 +559,7 @@ export class UI {
       const equipped = sel.slot === 'upgrade' || S.get(sel.slot) === sel.id;
       btn = equipped ? '<button class="wide" disabled>Owned</button>' : '<button id="shop-equip" class="primary wide">Use it now</button>';
     } else if (need) btn = `<button class="wide" disabled>${need.startsWith('vehicle') ? 'Buy the vehicle first' : 'Buy level ' + (it.level - 1) + ' first'}</button>`;
+    else if (!inShop(sel.slot, sel.id)) btn = '<button class="wide" disabled>Not in the shop right now</button>';
     else btn = `<button id="shop-buy" class="primary wide" ${can ? '' : 'disabled'}>${can ? 'Buy for ' + it.price.toLocaleString() + ' coins' : 'Need ' + (it.price - coins).toLocaleString() + ' more coins'}</button>`;
     el.innerHTML = `<h2>${escapeHtml(title)}</h2>${body}${own ? '' : `<div class="price-big"><i class="coin"></i>${it.price.toLocaleString()}</div>`}${btn}<div class="lock-note">You have ${coins.toLocaleString()} coins.</div><div class="error" id="shop-err"></div>`;
     const buy = $('shop-buy');

@@ -23,6 +23,16 @@ const DEG = Math.PI / 180;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 const g0 = { h: 0, nx: 0, ny: 1, nz: 0 };
 const _n = new THREE.Vector3(), _d = new THREE.Vector3(), _c = new THREE.Vector3(), _p = new THREE.Vector3();
+const _ax = new THREE.Vector3(), _qi = new THREE.Quaternion();
+
+// add the torque that gives exactly this angular acceleration (rad/s^2) about a world axis -
+// the bike resists roll, pitch and yaw differently, so a plain torque would also spin it on the other axes
+function addAccel(v, axis, a) {
+  const I = v.cfg.inertia;
+  _ax.copy(axis).multiplyScalar(a).applyQuaternion(_qi.copy(v.quat).invert());
+  _ax.x *= I[0]; _ax.y *= I[1]; _ax.z *= I[2];
+  v.torque.add(_ax.applyQuaternion(v.quat));
+}
 
 // a berm leaning into the turn lets you corner much harder (that is what they are for)
 export function bankBoost(v, steer) {
@@ -84,8 +94,8 @@ export class BikeController {
     const wantWheelie = inp.lean < -0.3;
     if (v.assist.wheelie && v.grounded && !wantWheelie) {
       const p = v.groundPitch();
-      // an accidental wheelie gets the power trimmed; one you are holding keeps full drive
-      if (!front.contact && p > 5 && !(this.wheelieTime > 0 || this.wheelie)) rear.drive *= clamp(1 - (p - 5) / 10, 0.15, 1);
+      // wheelies keep full power; the assist only trims it near the loop-out point
+      if (!front.contact && p > 40) rear.drive *= clamp(1 - (p - 40) / 15, 0.2, 1);
       if (p < -3) front.brake *= clamp(1 - (-p - 3) / 7, 0.1, 1);
       if (!rear.contact) front.brake *= 0.5;
     }
@@ -151,7 +161,7 @@ export class BikeController {
         // balancing a wheelie: Q / throttle raise it, E / rear brake drop it, gravity always pulls it down
         this.wheelie = pull > 0.2 || this.wheelieTime > 0;
         a += pull * 11 + inp.throttle * 3.5 - push * 9 - inp.rearBrake * 14 - 4.5;
-        a -= 2.6 * -pitchW;               // damping (pitchW is + when the nose drops)
+        a -= 4.2 * -pitchW;               // damping (pitchW is + when the nose drops)
         if (!this.wheelie && v.assist.wheelie) a -= (p - 0.05) * 40; // accidental wheelie: bring it down
         if (p > 1.05) a -= (p - 1.05) * 60; // past the balance point: hard to save
       } else if (front.contact && !rear.contact) {
@@ -189,7 +199,10 @@ export class BikeController {
         if (spinning && Math.abs(e) > 1.1) ap = (inp.lean * A.flipRate - pitchW) * 0.35;
         else if (v.assist.landing > 0) ap += (e * 14 - pitchW * 3) * v.assist.landing;
       }
-      v.torque.addScaledVector(left, ap * I[0]);
+      // pitch around a LEVEL axis: with the bike laid over in a whip, the tilted axis would twist it sideways
+      _c.set(fwd.z, 0, -fwd.x); // level and square to the heading (= left when the bike is level)
+      if (_c.lengthSq() > 0.05 && Math.abs(tr.pitch) < 2.0) _c.normalize(); else _c.copy(left);
+      addAccel(v, _c, ap);
       const roll = Math.asin(clamp(left.y, -1, 1)); // + = leaning right (stays 0 during a flip)
       this.airRoll = roll;
       const late = v.assist.landing > 0 ? Math.min(1, Math.max(0, (this.timeToLand - 0.15) / 0.35)) : 1;
@@ -199,14 +212,29 @@ export class BikeController {
         v.torque.addScaledVector(up, ((spinT - yawW) * 6) * I[1]);
         v.torque.addScaledVector(fwd, ((0 - roll) * 22 - rollW * 6) * I[2]);
       } else {
-        // whips: A / D lay the bike over and swing the back out; hold it and it
-        // hangs there, let go and it swings back smoothly, straight for the landing
+        // WHIP: hold A / D and the bike rotates around its middle - it lays over
+        // sideways while the back wheel swings out (the nose points into the whip).
+        // The longer you hold, the further it goes; let go and a spring brings it
+        // back upright and lined up with where you are flying, ready to land.
         const holding = Math.abs(this.steer) > 0.15;
-        const whipTarget = -this.steer * A.whip * DEG * late;
-        const k = holding ? 20 : 11, cdamp = holding ? 5.5 : 5;
-        v.torque.addScaledVector(fwd, ((whipTarget - roll) * k - rollW * cdamp) * I[2]);
-        // a whip is mostly the bike laying flat; the nose only kicks round a little with it
-        v.torque.addScaledVector(up, ((this.steer * c.steer.airYaw * 0.25 + roll * 0.4 * (holding ? 1 : 0.3)) - yawW * 2.6) * I[1]);
+        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 2.0) : Math.max(0, (this.whipAmt || 0) - dt * 9);
+        // the swing spring keeps the bike lined up for the landing - but never in the middle of a flip
+        // (a normal jump tips the nose down ~50 degrees - that is not a flip; pointing near vertical it is)
+        const flipping = Math.abs(tr.pitch) > 2.0 || Math.abs(inp.lean) > 0.1 || Math.abs(pitchW) > 2.2;
+        const swingK = flipping ? 0 : clamp((0.985 - Math.abs(fwd.y)) / 0.12, 0, 1);
+        if (holding) this.whipSide = Math.sign(this.steer);
+        const amt = this.whipAmt * late;
+        const side = this.whipSide || 0;
+        const rollT = -side * A.whip * DEG * amt;          // lay it over
+        const yawT = side * 40 * DEG * amt;                 // rear out, nose into the whip
+        // how far the bike points away from the direction it is flying (+ = nose to the left)
+        let yawOff = 0;
+        const hx = fwd.x, hz = fwd.z, vx = v.vel.x, vz = v.vel.z;
+        if (vx * vx + vz * vz > 4 && hx * hx + hz * hz > 0.01) yawOff = Math.atan2(vz * hx - vx * hz, vx * hx + vz * hz);
+        // roll around the bike's own lengthwise axis (that keeps it pointing where it points)
+        v.torque.addScaledVector(fwd, ((rollT - roll) * (holding ? 20 : 75) - rollW * (holding ? 6 : 14)) * I[2]);
+        // turn around the true vertical (not the tilted bike), so the swing never fights the roll
+        addAccel(v, _p.set(0, 1, 0), ((yawT - yawOff) * (holding ? 16 : 36) - v.angVel.y * (holding ? 7.5 : 11)) * swingK);
         // scrub: whipping hard right off the lip keeps the bike low and fast
         tr.whip = Math.max(tr.whip, Math.abs(roll)); // only real whips count, not the wobble of a spin
         if (v.airTime < 0.35 && Math.abs(roll) > 25 * DEG) { tr.scrub = true; v.force.y -= c.mass * 9.81 * 0.3 * Math.min(1, Math.abs(roll) / (45 * DEG)); }

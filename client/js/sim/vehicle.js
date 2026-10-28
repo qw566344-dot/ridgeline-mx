@@ -369,7 +369,12 @@ export class Vehicle {
     F = Math.max(0, F);
     w.force = F;
     const centre = w.centre.set(mount.x + dX * w.ext, mount.y + dY * w.ext, mount.z + dZ * w.ext);
-    this.addForceAt(_t[2].copy(up).multiplyScalar(F), centre);
+    // the spring pushes along the body's up axis, but the ground can only push back through the tyre:
+    // drop the part that points along the ground (with the nose up in a wheelie it acted as a brake)
+    const fs = _t[2].copy(up).multiplyScalar(F);
+    const fg = _t[3].copy(this.fwd).addScaledVector(n, -this.fwd.dot(n));
+    if (fg.lengthSq() > 1e-6) { fg.normalize(); fs.addScaledVector(fg, -fs.dot(fg)); }
+    this.addForceAt(fs, centre);
 
     // --- tyre
     const N = F * Math.max(0, up.dot(n));

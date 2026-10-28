@@ -18,7 +18,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds } from '../shared/shop.js';
+import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
 import { Casino } from './casino.js';
@@ -136,6 +136,7 @@ export class Accounts {
     if (!item) return { error: 'No such item' };
     const k = slot + ':' + id;
     if (u.owned.includes(k)) return { profile: this.profile(u) };
+    if (!inShop(slot, id)) return { error: 'That is not in the item shop right now - check back when it rotates' };
     if (slot === 'upgrade') for (const n of upgradeNeeds(item)) if (!this.has(u, n)) return { error: n.startsWith('vehicle') ? 'Buy the vehicle first' : 'Buy the level below first' };
     if (u.coins < item.price) return { error: `Not enough coins (need ${item.price})` };
     u.coins -= item.price;

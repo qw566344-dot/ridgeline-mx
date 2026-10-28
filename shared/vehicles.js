@@ -51,6 +51,9 @@ export const BIKE_COLORS = [
   { id: 'obsidian', name: 'Obsidian', pattern: 'marble', body: 0x0a0a0a, accent: 0xd4a017, gear: [0x0a0a0a, 0xd4a017, 0xfff4cc] },
   { id: 'retro', name: 'Retro Racer', pattern: 'race', body: 0xf8fafc, accent: 0x1d4ed8, third: 0xdc2626, gear: [0xf8fafc, 0x1d4ed8, 0xdc2626] },
   { id: 'sunsetrace', name: 'Sunset Racer', pattern: 'race', body: 0x7c2d12, accent: 0xf97316, third: 0xfacc15, gear: [0x7c2d12, 0xf97316, 0xfacc15] },
+  { id: 'arctic', name: 'Arctic Camo', pattern: 'camo', body: 0xe2e8f0, accent: 0x94a3b8, third: 0x7dd3fc, gear: [0xe2e8f0, 0x475569, 0x7dd3fc] },
+  { id: 'neontiger', name: 'Neon Tiger', pattern: 'tiger', body: 0xff2bd6, accent: 0x22d3ee, gear: [0xff2bd6, 0x0f172a, 0x22d3ee] },
+  { id: 'prism', name: 'Prism', pattern: 'aurora', body: 0xef4444, accent: 0xfacc15, third: 0x3b82f6, gear: [0xef4444, 0x111827, 0xfacc15] },
 ];
 export const PATTERNS = ['solid', 'stripes', 'flames', 'camo', 'galaxy', 'carbon', 'chrome', 'tiger', 'gradient', 'checker', 'hex', 'bolt', 'splatter', 'pixel', 'aurora', 'lava', 'marble', 'race'];
 

@@ -217,7 +217,8 @@ export class Rider {
     s.fore += (Math.max(-1, Math.min(1, fore)) - s.fore) * k;
     // on the ground lean with the vehicle; in the air counter the whip and tuck for flips
     const airRoll = air && veh.controller ? veh.controller.airRoll || 0 : 0;
-    const leanT = air ? -airRoll * 0.55 : (isBike ? -0.25 : 0.9) * (veh.lean || 0);
+    // in the air the rider goes with the bike (a little extra into a whip), not against it
+    const leanT = air ? airRoll * 0.18 : (isBike ? -0.25 : 0.9) * (veh.lean || 0);
     s.leanBody += (leanT - s.leanBody) * k;
     const flipping = air && veh.angVel ? Math.min(1, Math.abs(veh.angVel.dot(veh.left)) / 3) : 0;
     s.crouch = Math.max(s.crouch, flipping * 0.45);

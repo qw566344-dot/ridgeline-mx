@@ -7,7 +7,7 @@
 //  browser instead, with the password hashed. Guests also save locally.
 // =====================================================================
 import { serverBase } from './config.js';
-import { STARTER, shopItem, MAX_REWARD, upgradeNeeds } from '/shared/shop.js';
+import { STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop } from '/shared/shop.js';
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -194,6 +194,7 @@ export class Account {
   async buy(slot, id) {
     const item = shopItem(slot, id);
     if (!item) return 'No such item';
+    if (!this.owns(slot, id) && !inShop(slot, id)) return 'That is not in the item shop right now';
     if (this.mode === 'online') {
       try { const r = await this.api('buy', { slot, id }); if (r.error) return r.error; this.profile = r.profile; this.changed(); return null; }
       catch { return 'Can not reach the server to buy right now'; }

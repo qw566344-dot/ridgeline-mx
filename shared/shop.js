@@ -70,6 +70,9 @@ export const SHOP = [
   { id: 'bloodmoon', slot: 'color', price: 10000, rarity: 'Legendary' },
   { id: 'lava', slot: 'color', price: 11000, rarity: 'Legendary' },
   { id: 'aurora', slot: 'color', price: 14000, rarity: 'Legendary' },
+  { id: 'arctic', slot: 'color', price: 2800, rarity: 'Rare' },
+  { id: 'neontiger', slot: 'color', price: 4800, rarity: 'Epic' },
+  { id: 'prism', slot: 'color', price: 15000, rarity: 'Legendary' },
   // rider gear
   { id: 'match', slot: 'gear', price: 0 },
   { id: 'black', slot: 'gear', price: 700 },
@@ -110,6 +113,38 @@ export const STARTER = { coins: 500, owned: SHOP.filter((i) => i.price === 0).ma
 
 // rarity for the shop cards (set on the item, or from its price)
 export const RARITIES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+// ---------------------------------------------------------------------
+//  ITEM SHOP ROTATION: skins and rider gear can only be bought while they
+//  are in the shop. 3 Featured + 8 Daily items, new every hour (UTC), the
+//  same for everyone. Vehicles are always for sale; upgrades are in the garage.
+// ---------------------------------------------------------------------
+export const ROTATION_MS = 3600_000;
+function rotRng(seed) { let x = (seed * 2654435761) >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
+function shuffled(list, r) { const a = [...list]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+export function shopRotation(now = Date.now()) {
+  const slot = Math.floor(now / ROTATION_MS);
+  const r = rotRng(slot + 7);
+  const paid = SHOP.filter((i) => (i.slot === 'color' || i.slot === 'gear') && i.price > 0);
+  const big = paid.filter((i) => i.slot === 'color' && ['Epic', 'Legendary'].includes(rarityOf(i)));
+  const featured = shuffled(big, r).slice(0, 3);
+  const rest = paid.filter((i) => !featured.includes(i));
+  // daily: mostly skins, at least two gear sets
+  const gear = shuffled(rest.filter((i) => i.slot === 'gear'), r).slice(0, 2);
+  const skins = shuffled(rest.filter((i) => i.slot === 'color'), r).slice(0, 6);
+  return { slot, endsAt: (slot + 1) * ROTATION_MS, featured: featured.map((i) => ({ slot: i.slot, id: i.id })), daily: shuffled([...skins, ...gear], r).map((i) => ({ slot: i.slot, id: i.id })) };
+}
+// can this be bought right now? (a 2-minute grace after the shop changes)
+export function inShop(slot, id, now = Date.now()) {
+  if (slot === 'vehicle' || slot === 'upgrade') return true;
+  const it = shopItem(slot, id);
+  if (!it || it.price === 0) return true;
+  for (const t of [now, now - 120_000]) {
+    const R = shopRotation(t);
+    if ([...R.featured, ...R.daily].some((x) => x.slot === slot && x.id === id)) return true;
+  }
+  return false;
+}
+
 export function rarityOf(it) {
   if (!it) return 'Common';
   if (it.rarity) return it.rarity;
