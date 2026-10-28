@@ -127,15 +127,16 @@ export class Account {
     try {
       const r = await this.api('login', { name, password });
       if (r.error) {
-        // the server lost it (restart)? bring it back from this computer's copy
         if (/No account/.test(r.error)) {
+          // the server lost it (restart)? bring it back from this computer's copy
           const back = await this.restore(name, password);
           if (back === '') return null;
           if (back) return back;
+          // an account that only lives on this computer?
+          if (LS.get('mx.localAccounts', {})[name.trim().toLowerCase()]) return (await this.localLogin(name, password)) || null;
+          return `The server has no account called "${name.trim()}". If you made it on another computer, it was lost when the free server restarted - log in once on that computer to bring it back, or create it again here.`;
         }
-        // maybe it is an offline account on this computer
-        const off = await this.localLogin(name, password);
-        return off === null ? null : r.error;
+        return r.error;
       }
       this.set('online', r.token, r.profile);
       await this.rememberPassword(password);

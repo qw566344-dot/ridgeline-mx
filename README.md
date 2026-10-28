@@ -40,6 +40,16 @@ tier, built from the GitHub repo). After pushing changes to GitHub, press **Manu
 | Sleeping | Free servers sleep after 15 minutes alone; the first connect takes about 30 s | A paid Render instance (about $7/month) never sleeps |
 | Ping | Shown top-right in the menus, top-centre while riding, and per rider in the party list | Closer regions (above) |
 
+### Keeping accounts forever (free)
+Free Render servers wipe their disk on every restart, so accounts would disappear. The server
+can keep them in a free Upstash Redis database instead (`server/store.js`):
+1. Make a free account at upstash.com, create a **Redis** database (any region, free plan).
+2. On the database page, under **REST API**, copy `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
+3. In Render, open the **ridgeline-mx** service > **Environment** > add both as environment variables, save.
+4. Render restarts the server; its log says `Accounts: loaded N from the cloud save`.
+Only the main (North America) server needs this - it is the one that keeps accounts.
+Test it locally with `node tools/store-test.js`.
+
 ## Models
 - Dirt bikes: `client/models/kx_dirt_bike.glb`, made from the Tinkercad bike by `tools/bake-kx-bike.py`
   (Blender), which splits it into wheels, fork, swingarm and body.

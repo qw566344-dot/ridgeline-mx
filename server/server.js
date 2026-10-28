@@ -59,6 +59,10 @@ function lanAddresses() {
   return out;
 }
 
+// Render (and most hosts) send SIGTERM before a restart: save the accounts first
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, async () => { await accounts.flush(); process.exit(0); });
+
+await accounts.ready;
 server.listen(PORT, HOST, () => {
   console.log(`Ridgeline MX running at http://localhost:${PORT}  (multiplayer on ws://localhost:${PORT}/ws)`);
   for (const a of lanAddresses()) console.log(`  Friends on the same Wi-Fi can play at: http://${a}:${PORT}`);

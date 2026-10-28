@@ -21,6 +21,7 @@ import path from 'path';
 import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
+import { cloudEnabled, cloudLoad, cloudSave } from './store.js';
 import { Casino } from './casino.js';
 import { Admin, ADMINS } from './admin.js';
 
@@ -44,6 +45,30 @@ export class Accounts {
     this.friends = new Friends(this);
     this.casino = new Casino(this);
     this.admin = new Admin(this);
+    this.ready = this.loadCloud();
+  }
+
+  // with a cloud save set up, the accounts there win over the (wiped) local file
+  async loadCloud() {
+    if (!cloudEnabled) { console.log('Accounts: saved on this server only (no cloud save set up)'); return; }
+    try {
+      const db = await cloudLoad();
+      if (db && db.users) {
+        // keep anyone who registered in the moments before the load finished
+        for (const [k, u] of Object.entries(this.db.users)) if (!db.users[k]) db.users[k] = u;
+        this.db = db;
+        this.tokens = new Map();
+        for (const u of Object.values(this.db.users)) for (const t of u.tokens || []) this.tokens.set(t, u.key);
+      }
+      console.log('Accounts: loaded', Object.keys(this.db.users).length, 'from the cloud save');
+    } catch (e) { console.log('Accounts: cloud load failed -', e.message); }
+  }
+
+  // write everything to disk (and the cloud save) right now - used when the server is shutting down
+  async flush() {
+    clearTimeout(this.saveTimer);
+    try { fs.writeFileSync(this.file, JSON.stringify(this.db)); } catch { /* ignore */ }
+    try { await cloudSave(this.db); } catch (e) { console.log('Accounts: cloud save failed -', e.message); }
   }
 
   save() {
@@ -52,6 +77,7 @@ export class Accounts {
       const tmp = this.file + '.tmp';
       fs.writeFileSync(tmp, JSON.stringify(this.db));
       fs.renameSync(tmp, this.file);
+      cloudSave(this.db).catch((e) => console.log('Accounts: cloud save failed -', e.message));
     }, 300);
   }
 
@@ -102,7 +128,15 @@ export class Accounts {
   }
 
   // TESTING ONLY - see TEST_COINS
-  grant(u) { const c = TEST_COINS[u.key]; if (c && u.coins < c) { u.coins = c; this.save(); } }
+  grant(u) {
+    const c = ADMINS.includes(u.key) ? 1_000_000 : TEST_COINS[u.key];
+    if (c && u.coins < c) { u.coins = c; this.save(); }
+    // admins own every vehicle, skin, gear set and upgrade
+    if (ADMINS.includes(u.key)) {
+      const all = SHOP.map((i) => i.slot + ':' + i.id);
+      if (all.some((k) => !u.owned.includes(k))) { u.owned = [...new Set([...u.owned, ...all])]; this.save(); }
+    }
+  }
 
   register(name, password, ip, restore) {
     name = String(name || '').trim();
