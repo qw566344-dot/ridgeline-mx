@@ -1,4 +1,6 @@
 # One-click hosting on Render.com (free plan works). See README.md.
+# ridgeline-mx is the home server (accounts, friends) and the North America region;
+# the other two only host parties in their part of the world.
 services:
   - type: web
     name: ridgeline-mx
@@ -7,3 +9,28 @@ services:
     buildCommand: echo "nothing to build"
     startCommand: node server/server.js
     healthCheckPath: /health
+    envVars:
+      - key: REGION
+        value: na
+  - type: web
+    name: ridgeline-mx-eu
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: echo "nothing to build"
+    startCommand: node server/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: REGION
+        value: eu
+  - type: web
+    name: ridgeline-mx-asia
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: echo "nothing to build"
+    startCommand: node server/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: REGION
+        value: asia

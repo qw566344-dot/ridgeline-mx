@@ -84,7 +84,8 @@ export class BikeController {
     const wantWheelie = inp.lean < -0.3;
     if (v.assist.wheelie && v.grounded && !wantWheelie) {
       const p = v.groundPitch();
-      if (!front.contact && p > 5) rear.drive *= clamp(1 - (p - 5) / 10, 0.15, 1);
+      // an accidental wheelie gets the power trimmed; one you are holding keeps full drive
+      if (!front.contact && p > 5 && !(this.wheelieTime > 0 || this.wheelie)) rear.drive *= clamp(1 - (p - 5) / 10, 0.15, 1);
       if (p < -3) front.brake *= clamp(1 - (-p - 3) / 7, 0.1, 1);
       if (!rear.contact) front.brake *= 0.5;
     }
@@ -130,7 +131,8 @@ export class BikeController {
       if (v.speed > 2) {
         const vf = v.vel.dot(fwd), vlat = v.vel.dot(left);
         const beta = Math.atan2(vlat, Math.abs(vf));
-        ty += (sliding ? 1.5 : 5 + 10 * inp.brake) * beta; // extra steady under hard braking
+        // only a light touch: more than this and the bike steers itself (it should go where YOU point it)
+        ty += (sliding ? 0.8 : 1.4 + 6 * inp.brake) * beta; // steadier under hard braking
       }
       ty = clamp(ty, -16, 16);
       v.torque.addScaledVector(up, ty * I[1]);
@@ -201,10 +203,10 @@ export class BikeController {
         // hangs there, let go and it swings back smoothly, straight for the landing
         const holding = Math.abs(this.steer) > 0.15;
         const whipTarget = -this.steer * A.whip * DEG * late;
-        const k = holding ? 26 : 13, cdamp = holding ? 6 : 5.5;
+        const k = holding ? 20 : 11, cdamp = holding ? 5.5 : 5;
         v.torque.addScaledVector(fwd, ((whipTarget - roll) * k - rollW * cdamp) * I[2]);
-        // the nose turns into the whip as the bike lays down (that is what makes it look like a whip)
-        v.torque.addScaledVector(up, ((this.steer * c.steer.airYaw + roll * 1.4 * (holding ? 1 : 0.4)) - yawW * 2.2) * I[1]);
+        // a whip is mostly the bike laying flat; the nose only kicks round a little with it
+        v.torque.addScaledVector(up, ((this.steer * c.steer.airYaw * 0.25 + roll * 0.4 * (holding ? 1 : 0.3)) - yawW * 2.6) * I[1]);
         // scrub: whipping hard right off the lip keeps the bike low and fast
         tr.whip = Math.max(tr.whip, Math.abs(roll)); // only real whips count, not the wobble of a spin
         if (v.airTime < 0.35 && Math.abs(roll) > 25 * DEG) { tr.scrub = true; v.force.y -= c.mass * 9.81 * 0.3 * Math.min(1, Math.abs(roll) / (45 * DEG)); }

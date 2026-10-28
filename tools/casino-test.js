@@ -55,10 +55,10 @@ try {
   ok(r.user && r.user.coins === 42, 'admin sets coins');
   r = await api(adm, 'admin/unlock', { name: 'Gambler1' });
   const me = await api(a, 'me');
-  ok(me.profile.owned.includes('vehicle:buggy_unl') && me.profile.owned.includes('color:goldrush'), 'admin unlocks everything');
+  ok(me.profile.owned.includes('vehicle:mx500') && me.profile.owned.includes('color:goldrush'), 'admin unlocks everything');
   r = await api(adm, 'admin/reset', { name: 'Gambler1' });
   const me2 = await api(a, 'me');
-  ok(me2.profile.coins === 500 && !me2.profile.owned.includes('vehicle:buggy_unl'), 'admin reset');
+  ok(me2.profile.coins === 500 && !me2.profile.owned.includes('vehicle:mx500'), 'admin reset');
 } catch (e) { console.error(e); fails++; }
 srv.kill();
 console.log(fails ? `${fails} FAILED` : 'all passed');

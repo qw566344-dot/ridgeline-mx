@@ -22,7 +22,7 @@ const geoCache = new Map();
 let riderMat = null;
 
 function capsule(r, len, color) {
-  const g = clean(new THREE.CapsuleGeometry(r, Math.max(0.001, len - 2 * r), 4, 10));
+  const g = clean(new THREE.CapsuleGeometry(r, Math.max(0.001, len - 2 * r), 6, 14));
   g.translate(0, len / 2, 0);
   return colorize(g, color);
 }
@@ -32,38 +32,51 @@ function partGeo(scheme) {
   const boot = 0xf2f2f2, glove = accent, dark = 0x1d1f24;
   const parts = []; // [geometry, boneIndex]
   const add = (g, b) => parts.push([g, b]);
-  // pelvis / hips (pants)
-  add(roundBoxC(0.34, 0.2, 0.25, 0.07, pants, [0, 0.03, 0]), B.pelvis);
-  add(box(0.36, 0.05, 0.26, dark, [0, 0.12, 0]), B.pelvis);
-  // torso: jersey + chest protector + shoulders + neck brace + back number plate
-  add(roundBoxC(0.34, 0.5, 0.23, 0.09, jersey, [0, 0.27, 0]), B.torso);
-  add(roundBoxC(0.37, 0.26, 0.26, 0.08, accent, [0, 0.36, 0.01]), B.torso);
-  add(roundBoxC(0.38, 0.12, 0.27, 0.05, jersey, [0, 0.21, 0]), B.torso);
-  for (const s of [1, -1]) add(sphere(0.075, jersey, [s * 0.19, 0.45, -0.01], [1, 0.9, 1], 10, 8), B.torso);
-  add(torus(0.085, 0.035, dark, [0, 0.52, -0.01], [Math.PI / 2, 0, 0], 6, 14), B.torso);
-  add(box(0.22, 0.2, 0.012, 0xffffff, [0, 0.3, -0.125]), B.torso);
-  add(box(0.08, 0.12, 0.014, dark, [-0.03, 0.31, -0.13]), B.torso);
-  add(box(0.08, 0.12, 0.014, dark, [0.05, 0.31, -0.13]), B.torso);
+  const silver = 0xb8bec7;
+  // pelvis / hips: pants with hip pads and a belt
+  add(sphere(0.17, pants, [0, 0.04, 0], [1.05, 0.62, 0.78], 16, 10), B.pelvis);
+  for (const s of [1, -1]) add(sphere(0.07, pants, [s * 0.15, 0.03, -0.01], [0.8, 1.1, 1.0], 10, 8), B.pelvis);
+  add(cyl(0.165, 0.165, 0.045, dark, [0, 0.12, 0], [0, 0, 0], 18), B.pelvis);
+  // torso: shaped jersey (chest wider than the waist), chest protector, shoulder cups, collar
+  add(sphere(0.2, jersey, [0, 0.33, 0], [0.92, 1.3, 0.62], 18, 14), B.torso);
+  add(sphere(0.155, jersey, [0, 0.12, 0], [1.0, 0.9, 0.78], 16, 10), B.torso);
+  add(sphere(0.19, accent, [0, 0.37, 0.035], [0.98, 0.78, 0.6], 16, 12), B.torso);            // chest protector
+  for (const s of [1, -1]) {
+    add(sphere(0.088, accent, [s * 0.2, 0.47, -0.005], [1, 0.82, 1.05], 14, 10), B.torso);      // shoulder cups
+    add(sphere(0.07, jersey, [s * 0.19, 0.44, -0.01], [1, 0.9, 1], 10, 8), B.torso);
+  }
+  add(torus(0.088, 0.034, dark, [0, 0.53, -0.01], [Math.PI / 2, 0, 0], 8, 18), B.torso);        // neck brace
+  add(cyl(0.07, 0.08, 0.05, jersey, [0, 0.555, -0.005], [0, 0, 0], 14), B.torso);               // collar
+  add(box(0.22, 0.2, 0.012, 0xffffff, [0, 0.31, -0.122]), B.torso);                             // back number plate
+  add(box(0.08, 0.12, 0.014, dark, [-0.03, 0.31, -0.128]), B.torso);
+  add(box(0.08, 0.12, 0.014, dark, [0.05, 0.31, -0.128]), B.torso);
   // head: the helmet model is its own mesh on the head bone (see Rider); this is the face
   // inside it, plus a plain shell in case the helmet model could not be loaded
-  add(sphere(0.1, 0xd9a07a, [0, 0.1, 0.03], [1, 1.1, 1], 10, 8), B.head);
+  add(sphere(0.1, 0xd9a07a, [0, 0.1, 0.03], [1, 1.1, 1], 12, 10), B.head);
   if (!helmetModel()) add(sphere(0.155, jersey, [0, 0.13, 0.0], [1.0, 1.04, 1.13], 16, 12), B.head);
-  // arms
+  // arms: smooth sleeves, elbow guards, cuffs, shaped gloves with a knuckle guard
   for (const [ua, fa, h] of [[B.uaL, B.faL, B.hL], [B.uaR, B.faR, B.hR]]) {
-    add(capsule(0.058, LEN.ua, jersey), ua);
-    add(capsule(0.05, LEN.fa, jersey), fa);
-    add(sphere(0.055, dark, [0, 0.0, 0.0], [1, 0.8, 1], 8, 6), fa);     // elbow guard
-    add(cyl(0.053, 0.05, 0.06, accent, [0, LEN.fa - 0.03, 0]), fa);     // cuff
-    add(roundBoxC(0.085, 0.12, 0.055, 0.025, glove, [0, 0.05, 0]), h);
+    add(capsule(0.062, LEN.ua, jersey), ua);
+    add(capsule(0.052, LEN.fa, jersey), fa);
+    add(sphere(0.06, dark, [0, 0.02, -0.012], [1, 0.95, 0.8], 12, 8), fa);                       // elbow guard
+    add(cyl(0.056, 0.05, 0.07, accent, [0, LEN.fa - 0.035, 0], [0, 0, 0], 14), fa);             // cuff
+    add(roundBoxC(0.088, 0.1, 0.05, 0.022, glove, [0, 0.04, 0]), h);                             // palm
+    add(roundBoxC(0.084, 0.06, 0.04, 0.016, glove, [0, 0.105, 0.012]), h);                       // fingers
+    add(roundBoxC(0.07, 0.035, 0.02, 0.008, dark, [0, 0.07, 0.03]), h);                          // knuckle guard
   }
-  // legs: thigh, knee brace + boot, foot
+  // legs: smooth pants, knee braces with hinges, tall boots with shin plates, buckles, toe caps
   for (const [th, sh, ft] of [[B.thL, B.shL, B.ftL], [B.thR, B.shR, B.ftR]]) {
-    add(capsule(0.078, LEN.th, pants), th);
-    add(roundBoxC(0.13, 0.17, 0.13, 0.04, dark, [0, 0.03, 0.01]), sh);       // knee brace
-    add(roundBoxC(0.13, 0.34, 0.14, 0.04, boot, [0, 0.24, 0.0]), sh);        // boot shaft
-    for (let k = 0; k < 3; k++) add(box(0.135, 0.025, 0.145, dark, [0, 0.14 + k * 0.08, 0]), sh); // buckles
-    add(roundBoxC(0.12, 0.27, 0.1, 0.035, boot, [0, 0.1, 0.0]), ft);
-    add(box(0.125, 0.27, 0.025, dark, [0, 0.1, -0.05]), ft);                // sole
+    add(capsule(0.082, LEN.th, pants), th);
+    add(sphere(0.07, pants, [0, LEN.th - 0.03, 0.01], [1, 0.9, 1], 12, 8), th);                  // knee
+    add(roundBoxC(0.12, 0.2, 0.12, 0.045, dark, [0, 0.04, 0.012]), sh);                           // knee brace
+    for (const s of [1, -1]) add(cyl(0.022, 0.022, 0.03, silver, [s * 0.068, 0.04, 0.01], [0, 0, Math.PI / 2], 10), sh); // hinges
+    add(roundBoxC(0.125, 0.32, 0.135, 0.05, boot, [0, 0.25, 0.0]), sh);                           // boot shaft
+    add(roundBoxC(0.09, 0.26, 0.03, 0.014, accent, [0, 0.24, 0.07]), sh);                         // shin plate
+    for (let k = 0; k < 4; k++) add(box(0.132, 0.018, 0.142, k % 2 ? silver : dark, [0, 0.13 + k * 0.065, 0]), sh); // buckles
+    add(roundBoxC(0.115, 0.26, 0.1, 0.04, boot, [0, 0.1, 0.0]), ft);                              // foot
+    add(roundBoxC(0.112, 0.06, 0.07, 0.025, dark, [0, 0.215, 0.005]), ft);                        // toe cap
+    add(roundBoxC(0.105, 0.05, 0.06, 0.02, dark, [0, -0.01, -0.01]), ft);                          // heel
+    add(box(0.12, 0.27, 0.022, dark, [0, 0.1, -0.05]), ft);                                        // sole
   }
   // merge, tagging every vertex with its bone
   const geos = parts.map(([g, b]) => {
@@ -231,11 +244,12 @@ export class Rider {
     if (curPose) s.poseId = curPose;
     s.pose += ((curPose ? 1 : 0) - s.pose) * Math.min(1, dt * 9);
     const P = s.pose > 0.01 ? s.poseId : null, pw = s.pose;
-    if (P === 'Superman') { J.pelvis.y += 0.14 * pw; J.pelvis.z -= 0.18 * pw; }
+    if (P === 'Superman') { J.pelvis.y += 0.24 * pw; J.pelvis.z -= 0.3 * pw; }                  // body stretched out behind the bars
     if (P === 'Cliffhanger') J.pelvis.y += 0.28 * pw;
-    if (P === 'Heel Clicker') { J.pelvis.y += 0.1 * pw; J.pelvis.z -= 0.1 * pw; }
+    if (P === 'Heel Clicker') { J.pelvis.y += 0.12 * pw; J.pelvis.z -= 0.12 * pw; }
+    if (P === 'Nac-Nac') { J.pelvis.x -= 0.12 * pw; J.pelvis.y += 0.14 * pw; }
     // torso direction (forward lean + side lean)
-    const pitch = (isBike ? 0.32 : 0.25) + s.stand * 0.38 + s.fore * 0.25 + s.crouch * 0.35 + (P === 'Superman' ? 0.85 * pw : P === 'Cliffhanger' ? -0.3 * pw : 0);
+    const pitch = (isBike ? 0.32 : 0.25) + s.stand * 0.38 + s.fore * 0.25 + s.crouch * 0.35 + (P === 'Superman' ? 1.1 * pw : P === 'Cliffhanger' ? -0.3 * pw : P === 'Heel Clicker' ? -0.45 * pw : P === 'Nac-Nac' ? 0.15 * pw : 0);
     t.up.set(Math.sin(s.leanBody) * 0.9, Math.cos(pitch), Math.sin(pitch)).normalize();
     J.neck.copy(J.pelvis).addScaledVector(t.up, LEN.torso);
     // shoulders
@@ -259,9 +273,9 @@ export class Rider {
       t.b.copy(peg).add(t.c.set(0, 0.08, -0.02));
       if (out > 0.01) t.b.lerp(t.c.set(sx * 0.42, -0.42, 0.55), out);
       if (dabK > 0.01) t.b.lerp(t.c.set(sx * 0.45, -0.8, 0.05), dabK);
-      if (P === 'Superman') t.b.lerp(t.c.set(sx * 0.16, seat.y + 0.3, seat.z - 0.8), pw);
-      if (P === 'Nac-Nac' && sx > 0) t.b.lerp(t.c.set(-0.45, pegY + 0.5, pegZ - 0.1), pw);
-      if (P === 'Heel Clicker') t.b.lerp(t.c.set(sx * 0.06, A.gripL.y - 0.02, A.gripL.z + 0.22), pw);
+      if (P === 'Superman') t.b.lerp(t.c.set(sx * 0.18, seat.y + 0.55, seat.z - 1.05), pw);           // legs flying out behind
+      if (P === 'Nac-Nac' && sx > 0) t.b.lerp(t.c.set(-0.55, pegY + 0.75, pegZ - 0.45), pw);          // left leg swung over the back
+      if (P === 'Heel Clicker') t.b.lerp(t.c.set(sx * 0.13, A.gripL.y + 0.14, A.gripL.z + 0.32), pw);  // heels together over the bars
       if (P === 'Cliffhanger') t.b.lerp(t.c.set(sx * 0.12, A.gripL.y - 0.18, A.gripL.z + 0.08), pw);
       t.a.copy(hip).add(t.c.set(sx * 0.18, 0.05, 0.6));
       ik(hip, t.b, LEN.th, LEN.sh, t.a, kn, an);

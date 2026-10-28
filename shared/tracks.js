@@ -1,3 +1,4 @@
+import { MORE_TRACKS } from './tracksMore.js';
 // =====================================================================
 //  TRACK LAYOUTS
 //  Each track is drawn "turtle style": a list of straights and turns.
@@ -45,7 +46,7 @@ export const TRACKS = [
       { len: 110, name: 'Rhythm One', features: [
         { at: 10, type: 'rollers', n: 1, len: 9, h: 0.8 },
         { at: 25, type: 'double', h: 1.6, face: 6.5, gap: 6, h2: 1.4, land: 9 },
-        { at: 62, type: 'rollers', n: 2, len: 9, h: 0.8 },
+        { at: 68, type: 'rollers', n: 2, len: 9, h: 0.8 },
       ] },
       { turn: 90, r: 20, berm: 1 },
       { len: 120, name: 'Whoops Climb', features: [{ at: 18, type: 'whoops', n: 18, len: 4.6, h: 0.5 }] },
@@ -203,7 +204,7 @@ export const TRACKS = [
     finishAt: 95,
   },
   {
-    id: 'practice', recommend: ['Dirt Bikes', 'Quads', 'Side-by-Sides', 'Buggies'],
+    id: 'practice', recommend: ['Dirt Bikes', 'Quads', 'Side-by-Sides'],
     name: 'Practice Ground', difficulty: 'Easy',
     desc: 'A wide, forgiving loop to learn on: small tables, then medium, then big ones, plus friendly rollers and berms.',
     worldSize: 560,
@@ -290,9 +291,9 @@ export const TRACKS = [
     },
     segments: [
       { len: 240, w: 24, free: true, name: 'Kicker Row', features: [
-        { at: 40, type: 'kicker', h: 2.4, face: 8.5, gap: 8, landH: 3.0, land: 14 },
-        { at: 108, type: 'kicker', h: 3.0, face: 10.5, gap: 12, landH: 3.5, land: 16 },
-        { at: 172, type: 'kicker', h: 3.5, face: 12, gap: 16, landH: 4.2, land: 18 },
+        { at: 36, type: 'kicker', h: 2.4, face: 8.5, gap: 8, landH: 3.0, land: 12 },
+        { at: 100, type: 'kicker', h: 3.0, face: 10.5, gap: 12, landH: 3.5, land: 13 },
+        { at: 164, type: 'kicker', h: 3.5, face: 12, gap: 16, landH: 4.2, land: 14 },
       ] },
       { turn: 180, r: 34, berm: 0.5 },
       { len: 240, w: 24, free: true, name: 'Big Air', features: [
@@ -311,7 +312,7 @@ export const TRACKS = [
 // easiest first (used by the menus)
 TRACKS.push(...[
   {
-    id: 'dunes', recommend: ['Buggies', 'Side-by-Sides'],
+    id: 'dunes', recommend: ['Side-by-Sides', 'Quads'],
     name: 'Sandstorm Dunes', difficulty: 'Medium',
     desc: 'Wide, fast desert loop over rolling dunes. Huge tabletops and long sand rollers - made for buggies and side-by-sides.',
     worldSize: 980,
@@ -400,6 +401,8 @@ TRACKS.push(...[
     finishAt: 80,
   },
 ]);
+
+TRACKS.push(...MORE_TRACKS);
 
 export const DIFFICULTY_ORDER = ['Easy', 'Medium', 'Hard', 'Expert', 'Freestyle'];
 TRACKS.sort((a, b) => DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty));

@@ -26,7 +26,7 @@ const $ = (id) => document.getElementById(id);
 const _tv = new Vector3();
 const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits', 'pause', 'results'];
 const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits']);
-const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', friends: 'friends', settings: 'settings' };
+const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', friends: 'friends', settings: 'settings', controls: 'controls' };
 
 export const MODES = [
   { id: 'freeride', name: 'Free Ride', desc: 'Ride at your own pace. No timer, no pressure.', party: true },
@@ -88,6 +88,7 @@ export class UI {
     $('p-reset').addEventListener('click', () => this.emit('resetVehicle'));
     $('p-camera').addEventListener('click', () => this.emit('camera'));
     $('p-settings').addEventListener('click', () => { this.settingsReturn = 'pause'; this.show('settings'); });
+    $('p-controls').addEventListener('click', () => this.show('controls'));
     $('p-menu').addEventListener('click', () => this.emit('mainMenu'));
     $('r-menu').addEventListener('click', () => this.emit('mainMenu'));
     $('r-again').addEventListener('click', () => this.emit('restart'));
@@ -250,7 +251,7 @@ export class UI {
     btn.classList.remove('ready');
     btn.disabled = false;
     if (!P) { btn.textContent = 'PLAY'; note.textContent = ''; }
-    else if (P.session) { btn.textContent = 'JOIN'; note.textContent = `${modeName(P.session.mode)} in progress - jump in`; }
+    else if (P.session && !net.isLeader()) { btn.textContent = 'JOIN'; note.textContent = `${modeName(P.session.mode)} in progress - jump in`; }
     else if (net.isLeader()) {
       const others = P.members.filter((m) => m.id !== net.id && m.connected);
       const ready = others.filter((m) => m.ready).length;
@@ -270,7 +271,7 @@ export class UI {
     const net = this.net;
     if (net && net.party) {
       const P = net.party;
-      if (P.session) return net.rejoin();
+      if (P.session && !net.isLeader()) return net.rejoin();
       if (net.isLeader()) return net.start();
       return net.toggleReady();
     }
@@ -399,8 +400,10 @@ export class UI {
     $('garage-cats').querySelectorAll('[data-cat]').forEach((b) => b.onclick = () => { this.garageCat = b.dataset.cat; this.renderGarage(); });
     const list = $('garage-vehicles');
     list.innerHTML = '';
-    for (const v of VEHICLES.filter((x) => x.category === this.garageCat)) {
-      const own = owns('vehicle', v.id);
+    const ownedHere = VEHICLES.filter((x) => x.category === this.garageCat && owns('vehicle', x.id));
+    if (!ownedHere.length) list.innerHTML = '<p class="hint">You have none of these yet - get one in the Shop.</p>';
+    for (const v of ownedHere) {
+      const own = true;
       const b = document.createElement('button');
       b.className = 'vcard' + (v.id === view ? ' sel' : '') + (own ? '' : ' locked');
       b.style.setProperty('--swatch', hex(paintFor(v.id, 'stock').body));
@@ -426,13 +429,27 @@ export class UI {
       const d = diff ? `<em class="${diff > 0 ? 'up' : 'down'}">${diff > 0 ? '+' : ''}${diff}</em>` : '';
       return `<div class="stat"><div class="lbl"><span>${n}</span><span>${d} ${b1.toFixed(1).replace(/\.0$/, '')}</span></div><div class="bar"><i style="width:${b0 * 10}%"></i>${b1 > b0 ? `<i class="plus" style="width:${(b1 - b0) * 10}%"></i>` : ''}</div></div>`;
     }).join('') + (view !== cur ? `<p class="hint">Green / red numbers compare it with the ${escapeHtml(base.name)} you ride now.</p>` : '');
-    $('g-ups').innerHTML = owns('vehicle', view) ? Object.entries(UPGRADES).map(([p, U]) => `<span>${U.name} <b>${ups[p] ? 'L' + ups[p] : '-'}</b></span>`).join('') : '';
+    // upgrades for this vehicle: level pips and a button to buy the next level
+    const coins = A ? A.coins : 0;
+    $('g-ups').innerHTML = owns('vehicle', view) ? '<h4>Upgrades</h4>' + Object.entries(UPGRADES).map(([p, U]) => {
+      const lvl = ups[p] || 0, max = U.levels.length, next = lvl < max ? U.levels[lvl] : null;
+      const pips = U.levels.map((_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
+      const btn = next ? `<button class="small ${coins >= next.price ? 'primary' : ''}" data-up="${view}.${p}.${lvl + 1}" ${coins >= next.price ? '' : 'disabled'}><i class="coin"></i>${next.price.toLocaleString()}</button>` : '<span class="maxed">MAX</span>';
+      return `<div class="uprow"><span class="upname">${U.name}<small>${next ? UP_TEXT[p](next) : 'Fully upgraded'}</small></span><span class="pips">${pips}</span>${btn}</div>`;
+    }).join('') : '';
+    $('g-ups').querySelectorAll('[data-up]').forEach((b) => b.onclick = async () => {
+      b.disabled = true;
+      const e = await A.buy('upgrade', b.dataset.up);
+      if (e) this.popup(escapeHtml(e), 'bad'); else this.popup('Upgrade installed', 'good');
+      this.renderGarage(); this.renderTop();
+    });
     // paint + gear (owned ones apply straight away; locked ones go to the shop)
     const ownV = owns('vehicle', view);
     const sw = (el, items, slot, colorsOf, nameOf, curId) => {
       el.innerHTML = '';
       for (const it of items) {
         const own = owns(slot, it.id);
+        if (!own) continue; // the garage only shows what you own
         const b = document.createElement('button');
         const [c1, c2] = colorsOf(it);
         b.className = 'swatch' + (it.id === curId ? ' sel' : '') + (own ? '' : ' locked');
@@ -458,7 +475,7 @@ export class UI {
     if (view === cur) act.innerHTML = '<button disabled class="wide">Riding this one</button>';
     else if (ownV) act.innerHTML = `<button id="g-choose" class="primary wide">Ride the ${escapeHtml(vv.name)}</button>`;
     else act.innerHTML = `<button id="g-shop" class="primary wide">Unlock in the shop - ${shopItem('vehicle', view).price.toLocaleString()} coins</button>`;
-    act.innerHTML += ownV ? `<button id="g-up" class="wide">Upgrades for this ${vv.category.replace(/ies$/, 'y').replace(/s$/, '').toLowerCase()}</button>` : '';
+    act.innerHTML += '<button id="g-shopmore" class="wide">More vehicles and skins in the Shop</button>';
     if ($('g-choose')) $('g-choose').onclick = async () => {
       if (A) await A.equip('vehicle', view);
       S.set('vehicle', view);
@@ -468,7 +485,7 @@ export class UI {
       this.popup(`Now riding the <b>${escapeHtml(vv.name)}</b>`, 'good');
     };
     if ($('g-shop')) $('g-shop').onclick = () => this.openShop('Vehicles', { slot: 'vehicle', id: view });
-    if ($('g-up')) $('g-up').onclick = () => { this.shopUpVehicle = view; this.openShop('Upgrades', null); };
+    if ($('g-shopmore')) $('g-shopmore').onclick = () => this.show('shop');
   }
 
   // ------------------------------------------------------------- shop

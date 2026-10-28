@@ -37,8 +37,22 @@ export const BIKE_COLORS = [
   { id: 'finish', name: 'Finish Line', pattern: 'checker', body: 0xf4f4f4, accent: 0x111111, gear: [0x111111, 0xf4f4f4, 0xef4444] },
   { id: 'goldrush', name: 'Gold Rush', pattern: 'chrome', body: 0xd4a017, accent: 0x111111, gear: [0xd4a017, 0x111111, 0xfff4cc] },
   { id: 'neonwave', name: 'Neon Wave', pattern: 'stripes', body: 0xec4899, accent: 0x22d3ee, gear: [0xec4899, 0x0f172a, 0x22d3ee] },
+  { id: 'honeycomb', name: 'Honeycomb', pattern: 'hex', body: 0xf5b301, accent: 0x1c1917, gear: [0xf5b301, 0x1c1917, 0xffffff] },
+  { id: 'venom', name: 'Venom', pattern: 'hex', body: 0x16a34a, accent: 0x052e16, gear: [0x22c55e, 0x052e16, 0x111111] },
+  { id: 'thunder', name: 'Thunderbolt', pattern: 'bolt', body: 0x1e3a8a, accent: 0xfacc15, gear: [0x1e3a8a, 0xfacc15, 0xffffff] },
+  { id: 'splatter', name: 'Paint Splatter', pattern: 'splatter', body: 0xf8fafc, accent: 0xec4899, third: 0x22d3ee, gear: [0xf8fafc, 0xec4899, 0x22d3ee] },
+  { id: 'ocean', name: 'Ocean Splash', pattern: 'splatter', body: 0x0c4a6e, accent: 0x38bdf8, third: 0xffffff, gear: [0x0c4a6e, 0x38bdf8, 0xffffff] },
+  { id: 'eightbit', name: '8-Bit', pattern: 'pixel', body: 0x7c3aed, accent: 0x22d3ee, third: 0xf472b6, gear: [0x7c3aed, 0x111827, 0x22d3ee] },
+  { id: 'cybergrid', name: 'Cyber Grid', pattern: 'pixel', body: 0x020617, accent: 0x06b6d4, third: 0x0e7490, gear: [0x020617, 0x06b6d4, 0x67e8f9] },
+  { id: 'aurora', name: 'Aurora', pattern: 'aurora', body: 0x22c55e, accent: 0x8b5cf6, third: 0x06b6d4, gear: [0x14532d, 0x1e1b4b, 0x67e8f9] },
+  { id: 'lava', name: 'Molten Lava', pattern: 'lava', body: 0xff5a00, accent: 0xffd000, third: 0x1c1917, gear: [0x1c1917, 0xff5a00, 0xffd000] },
+  { id: 'bloodmoon', name: 'Blood Moon', pattern: 'lava', body: 0xdc2626, accent: 0xff7a7a, third: 0x0c0a09, gear: [0x0c0a09, 0xdc2626, 0xff7a7a] },
+  { id: 'marble', name: 'White Marble', pattern: 'marble', body: 0xf1f5f9, accent: 0x64748b, gear: [0xf1f5f9, 0x334155, 0xcbd5e1] },
+  { id: 'obsidian', name: 'Obsidian', pattern: 'marble', body: 0x0a0a0a, accent: 0xd4a017, gear: [0x0a0a0a, 0xd4a017, 0xfff4cc] },
+  { id: 'retro', name: 'Retro Racer', pattern: 'race', body: 0xf8fafc, accent: 0x1d4ed8, third: 0xdc2626, gear: [0xf8fafc, 0x1d4ed8, 0xdc2626] },
+  { id: 'sunsetrace', name: 'Sunset Racer', pattern: 'race', body: 0x7c2d12, accent: 0xf97316, third: 0xfacc15, gear: [0x7c2d12, 0xf97316, 0xfacc15] },
 ];
-export const PATTERNS = ['solid', 'stripes', 'flames', 'camo', 'galaxy', 'carbon', 'chrome', 'tiger', 'gradient', 'checker'];
+export const PATTERNS = ['solid', 'stripes', 'flames', 'camo', 'galaxy', 'carbon', 'chrome', 'tiger', 'gradient', 'checker', 'hex', 'bolt', 'splatter', 'pixel', 'aurora', 'lava', 'marble', 'race'];
 
 // ---------------------------------------------------------------------
 //  THE 3D MODELS (measured from the .glb files, in the model's own space:
@@ -47,6 +61,15 @@ export const PATTERNS = ['solid', 'stripes', 'flames', 'camo', 'galaxy', 'carbon
 //  accent: materials recoloured with the paint's second colour
 // ---------------------------------------------------------------------
 export const MODELS = {
+  // the user's long-travel side-by-side, split into wheels by tools/bake-sxs.py
+  sxs: {
+    file: 'models/dune_runner.glb', kind: 'car', comX: -0.05,
+    paint: ['material'], accent: ['material_6'],
+    steerWheel: 'steering_wheel', wheelCentre: [0.59, 0.6, -0.23], wheelAxisTo: [0.86, 0.5, -0.23],
+    corners: { fl: { wheel: 'wheel_FL', steer: true }, fr: { wheel: 'wheel_FR', steer: true }, rl: { wheel: 'wheel_RL' }, rr: { wheel: 'wheel_RR' } },
+    attach: { seat: [0.0, 0.36, -0.23], pegL: [0.86, 0.34, -0.31], pegR: [0.86, 0.34, -0.15], gripL: [0.57, 0.62, -0.42], gripR: [0.57, 0.62, -0.04], wheel: [0.59, 0.6, -0.23] },
+    seated: true,
+  },
   bike: {
     // the user's 2-stroke bike, split into parts by tools/bake-kx-bike.py
     file: 'models/kx_dirt_bike.glb', kind: 'bike', comX: -0.02,
@@ -80,19 +103,7 @@ export const MODELS = {
     attach: { seat: [-0.36, 0.62, -0.33], pegL: [0.62, 0.48, -0.45], pegR: [0.62, 0.48, -0.21], gripL: [0.27, 0.98, -0.53], gripR: [0.27, 0.98, -0.13], wheel: [0.25, 0.98, -0.33] },
     seated: true,
   },
-  buggy: {
-    file: 'models/trophy_buggy.glb', kind: 'car', comX: -0.1,
-    paint: ['body_orange'], accent: ['frame_team_blue'],
-    steerWheel: 'steering_wheel', wheelCentre: [0.30, 1.10, 0], wheelAxisTo: [0.60, 1.00, 0],
-    corners: {
-      fl: { wheel: 'wheel_FL', carry: ['knuckle_FL', 'tie_rod_FL'], steer: true, arms: ['a_arm_lower_FL', 'a_arm_upper_FL'], shocks: ['shock_FL', 'bypass_FL'] },
-      fr: { wheel: 'wheel_FR', carry: ['knuckle_FR', 'tie_rod_FR'], steer: true, arms: ['a_arm_lower_FR', 'a_arm_upper_FR'], shocks: ['shock_FR', 'bypass_FR'] },
-      rl: { wheel: 'wheel_RL', carry: ['cv_axle_RL', 'radius_rods_RL'], trailing: 'trailing_arm_RL', shocks: ['shock_RL', 'bypass_RL'] },
-      rr: { wheel: 'wheel_RR', carry: ['cv_axle_RR', 'radius_rods_RR'], trailing: 'trailing_arm_RR', shocks: ['shock_RR', 'bypass_RR'] },
-    },
-    attach: { seat: [-0.29, 0.62, 0], pegL: [0.66, 0.6, -0.12], pegR: [0.66, 0.6, 0.12], gripL: [0.32, 1.10, -0.2], gripR: [0.32, 1.10, 0.2], wheel: [0.30, 1.10, 0] },
-    seated: true,
-  },
+
 };
 
 const G = 9.81;
@@ -115,7 +126,7 @@ const BIKE_BASE = {
   progressive: 6,                 // spring force at full travel = this x static load
   steer: { maxLow: 32, latAcc: 10.6, rate: 3.6, feedback: 2.5, airYaw: 2.2 },
   lean: { max: 52, rate: 7 },
-  air: { flipRate: 5.6, flipAccel: 9, spinDamp: 1.2, gyro: 2.5, whip: 72, spinRate: 5.0 },
+  air: { flipRate: 4.8, flipAccel: 7.5, spinDamp: 1.2, gyro: 2.2, whip: 78, spinRate: 3.9 },
   balance: { rollK: 45000, rollC: 3200, airRollK: 900, airRollC: 160 },
   brakes: { front: 1500, rear: 1000 },      // N of force at the tyre at full input
   crash: { landPitch: 64, impact: 19, slide: 86, roll: 80, loop: 90 },
@@ -154,7 +165,7 @@ const ATV_BASE = {
   riderLean: 900,                  // N m of body-English torque when steering
   riderBalance: 5200,              // N m per radian: the rider throws weight to the high side
   axleScrub: 0.22,                 // solid rear axle resists turning (understeer)
-  air: { flipRate: 3.6, flipAccel: 6, spinDamp: 1.0, gyro: 1.6, whip: 25, spinRate: 4.6 },
+  air: { flipRate: 3.3, flipAccel: 5.5, spinDamp: 1.0, gyro: 1.4, whip: 25, spinRate: 3.6 },
   brakes: { front: 2100, rear: 1500 },
   crash: { landPitch: 66, impact: 19, roll: 88, loop: 90 },
   probes: [
@@ -194,7 +205,7 @@ const UTV_BASE = {
   antiRoll: 30000,
   rollCentre: 0.55,
   riderLean: 0, riderBalance: 6000, axleScrub: 0,
-  air: { flipRate: 2.0, flipAccel: 3.5, spinDamp: 1.0, gyro: 1.2, whip: 8, spinRate: 3.6 },
+  air: { flipRate: 1.2, flipAccel: 2.5, spinDamp: 1.6, gyro: 0.6, whip: 0, spinRate: 1.5 },
   brakes: { front: 6200, rear: 4400 },
   // cars are tough: a roll cage and seat belts. Only ending up on the roof counts as a crash,
   // and a car on its side pushes itself back onto its wheels
@@ -213,41 +224,6 @@ const UTV_BASE = {
   ],
   radius: 1.1, halfWidth: 0.92, halfLength: 1.98,
   audio: { kind: 'utv' },
-};
-
-const BUGGY_BASE = {
-  ...UTV_BASE, modelKey: 'buggy', category: 'Buggies',
-  mass: 1350,
-  inertia: [1250, 1500, 520],
-  rideHeight: 0.86,
-  cdA: 1.9,
-  wheels: [
-    // model: front axle 1.50 m, rear 1.55 m from the middle, CoM 10 cm back; track 2.04 m, 38" tyres
-    { id: 'fl', z: 1.60, x: 1.02, r: 0.48, travel: 0.55, freq: 1.25, sag: 0.3, steer: true, driven: false, brake: 'front', mu: 1.0, alphaPeak: 0.15 },
-    { id: 'fr', z: 1.60, x: -1.02, r: 0.48, travel: 0.55, freq: 1.25, sag: 0.3, steer: true, driven: false, brake: 'front', mu: 1.0, alphaPeak: 0.15 },
-    { id: 'rl', z: -1.45, x: 1.02, r: 0.48, travel: 0.65, freq: 1.3, sag: 0.32, steer: false, driven: true, brake: 'rear', mu: 1.05, alphaPeak: 0.13 },
-    { id: 'rr', z: -1.45, x: -1.02, r: 0.48, travel: 0.65, freq: 1.3, sag: 0.32, steer: false, driven: true, brake: 'rear', mu: 1.05, alphaPeak: 0.13 },
-  ],
-  damping: { bump: 0.4, rebound: 0.68 },
-  steer: { maxLow: 30, maxHigh: 7, highSpeed: 34, rate: 2.3, airYaw: 0.4, latAcc: 9.0 },
-  antiRoll: 52000,
-  riderBalance: 9000,
-  air: { flipRate: 1.6, flipAccel: 2.6, spinDamp: 0.9, gyro: 1.0, whip: 6, spinRate: 3.0 },
-  brakes: { front: 9800, rear: 7000 },
-  probes: [
-    { p: [0.45, 1.25, 0.3], r: 0.18, hit: 'roll' },
-    { p: [-0.45, 1.25, 0.3], r: 0.18, hit: 'roll' },
-    { p: [0.5, 1.15, -1.1], r: 0.18, hit: 'roll' },
-    { p: [-0.5, 1.15, -1.1], r: 0.18, hit: 'roll' },
-    { p: [0, -0.45, 0.4], r: 0.2, hit: 'skid' },
-    { p: [0, -0.4, -0.9], r: 0.2, hit: 'skid' },
-    { p: [0, -0.05, 2.05], r: 0.18, hit: 'hard' },
-    { p: [0, 0.2, -2.15], r: 0.18, hit: 'soft' },
-    { p: [0.55, 0.05, 0], r: 0.18, hit: 'soft' },
-    { p: [-0.55, 0.05, 0], r: 0.18, hit: 'soft' },
-  ],
-  radius: 1.35, halfWidth: 1.18, halfLength: 2.15,
-  audio: { kind: 'buggy' },
 };
 
 function engine(o) {
@@ -271,7 +247,7 @@ export const VEHICLES = [
     // light and nimble: quick to turn and rotate, revs to the moon, short on grunt
     mass: 172, inertia: [48, 37, 17],
     steer: { ...BIKE_BASE.steer, rate: 4.8, latAcc: 11.4 },
-    air: { ...BIKE_BASE.air, flipRate: 6.8, spinRate: 6.0, whip: 80 },
+    air: { ...BIKE_BASE.air, flipRate: 5.4, spinRate: 4.5, whip: 82 },
     wheels: BIKE_BASE.wheels.map((w) => ({ ...w, freq: w.freq * 0.94 })),
     engine: engine({ idle: 2000, redline: 13500, torque: [[1500, 11], [4000, 17], [8000, 24], [11000, 26.5], [13000, 24], [14000, 19]], gearSpeeds: [11, 16, 21, 26, 30.5] }),
   },
@@ -283,7 +259,7 @@ export const VEHICLES = [
     // heavier and torquey: pulls from nothing, slower to turn and rotate, very planted
     mass: 204, inertia: [66, 52, 24],
     steer: { ...BIKE_BASE.steer, rate: 3.3, latAcc: 10.3 },
-    air: { ...BIKE_BASE.air, flipRate: 5.0, spinRate: 4.5, whip: 66 },
+    air: { ...BIKE_BASE.air, flipRate: 4.4, spinRate: 3.5, whip: 72 },
     engine: engine({ idle: 1500, redline: 10500, torque: [[1000, 26], [3000, 38], [6000, 45], [8000, 45], [10000, 38], [11000, 30]], gearSpeeds: [12.5, 18.5, 24.5, 30, 35] }),
   },
   {
@@ -295,7 +271,7 @@ export const VEHICLES = [
     steer: { ...BIKE_BASE.steer, latAcc: 11.2, rate: 4.0 },
     wheels: BIKE_BASE.wheels.map((w) => ({ ...w, freq: w.freq * 1.08, mu: w.mu * 1.03 })),
     mass: 198, inertia: [62, 48, 22],
-    air: { ...BIKE_BASE.air, flipRate: 5.6, spinRate: 5.0, whip: 75 },
+    air: { ...BIKE_BASE.air, flipRate: 4.8, spinRate: 3.9, whip: 78 },
     engine: engine({ idle: 1500, redline: 11200, torque: [[1000, 27], [3000, 41], [6000, 50], [8000, 52], [10000, 47], [11500, 37]], gearSpeeds: [13, 19.5, 25.5, 31.5, 37] }),
   },
   {
@@ -304,7 +280,7 @@ export const VEHICLES = [
     desc: 'A race-bred sport quad. Planted on four wheels, slides the rear when you ask it to.',
     stats: { speed: 8, accel: 7, handling: 8, stability: 8, suspension: 7 },
     mass: 285, inertia: [88, 106, 48],
-    air: { ...ATV_BASE.air, flipRate: 4.1, spinRate: 5.2 },
+    air: { ...ATV_BASE.air, flipRate: 3.7, spinRate: 4.0 },
     engine: engine({ idle: 1600, redline: 10000, torque: [[1000, 22], [3000, 36], [6000, 48], [7500, 50], [9000, 44], [10500, 35]], gearSpeeds: [10, 15, 20, 25, 29.5], reverseSpeed: 4 }),
   },
   {
@@ -314,7 +290,7 @@ export const VEHICLES = [
     stats: { speed: 9, accel: 8, handling: 6, stability: 10, suspension: 8 },
     mass: 350, inertia: [112, 136, 62],
     steer: { ...ATV_BASE.steer, maxLow: 29, rate: 2.4 },
-    air: { ...ATV_BASE.air, flipRate: 3.1, spinRate: 3.9 },
+    air: { ...ATV_BASE.air, flipRate: 2.9, spinRate: 3.1 },
     engine: engine({ idle: 1300, redline: 8500, torque: [[1000, 38], [2500, 55], [4500, 66], [6000, 64], [7500, 56], [9000, 44]], gearSpeeds: [9.5, 14.5, 19.5, 24.5, 30], reverseSpeed: 4 }),
   },
   {
@@ -334,25 +310,87 @@ export const VEHICLES = [
     mass: 780,
     engine: engine({ idle: 1200, redline: 8200, torque: [[1000, 130], [3000, 200], [5500, 235], [7000, 225], [8500, 190]], gearSpeeds: [12.5, 21, 29.5, 37], engineBrake: 30, shiftTime: 0.07, reverseSpeed: 5 }),
   },
+  // ---- more bikes (same model, different engines and chassis) ----
   {
-    ...BUGGY_BASE,
-    id: 'buggy', name: 'Trophy Buggy', paint: 'orange', tier: 'Pro',
-    desc: 'A V8 desert race buggy with a mile of suspension travel. Highest top speed in the game; it hates tight turns.',
-    stats: { speed: 10, accel: 8, handling: 5, stability: 10, suspension: 10 },
-    engine: engine({ idle: 900, redline: 6800, torque: [[900, 330], [2500, 500], [4500, 620], [6000, 580], [7000, 500]], gearSpeeds: [12, 20, 28, 36, 43], engineBrake: 60, shiftTime: 0.15, reverseSpeed: 5 }),
+    ...BIKE_BASE,
+    id: 'mx125', name: 'Two-Stroke 125', paint: 'yellow', tier: 'Starter',
+    desc: 'A screaming little two-stroke. Lightest bike in the pits: keep it pinned and it floats over everything.',
+    stats: { speed: 6, accel: 6, handling: 10, stability: 5, suspension: 6 },
+    mass: 160, inertia: [44, 34, 15],
+    steer: { ...BIKE_BASE.steer, rate: 5.0, latAcc: 11.6 },
+    air: { ...BIKE_BASE.air, flipRate: 5.6, spinRate: 4.8, whip: 85 },
+    wheels: BIKE_BASE.wheels.map((w) => ({ ...w, freq: w.freq * 0.9 })),
+    engine: engine({ idle: 2200, redline: 14000, torque: [[2000, 8], [5000, 12], [9000, 20], [12000, 23], [13500, 21], [14500, 16]], gearSpeeds: [10.5, 15.5, 20.5, 25, 29] }),
+    audio: { kind: 'bike', pitch: 1.35 },
   },
   {
-    ...BUGGY_BASE,
-    id: 'buggy_unl', name: 'Trophy Buggy Unlimited', paint: 'white', tier: 'Works',
-    desc: 'Unlimited-class build: more power, a lighter chassis and race-valved shocks. Brutal and beautiful.',
-    stats: { speed: 10, accel: 9, handling: 6, stability: 10, suspension: 10 },
-    mass: 1280,
-    damping: { bump: 0.45, rebound: 0.74 },
-    engine: engine({ idle: 950, redline: 7200, torque: [[900, 360], [2500, 560], [4500, 700], [6000, 660], [7200, 560]], gearSpeeds: [12.5, 21, 29.5, 38, 45], engineBrake: 60, shiftTime: 0.13, reverseSpeed: 5 }),
+    ...BIKE_BASE,
+    id: 'mx350', name: 'Factory 350F', paint: 'orange', tier: 'Pro',
+    desc: 'The in-between: nearly the 450\'s pull with the 250\'s flick. The all-rounder of the paddock.',
+    stats: { speed: 8, accel: 8, handling: 8, stability: 7, suspension: 8 },
+    mass: 190, inertia: [58, 45, 20],
+    steer: { ...BIKE_BASE.steer, rate: 4.0, latAcc: 10.9 },
+    air: { ...BIKE_BASE.air, flipRate: 4.9, spinRate: 4.0, whip: 78 },
+    engine: engine({ idle: 1800, redline: 12500, torque: [[1500, 15], [4000, 24], [7500, 33], [10000, 35], [12000, 31], [13000, 25]], gearSpeeds: [11.5, 17, 22.5, 28, 32.5] }),
+  },
+  {
+    ...BIKE_BASE,
+    id: 'mx500', name: 'Open 500 Two-Stroke', paint: 'white', tier: 'Works',
+    desc: 'An old-school open-class monster. Wild power that hits like a truck - hang on.',
+    stats: { speed: 10, accel: 10, handling: 6, stability: 6, suspension: 8 },
+    mass: 205, inertia: [66, 50, 23],
+    steer: { ...BIKE_BASE.steer, rate: 3.2, latAcc: 10.2 },
+    air: { ...BIKE_BASE.air, flipRate: 4.2, spinRate: 3.4, whip: 74 },
+    engine: engine({ idle: 1500, redline: 9500, torque: [[1500, 22], [3500, 40], [6000, 58], [7500, 56], [9000, 44], [10000, 34]], gearSpeeds: [13.5, 20, 26.5, 32.5, 38] }),
+    audio: { kind: 'bike', pitch: 0.8 },
+  },
+  {
+    ...BIKE_BASE,
+    id: 'enduro', name: 'Enduro 300', paint: 'teal', tier: 'Pro',
+    desc: 'Built for long days off-road: plush, soft suspension and a smooth engine. Soaks up whoops, wallows on big jumps.',
+    stats: { speed: 7, accel: 7, handling: 7, stability: 9, suspension: 10 },
+    mass: 200, inertia: [64, 50, 22],
+    damping: { bump: 0.34, rebound: 0.55 },
+    wheels: BIKE_BASE.wheels.map((w) => ({ ...w, freq: w.freq * 0.85, travel: w.travel * 1.08, mu: w.mu * 1.04 })),
+    air: { ...BIKE_BASE.air, flipRate: 4.2, spinRate: 3.5, whip: 70 },
+    engine: engine({ idle: 1500, redline: 10000, torque: [[1000, 22], [3000, 32], [5500, 38], [7500, 37], [9000, 32], [10000, 26]], gearSpeeds: [11, 16.5, 22, 27, 31.5] }),
+  },
+  // ---- the Dune Runner (the user's side-by-side model) ----
+  {
+    ...UTV_BASE,
+    id: 'sxs', modelKey: 'sxs', name: 'Dune Runner XP', paint: 'orange', tier: 'Pro',
+    desc: 'A stripped-down long-travel side-by-side with an open cage. Shorter and lighter than the Viper - it dances over rough ground.',
+    stats: { speed: 9, accel: 9, handling: 8, stability: 8, suspension: 10 },
+    mass: 720, rideHeight: 0.7,
+    wheels: UTV_BASE.wheels.map((w) => ({ ...w, z: Math.sign(w.z) * 1.043, x: Math.sign(w.x) * (w.z > 0 ? 0.852 : 0.925), r: 0.37, travel: w.travel * 1.1 })),
+    halfLength: 1.7, halfWidth: 0.85,
+    steer: { ...UTV_BASE.steer, rate: 3.3 },
+    engine: engine({ idle: 1200, redline: 8500, torque: [[1000, 115], [3000, 170], [5500, 200], [7000, 192], [8500, 160]], gearSpeeds: [12, 20, 28, 36], engineBrake: 28, shiftTime: 0.08, reverseSpeed: 5 }),
+  },
+  // ---- more quads ----
+  {
+    ...ATV_BASE,
+    id: 'atv250', name: 'Sport 250', paint: 'green', tier: 'Starter',
+    desc: 'A light, nimble sport quad. Not much top end, but it turns on a dime and flicks into the air.',
+    stats: { speed: 6, accel: 6, handling: 9, stability: 7, suspension: 6 },
+    mass: 255, inertia: [78, 94, 42],
+    steer: { ...ATV_BASE.steer, rate: 3.4 },
+    air: { ...ATV_BASE.air, flipRate: 4.0, spinRate: 4.3 },
+    engine: engine({ idle: 1700, redline: 10500, torque: [[1000, 15], [3000, 24], [6000, 32], [8000, 33], [9500, 29], [10500, 24]], gearSpeeds: [9.5, 14, 18.5, 23, 27] }),
+  },
+  {
+    ...ATV_BASE,
+    id: 'atv1000', name: 'Mud Pro 1000', paint: 'black', tier: 'Works',
+    desc: 'A twin-cylinder brute. Huge torque everywhere and the most stable quad on the hill - heavy in the air.',
+    stats: { speed: 10, accel: 9, handling: 5, stability: 10, suspension: 9 },
+    mass: 390, inertia: [125, 150, 70],
+    steer: { ...ATV_BASE.steer, maxLow: 28, rate: 2.2 },
+    air: { ...ATV_BASE.air, flipRate: 2.6, spinRate: 2.8 },
+    engine: engine({ idle: 1200, redline: 8000, torque: [[1000, 52], [2500, 74], [4500, 86], [6000, 82], [7000, 72], [8000, 58]], gearSpeeds: [10, 15.5, 21, 26.5, 32], reverseSpeed: 4 }),
   },
 ];
 
-export const CATEGORIES = ['Dirt Bikes', 'Quads', 'Side-by-Sides', 'Buggies'];
+export const CATEGORIES = ['Dirt Bikes', 'Quads', 'Side-by-Sides'];
 
 export function getVehicle(id) {
   return VEHICLES.find((v) => v.id === id) || VEHICLES[0];

@@ -160,7 +160,8 @@ export class Vehicle {
     this.controller.torques(dt, contacts);
     this.trackBounds(dt);
     // hard hits on the barrier knock riders off; cars just stop
-    if (!this.crashed && this.barrierHit > ({ bike: 13, atv: 14 }[this.cfg.type] || 1e9)) this.crash('Hit the barrier');
+    // hitting the barrier hard is a crash (straight-on speed in m/s)
+    if (!this.crashed && this.barrierHit > ({ bike: 9, atv: 10, car: 15 }[this.cfg.type] || 12)) this.crash('Hit the barrier');
 
     // --- integrate (semi-implicit Euler)
     this.vel.addScaledVector(this.force, dt / cfg.mass);
@@ -482,7 +483,15 @@ export class Vehicle {
     else if (loc.u < -limR) { over = -limR - loc.u; nx = p.tz; nz = -p.tx; }
     // well past the barrier = out of bounds (went over it or around it)
     const beyond = loc.u > fenceL + 2.5 || loc.u < -fenceR - 2.5;
-    if (beyond) { this.offTrack += dt; return; }
+    if (beyond) {
+      this.offTrack += dt;
+      // came down on the wrong side of the barrier: bikes and quads crash, cars go back to the track
+      if (this.grounded && !this.crashed && this.groundTime > 0.05) {
+        if (this.cfg.type === 'car') this.offTrack = Math.max(this.offTrack, 1);
+        else this.crash('Went over the barrier');
+      }
+      return;
+    }
     this.offTrack = 0;
     if (over <= 0) return;
     // high enough to fly over the barrier? then it does not touch you

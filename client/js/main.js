@@ -16,7 +16,7 @@ import { AdminPanel } from './admin.js';
 import { Net } from './net.js';
 import { Account } from './account.js';
 import { Social } from './social.js';
-import { preloadModels } from './render/modelRig.js';
+import { preloadModels, skinTime } from './render/modelRig.js';
 import { escapeHtml } from './util.js';
 
 const settings = new Settings();
@@ -101,7 +101,11 @@ ui.on('camera', () => { game.cam.cycle(); settings.set('camera', game.cam.mode);
 async function backToLobby() {
   ui.hidePause(); ui.hideResults(); ui.hideHud();
   input.enabled = true;
-  if (game.opts && game.opts.mp) net.leaveSession();
+  if (game.opts && game.opts.mp) {
+    // the leader heading back to the lobby ends the session for the party
+    if (net.isLeader() && net.session) net.send({ t: 'end' });
+    net.leaveSession();
+  }
   game.stop();
   social.fast = true;
   stage.snap = true;
@@ -153,6 +157,7 @@ function loop(now) {
   const dt = Math.min(0.1, raw);
   game.rawDt = raw;
   last = now;
+  skinTime.value = now / 1000; // animated skins
   input.update(dt);
   if (ui.screen === 'shop') thumbs.step();
   if (STAGE_SCREENS.has(ui.screen) && game.state !== 'running') stage.render(dt);

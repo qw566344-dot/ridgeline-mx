@@ -10,7 +10,7 @@
 const STEP = 0.5; // centreline sample spacing (m)
 // landing ramps are this much longer than written in tracks.js, so a wider
 // range of speeds lands smoothly on the downslope instead of on flat ground
-const LAND_SCALE = 1.45;
+const LAND_SCALE = 1.75; // landing ramps run longer than the numbers in tracks.js (no more overshooting)
 // whoops and rollers are built lower than the numbers in tracks.js (easier to ride)
 const WHOOP_SCALE = 0.62, ROLLER_SCALE = 0.8;
 

@@ -20,7 +20,7 @@ function drop(id, rollDeg, pitchDeg, height, vy = 0) {
   for (let i = 0; i < 120 * 6; i++) v.step(FIXED_DT);
   return v;
 }
-for (const id of ['utv', 'buggy']) {
+for (const id of ['utv', 'utvr']) {
   let v = drop(id, 85, 0, 0.8);
   ok(!v.crashed && v.up.y > 0.8, `${id} on its side rights itself (up ${v.up.y.toFixed(2)}, crashed ${v.crashed})`);
   v = drop(id, 0, -40, 3, -12);

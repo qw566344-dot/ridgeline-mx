@@ -447,3 +447,52 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
 #admin { z-index: 30; }
 @media (max-width: 820px) { .casino-grid { grid-template-columns: 1fr; } }
 .track-card .rec { display: inline-block; margin-left: 4px; font-size: 9px; font-weight: 800; letter-spacing: 0.1em; padding: 2px 5px; border-radius: 6px; background: rgba(255,255,255,0.12); color: #e5e7eb; }
+
+/* ---------- roomier layout ---------- */
+:root { --top: 70px; }
+body { font-size: 15px; }
+.card { padding: 22px 24px; border-radius: 16px; }
+.sheet { padding: 30px 36px; }
+.sheet.wide { width: min(1120px, 100%); }
+.sheet-head { margin-bottom: 20px; }
+h4 { margin: 22px 0 10px; }
+#topbar { gap: 26px; padding: 0 22px; }
+#nav button { padding: 0 18px; font-size: 15px; }
+.party-card { left: 24px; top: 24px; width: 340px; }
+.friends-mini { right: 24px; top: 24px; width: 290px; }
+.play-dock { right: 28px; bottom: 28px; gap: 14px; }
+.members li, .mini-list li, .people li { padding: 11px 13px; margin-bottom: 8px; }
+.modes { gap: 14px; }
+.mode { padding: 18px; min-height: 130px; }
+.track-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.track-card { padding: 14px; gap: 14px; }
+.track-card canvas { width: 84px; height: 84px; }
+.options { margin-top: 22px; gap: 16px 28px; }
+.garage-list { left: 24px; top: 24px; bottom: 24px; width: 340px; gap: 16px; }
+.garage-info { right: 24px; top: 24px; bottom: 24px; width: 380px; }
+.vehicle-cards { gap: 10px; }
+.vcard { padding: 14px 16px; }
+.stat { margin: 12px 0; }
+.swatches { gap: 10px; }
+.shop-panel { left: 24px; top: 24px; bottom: 24px; }
+.fgrid { gap: 14px; }
+.shop-detail { right: 24px; bottom: 24px; width: 360px; }
+.setting { padding: 13px 0; }
+.keys td { padding: 10px 10px; }
+.cgame { padding: 20px; gap: 14px; }
+.casino-grid { gap: 20px; }
+@media (max-width: 1100px) { #nav button { padding: 0 11px; font-size: 13px; } }
+@media (max-width: 820px) { :root { --top: 110px; } .party-card, .garage-list, .garage-info, .shop-panel, .shop-detail { left: 12px; right: 12px; } }
+
+/* garage upgrades */
+.ups { display: block; margin-top: 6px; }
+.uprow { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.upname { font-weight: 700; font-size: 14px; display: flex; flex-direction: column; }
+.upname small { color: var(--muted); font-weight: 400; font-size: 12px; }
+.pips { display: flex; gap: 3px; }
+.pips i { width: 9px; height: 14px; border-radius: 2px; background: rgba(255,255,255,0.12); transform: skewX(-12deg); }
+.pips i.on { background: linear-gradient(180deg, var(--gold), var(--accent)); }
+.uprow button { display: inline-flex; align-items: center; gap: 5px; }
+.maxed { font-size: 12px; font-weight: 800; color: var(--good); letter-spacing: 0.1em; }
+.uprow span { border: none; background: none; padding: 0; }
+.uprow .upname, .uprow .pips { color: var(--text); }

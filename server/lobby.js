@@ -371,6 +371,8 @@ export class Lobby {
         const msg = JSON.stringify({ t: 'snap', st: now, p });
         for (const m of party.members.values()) if (m.conn) m.conn.send(msg);
       }
+      // nobody connected is in it any more: end it so the party can start fresh
+      if (!S.over && !S.players.some((sp) => { const m = this.players.get(sp.id); return m && m.connected && m.party === party; })) { party.session = null; this.broadcastParty(party); continue; }
       // race end conditions
       if (S.mode === 'race' && !S.over && now > S.goAt) {
         const racers = S.players.map((sp) => this.players.get(sp.id)).filter((x) => x && x.party === party);

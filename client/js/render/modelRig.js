@@ -320,9 +320,11 @@ function buildTemplate(key, scene) {
 
 // ---------------------------------------------------------------- instances
 // paint: a plain colour, or a skin pattern drawn in the model's own space
-const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9 };
+const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17 };
+// animated skins (aurora, lava) read this clock; main.js moves it every frame
+export const skinTime = { value: 0 };
 const SKIN_GLSL = `
-uniform vec3 uA; uniform vec3 uB; uniform vec3 uC; uniform float uPat;
+uniform vec3 uA; uniform vec3 uB; uniform vec3 uC; uniform float uPat; uniform float uTime;
 varying vec3 vPat;
 float skinHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
 vec3 skinColor(vec3 p) {
@@ -340,7 +342,35 @@ vec3 skinColor(vec3 p) {
   if (uPat < 5.5) { float a = step(0.5, fract((p.x + p.z) * 30.0)), b = step(0.5, fract((p.x - p.z) * 30.0)); return mix(uA, uB, abs(a - b)); }
   if (uPat < 7.5) return mix(uA, uB, step(0.55, sin(p.x * 22.0 + sin(p.y * 11.0) * 1.6 + p.z * 4.0)));
   if (uPat < 8.5) return mix(uB, uA, smoothstep(0.2, 1.1, p.y));
-  return mix(uA, uB, mod(floor(p.x * 10.0) + floor(p.y * 10.0) + floor(p.z * 10.0), 2.0));
+  if (uPat < 9.5) return mix(uA, uB, mod(floor(p.x * 10.0) + floor(p.y * 10.0) + floor(p.z * 10.0), 2.0));
+  if (uPat < 10.5) {
+    vec2 q = vec2(p.x + p.z * 0.4, p.y) * 13.0; vec2 r = vec2(1.0, 1.732), h = r * 0.5;
+    vec2 a = mod(q, r) - h, b = mod(q - h, r) - h; vec2 g = dot(a, a) < dot(b, b) ? a : b;
+    float d = max(abs(g.x), dot(abs(g), vec2(0.5, 0.866)));
+    return mix(uA * (0.85 + 0.3 * skinHash(floor(vec3(q - g, 0.0)))), uB, smoothstep(0.4, 0.46, d));
+  }
+  if (uPat < 11.5) { float z = p.y * 7.0 + abs(fract(p.x * 5.0 + p.z) - 0.5) * 2.4; float t = smoothstep(0.78, 0.82, fract(z)) * (1.0 - smoothstep(0.92, 0.96, fract(z))); return mix(uA, uB, t); }
+  if (uPat < 12.5) {
+    float n = sin(p.x * 13.0 + sin(p.z * 7.0) * 2.0) * sin(p.y * 11.0 + sin(p.x * 5.0) * 2.0) + (skinHash(floor(p * 28.0)) - 0.5) * 0.6;
+    vec3 c = mix(uA, uB, step(0.42, n));
+    return mix(c, uC, step(0.93, skinHash(floor(p * 20.0 + 3.0))));
+  }
+  if (uPat < 13.5) { float n = skinHash(floor(p * 14.0)); return n < 0.55 ? uA : (n < 0.85 ? uB : uC); }
+  if (uPat < 14.5) {
+    float w = 0.5 + 0.5 * sin(p.x * 4.0 + uTime * 1.2 + sin(p.y * 3.0 + uTime) * 1.5);
+    float w2 = 0.5 + 0.5 * sin(p.y * 6.0 - uTime * 0.8 + p.z * 3.0);
+    return mix(mix(uA, uB, w), uC, w2 * 0.6);
+  }
+  if (uPat < 15.5) {
+    float n = sin(p.x * 9.0 + uTime * 0.7 + sin(p.z * 6.0 + uTime * 0.5) * 2.0) * sin(p.y * 8.0 - uTime * 0.4 + sin(p.x * 4.0) * 1.5);
+    float crack = smoothstep(0.7, 0.95, abs(n));
+    return mix(uC, mix(uA, uB, 0.5 + 0.5 * sin(uTime * 2.0 + p.x * 3.0)) * 1.4, crack);
+  }
+  if (uPat < 16.5) { float v = sin(p.x * 6.0 + 3.0 * sin(p.y * 4.0 + 2.0 * sin(p.z * 5.0 + p.x * 3.0))); return mix(uA, uB, smoothstep(0.86, 1.0, abs(v))); }
+  // race livery: twin stripes down the middle and a band near the front
+  float st = step(abs(p.z + 0.05), 0.03) + step(abs(p.z - 0.05), 0.03);
+  vec3 c = mix(uA, uB, clamp(st, 0.0, 1.0));
+  return mix(c, uC, step(0.55, p.x) * step(p.x, 0.68));
 }
 `;
 function paintMaterial(base, scheme, which, key) {
@@ -353,7 +383,7 @@ function paintMaterial(base, scheme, which, key) {
     if (pat === 'chrome') { m.metalness = 1; m.roughness = 0.12; m.envMapIntensity = 1.4; }
     if (pat === 'carbon') { m.roughness = 0.3; }
     if (pat !== 'solid' && pat !== 'chrome') {
-      const u = { uA: { value: new THREE.Color(scheme.body) }, uB: { value: new THREE.Color(scheme.accent) }, uC: { value: new THREE.Color(scheme.third || 0x111111) }, uPat: { value: PATTERN_ID[pat] || 0 } };
+      const u = { uA: { value: new THREE.Color(scheme.body) }, uB: { value: new THREE.Color(scheme.accent) }, uC: { value: new THREE.Color(scheme.third || 0x111111) }, uPat: { value: PATTERN_ID[pat] || 0 }, uTime: skinTime };
       m.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, u);
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vPat;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPat = position;');

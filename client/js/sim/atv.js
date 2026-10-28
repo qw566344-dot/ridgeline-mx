@@ -153,13 +153,17 @@ export class AtvController {
       const tr = this.trick || (this.trick = newTrick(v));
       if (c.type === 'atv') trackPose(tr, inp, dt);
       tr.pitch += pitchW * dt; tr.yaw += yawW * dt;
-      let ap = (inp.lean * A.flipRate - pitchW) * (Math.abs(inp.lean) > 0.1 ? A.flipAccel : A.spinDamp);
+      const car = c.type === 'car';
+      // cars can't flip: Q / E only nudge the nose, and they always level out for the landing
+      const lean = car ? clamp(inp.lean, -0.35, 0.35) : inp.lean;
+      let ap = (lean * A.flipRate - pitchW) * (Math.abs(lean) > 0.1 ? A.flipAccel : A.spinDamp);
       ap += -inp.throttle * A.gyro * 0.4 + inp.rearBrake * A.gyro;
-      if (Math.abs(inp.lean) < 0.1 && v.airTime > 0.08) {
+      if ((car || Math.abs(inp.lean) < 0.1) && v.airTime > 0.08) {
         const desired = this.landingDirection();
         _c.crossVectors(fwd, desired);
         const e = Math.atan2(_c.dot(left), fwd.dot(desired));
-        if (Math.abs(tr.pitch) > 1.2 && Math.abs(e) > 1.1) ap = -pitchW * 0.35;
+        if (car) ap += e * 10 - pitchW * 3;
+        else if (Math.abs(tr.pitch) > 1.2 && Math.abs(e) > 1.1) ap = -pitchW * 0.35;
         else if (v.assist.landing > 0) ap += (e * 12 - pitchW * 3) * v.assist.landing;
       }
       v.torque.addScaledVector(left, ap * I[0]);
@@ -167,7 +171,8 @@ export class AtvController {
       tr.whip = Math.max(tr.whip, Math.abs(roll));
       v.torque.addScaledVector(fwd, ((-this.steer * A.whip * DEG - roll) * 10 - rollW * 4) * I[2]);
       // Shift + A / D: flat spin; otherwise a little yaw to line up the landing
-      if (inp.clutch) v.torque.addScaledVector(up, ((-this.steer * A.spinRate - yawW) * 5) * I[1]);
+      if (inp.clutch && !car) v.torque.addScaledVector(up, ((-this.steer * A.spinRate - yawW) * 5) * I[1]);
+      else if (car) v.torque.addScaledVector(fwd, (-roll * 8 - rollW * 3) * I[2]); // and stay upright
       else v.torque.addScaledVector(up, (this.steer * c.steer.airYaw - yawW * 1.2) * I[1]);
     }
   }

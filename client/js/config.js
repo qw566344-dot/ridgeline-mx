@@ -14,8 +14,8 @@ export const PUBLIC_SERVER = 'https://ridgeline-mx.onrender.com';
 
 export const REGIONS = [
   { id: 'na', name: 'North America', place: 'Oregon, USA', url: 'https://ridgeline-mx.onrender.com' },
-  // { id: 'eu', name: 'Europe', place: 'Frankfurt, Germany', url: 'https://ridgeline-mx-eu.onrender.com' },
-  // { id: 'as', name: 'Asia', place: 'Singapore', url: 'https://ridgeline-mx-asia.onrender.com' },
+  { id: 'eu', name: 'Europe', place: 'Frankfurt, Germany', url: 'https://ridgeline-mx-eu.onrender.com' },
+  { id: 'asia', name: 'Asia', place: 'Singapore', url: 'https://ridgeline-mx-asia.onrender.com' },
 ];
 
 function stored() { try { return localStorage.getItem('mx.server') || ''; } catch { return ''; } }

@@ -55,8 +55,8 @@ try {
   ok(r.error && /No account/.test(r.error), 'wiped server does not know the name');
   r = await api(null, 'register', { name: 'SaveTester', password: pw, restore: copy });
   ok(r.profile && r.profile.coins === 300 && r.profile.owned.includes('color:green') && r.profile.equipped.color === 'green', 'restore brings coins, items and paint back');
-  r = await api(null, 'register', { name: 'Cheater1', password: pw, restore: { coins: 1e12, owned: ['vehicle:buggy_unl', 'vehicle:fake', 'color:gold'], equipped: { vehicle: 'fake' } } });
-  ok(r.profile && r.profile.coins === 5000000 && r.profile.owned.includes('vehicle:buggy_unl') && !r.profile.owned.includes('vehicle:fake') && r.profile.equipped.vehicle === 'mx250', 'restore is cleaned (coin cap, no fake items)');
+  r = await api(null, 'register', { name: 'Cheater1', password: pw, restore: { coins: 1e12, owned: ['vehicle:mx500', 'vehicle:fake', 'color:gold'], equipped: { vehicle: 'fake' } } });
+  ok(r.profile && r.profile.coins === 5000000 && r.profile.owned.includes('vehicle:mx500') && !r.profile.owned.includes('vehicle:fake') && r.profile.equipped.vehicle === 'mx250', 'restore is cleaned (coin cap, no fake items)');
   r = await api(null, 'register', { name: 'nahh', password: pw });
   ok(r.profile && r.profile.coins === 1000000, 'test account nahh gets 1,000,000 coins');
 } catch (e) { console.error(e); fails++; }
