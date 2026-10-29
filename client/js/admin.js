@@ -102,6 +102,7 @@ export class AdminPanel {
         <button class="small" data-a="add" data-v="1000000" data-n="${n}">+1M</button>
         <input class="adm-set" placeholder="set coins" data-n="${n}">
         <button class="small" data-a="unlock" data-n="${n}">Unlock all</button>
+        ${u.online && !u.admin ? `<button class="small" data-a="join" data-n="${n}">Join</button>` : ''}
         <button class="small" data-a="give" data-n="${n}">Give item</button>
         ${u.admin ? '' : `<button class="small" data-a="ban" data-on="${u.banned ? 0 : 1}" data-n="${n}">${u.banned ? 'Unban' : 'Ban'}</button>`}
         <button class="small danger" data-a="reset" data-n="${n}">Reset</button>
@@ -114,6 +115,7 @@ export class AdminPanel {
       const sure = () => { if (b.dataset.sure) return true; b.dataset.sure = 1; b.textContent = 'Sure?'; return false; };
       if (a === 'add') this.act('coins', { name: n, add: Number(b.dataset.v) });
       if (a === 'unlock') this.act('unlock', { name: n });
+      if (a === 'join') { const net = window.MX && window.MX.net; if (net) { this.toggle(false); if (this.ui.game && this.ui.game.state === 'running' && this.ui.inGame()) this.ui.emit('mainMenu'); net.send({ t: 'adminjoin', name: n, auth: this.A.token }); this.ui.show('home'); } }
       if (a === 'give') { $('adm-give-name').value = n; $('adm-give-item').focus(); }
       if (a === 'ban' && (b.dataset.on === '0' || sure())) this.act('ban', { name: n, on: b.dataset.on === '1' });
       if (a === 'reset' && sure()) this.act('reset', { name: n });

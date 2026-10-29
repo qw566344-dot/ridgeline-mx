@@ -491,7 +491,7 @@ export class Vehicle {
     if (loc.u > limL) { over = loc.u - limL; nx = -p.tz; nz = p.tx; }
     else if (loc.u < -limR) { over = -limR - loc.u; nx = p.tz; nz = -p.tx; }
     // well past the barrier = went over it: back to the track
-    const beyond = loc.u > fenceL + 2.5 || loc.u < -fenceR - 2.5;
+    const beyond = loc.u > fenceL + 0.3 || loc.u < -fenceR - 0.3; // centre past the barrier line
     // (flying over it on a jump counts too: reset straight away)
     if (beyond) { this.offTrack = Math.max(this.offTrack + dt, 1); return; }
     this.offTrack = 0;
@@ -510,7 +510,7 @@ export class Vehicle {
     if (over <= 0) return;
     // high enough to fly over the barrier? then it does not touch you
     groundAt(W, this.pos.x, this.pos.z, g0);
-    if (this.pos.y - this.cfg.rideHeight * 0.5 > g0.h + 1.3 && over < 1.5) return;
+    if (this.pos.y - this.cfg.rideHeight * 0.5 > g0.h + 1.3) return;
     const m = this.cfg.mass;
     const vin = this.vel.x * nx + this.vel.z * nz; // < 0 = moving out through it
     if (vin < 0) {

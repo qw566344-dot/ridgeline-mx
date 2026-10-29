@@ -123,6 +123,7 @@ export class Lobby {
       case 'start': this.start(p); break;
       case 'end': this.endSession(p); break;
       case 'rejoin': this.rejoin(p); break;
+      case 'adminjoin': this.adminJoin(p, m); break;
       case 'loaded': this.loaded(p, m); break;
       case 's': this.state(p, m.d); break;
       case 'ev':
@@ -176,6 +177,18 @@ export class Lobby {
     this.parties.set(code, party);
     this.addMember(party, p);
     this.log(`[${code}] party created by ${p.name}`);
+  }
+
+  // admins (checked with their account login) can drop into any rider's party -
+  // if that rider is alone, a party is made around them first
+  adminJoin(p, m) {
+    const u = this.accounts && this.accounts.user(String(m.auth || ''));
+    if (!u || !this.accounts.admin.isAdmin(u)) return this.err(p, 'NOT_ADMIN', 'Admins only.');
+    const want = String(m.name || '').trim().toLowerCase();
+    const t = [...this.players.values()].find((x) => x.connected && x !== p && x.name.toLowerCase() === want);
+    if (!t) return this.err(p, 'NOT_FOUND', `${m.name} is not online on this server (they may be in another region).`);
+    if (!t.party) this.create(t);
+    this.join(p, t.party.code);
   }
 
   join(p, codeIn) {
