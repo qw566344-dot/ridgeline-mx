@@ -68,6 +68,22 @@ social.onChange(() => {
 });
 social.onAnnounce((a) => ui.announce(a));
 social.onPull(() => net.answerPull(account.token));
+// admin tools: a private message, or a kick back to the menu
+social.onAdmin(async (list) => {
+  for (const a of list) {
+    if (a.kind === 'kick') {
+      if (game.state === 'running' && ui.inGame()) await backToLobby();
+      if (net.code) net.leave();
+      ui.show('home');
+      ui.popup(`<b>You were kicked by ${escapeHtml(a.from)}</b>${a.text ? '<br>' + escapeHtml(a.text) : ''}`, 'bad', [['OK', () => {}, true]], 20);
+    } else ui.popup(`<b>Message from ${escapeHtml(a.from)} (admin)</b><br>${escapeHtml(a.text)}`, '', [['OK', () => {}, true]], 25);
+  }
+});
+net.onSummoned = async (m) => {
+  if (game.state === 'running' && ui.inGame() && !(game.opts && game.opts.mp)) await backToLobby();
+  if (!(game.opts && game.opts.mp && game.state === 'running')) ui.show('home');
+  ui.popup(`<b>${escapeHtml(m.from)}</b> (admin) brought you into their party`, 'good');
+};
 // admin events: effects in the game, a chip on screen, coins from Coin Rain
 social.onEvent((ev, how) => {
   game.event = ev;

@@ -23,6 +23,8 @@ export class Chat {
   send(u, m) {
     const text = String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, MAX_LEN);
     if (!text) return { error: 'Type a message first' };
+    const mu = this.A.admin && this.A.admin.muted(u);
+    if (mu) return { error: `You are muted for ${Math.ceil((mu - Date.now()) / 60000)} more min` };
     const now = Date.now();
     if (now - (this.last.get(u.key) || 0) < GAP_MS) return { error: 'Slow down a little' };
     this.last.set(u.key, now);

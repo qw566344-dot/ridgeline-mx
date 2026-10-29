@@ -23,8 +23,11 @@ Shift clutch · **Q / E lean back / forward** · R reset · Y quick retry · T c
   (only while you are in a party) talks to your party only.
 
 ## Admin panel (press -, admin accounts only)
-Add coins, give items, ban / reset riders, announcements, **Join** any online rider (no party needed:
-their game connects and you appear in their ride), **events** for everyone online (Double Coins,
+Add coins, give / take items, ban / reset riders, announcements, **Join** any online rider (no party
+needed: their game connects and you appear in their ride), **Summon** a rider into your party,
+**Kick**, private **messages**, chat **mute**, new **password** for a rider, close a party, make other
+accounts admins (owners only - owners can not be banned or changed by other admins), an **admin
+log** of every change, **events** for everyone online (Double Coins,
 Coin Rain, Moon Gravity, Turbo Frenzy, Giant Riders) and your own cheats (no crashing, moon gravity,
 turbo, hyper speed, super jump on J, ghost, freeze AI, slow motion, giant / tiny, skip ahead).
 

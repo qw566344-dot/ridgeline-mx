@@ -1,6 +1,8 @@
 // =====================================================================
-//  ADMIN PANEL (server side). Only the accounts in ADMINS may use it;
-//  the game opens the panel with the "-" key for them.
+//  ADMIN PANEL (server side). The owners in ADMINS, and anyone an owner
+//  made an admin (db.admins), may use it; the game opens the panel with
+//  the "-" key for them. Owners can not be banned, reset, muted or kicked.
+//  Every change is written to the admin log.
 //    GET  /api/admin/users?q=          -> {users: [{name, coins, created, lastSeen, online, items, banned}]}
 //    GET  /api/admin/stats             -> accounts, online, parties, uptime, cloud save...
 //    POST /api/admin/coins  {name, add} or {name, set}
@@ -13,11 +15,21 @@
 //    POST /api/admin/announce {text}     (a message that pops up for everyone online)
 //    POST /api/admin/chatdelete {id} / chatclear  (moderate the chat)
 //    POST /api/admin/event {kind, minutes}  (start an event for everyone online; kind '' stops it)
+//    GET  /api/admin/user?name=          -> one rider in detail (stats, items, equipped, mute...)
+//    POST /api/admin/warn {name, text}   (a private message that pops up for that rider)
+//    POST /api/admin/kick {name}         (back to the menu and out of their party)
+//    POST /api/admin/mute {name, minutes} (no chat; minutes 0 unmutes)
+//    POST /api/admin/take {name, item}   (remove one item)
+//    POST /api/admin/password {name, password}  (new password; logs them out everywhere)
+//    POST /api/admin/closeparty {code}   (ends a party for everyone in it)
+//    POST /api/admin/makeadmin {name, on}  (owners only)
+//    GET  /api/admin/log                 -> the last 100 admin actions
 // =====================================================================
 import { SHOP, STARTER, shopItem } from '../shared/shop.js';
 import { cloudEnabled } from './store.js';
 
-export const ADMINS = ['lmkk'];
+export const ADMINS = ['lmkk']; // owners
+const LOG_KEEP = 100;
 
 // events an admin can start for everyone online (the game applies the effects)
 export const EVENTS = {
@@ -32,7 +44,113 @@ const ANNOUNCE_MS = 5 * 60_000; // how long a new rider coming online still sees
 const started = Date.now();
 
 export class Admin {
-  constructor(accounts) { this.A = accounts; this.announcement = null; this.pulls = new Map(); this.event = null; this.rain = new Map(); }
+  constructor(accounts) { this.A = accounts; this.announcement = null; this.pulls = new Map(); this.event = null; this.rain = new Map(); this.inbox = new Map(); }
+
+  // ---- messages for one rider, handed over with their next friends poll
+  // ({kind: 'warn' | 'kick', text, from}); taken once
+  tell(key, msg) { const l = this.inbox.get(key) || []; l.push({ ...msg, at: Date.now() }); this.inbox.set(key, l.slice(-5)); }
+  takeInbox(key) { const l = this.inbox.get(key); this.inbox.delete(key); return l && l.length ? l.filter((x) => Date.now() - x.at < 10 * 60_000) : null; }
+
+  // ---- log of what admins did
+  get log() { return this.A.db.adminLog || (this.A.db.adminLog = []); }
+  record(u, action, target, detail) {
+    this.log.push({ at: Date.now(), by: u.name, action, target: target || '', detail: detail || '' });
+    if (this.log.length > LOG_KEEP) this.log.splice(0, this.log.length - LOG_KEEP);
+  }
+
+  isOwner(u) { return !!u && ADMINS.includes(u.key); }
+  muted(u) { return !!u && u.mutedUntil && Date.now() < u.mutedUntil ? u.mutedUntil : 0; }
+
+  // one rider in detail
+  user(name) {
+    const u = this.find(name);
+    if (!u) return { error: 'No such rider' };
+    const F = this.A.friends, p = F && F.online(u.key);
+    return { user: {
+      name: u.name, coins: u.coins, created: u.created, lastSeen: u.lastSeen || null, online: !!p, status: p ? p.status : 'offline', mode: p ? p.mode : null, track: p ? p.track : null, party: p ? p.code : null,
+      stats: u.stats || {}, equipped: u.equipped, owned: u.owned, friends: (u.friends || []).length, banned: !!u.banned, admin: this.isAdmin(u), owner: this.isOwner(u), mutedUntil: this.muted(u),
+    } };
+  }
+
+  warn(u, m) {
+    const t = this.find(m.name);
+    if (!t) return { error: 'No such rider' };
+    const text = String(m.text || '').trim().slice(0, 200);
+    if (!text) return { error: 'Type the message first' };
+    this.tell(t.key, { kind: 'warn', text, from: u.name });
+    this.record(u, 'warn', t.name, text);
+    return { ok: `Message sent to ${t.name} (they see it within a few seconds)` };
+  }
+
+  kick(u, m) {
+    const t = this.find(m.name);
+    if (!t) return { error: 'No such rider' };
+    if (this.isOwner(t)) return { error: 'Owners can not be kicked' };
+    this.tell(t.key, { kind: 'kick', text: String(m.text || '').trim().slice(0, 200), from: u.name });
+    const n = this.A.lobby ? this.A.lobby.kick(t.name) : 0;
+    this.record(u, 'kick', t.name);
+    return { ok: `Kicked ${t.name}${n ? ' out of their party' : ''}` };
+  }
+
+  mute(u, m) {
+    const t = this.find(m.name);
+    if (!t) return { error: 'No such rider' };
+    const min = Math.max(0, Math.min(7 * 24 * 60, Math.round(Number(m.minutes) || 0)));
+    if (min && this.isOwner(t)) return { error: 'Owners can not be muted' };
+    t.mutedUntil = min ? Date.now() + min * 60_000 : 0;
+    this.A.save();
+    this.record(u, min ? 'mute' : 'unmute', t.name, min ? min + ' min' : '');
+    if (min) this.tell(t.key, { kind: 'warn', text: `You are muted in chat for ${min >= 60 ? Math.round(min / 60) + ' h' : min + ' min'}.`, from: u.name });
+    return { ok: min ? `Muted ${t.name} for ${min} min` : `Unmuted ${t.name}` };
+  }
+
+  take(u, m) {
+    const t = this.find(m.name);
+    if (!t) return { error: 'No such rider' };
+    const k = String(m.item || '');
+    if (!t.owned.includes(k)) return { error: `${t.name} does not have that` };
+    const [slot, id] = k.split(':');
+    const it = shopItem(slot, id);
+    if (it && it.price === 0) return { error: 'Free items belong to everyone' };
+    t.owned = t.owned.filter((x) => x !== k);
+    if (t.equipped[slot] === id) t.equipped[slot] = STARTER.equipped[slot];
+    this.A.save();
+    this.record(u, 'take', t.name, k);
+    return { ok: `Took ${k} from ${t.name}` };
+  }
+
+  password(u, m) {
+    const t = this.find(m.name);
+    if (!t) return { error: 'No such rider' };
+    if (this.isOwner(t) && !this.isOwner(u)) return { error: 'Only an owner can change an owner\'s password' };
+    const pw = String(m.password || '');
+    if (pw.length < 4 || pw.length > 64) return { error: 'Passwords are 4-64 characters' };
+    this.A.setPassword(t, pw);
+    this.record(u, 'password', t.name);
+    return { ok: `New password set for ${t.name} - they are logged out everywhere` };
+  }
+
+  closeParty(u, m) {
+    const code = String(m.code || '').toUpperCase();
+    const n = this.A.lobby ? this.A.lobby.closeParty(code) : -1;
+    if (n < 0) return { error: 'No such party' };
+    this.record(u, 'closeparty', code, n + ' riders');
+    return { ok: `Closed party ${code} (${n} rider${n === 1 ? '' : 's'})` };
+  }
+
+  makeAdmin(u, m) {
+    if (!this.isOwner(u)) return { error: 'Only owners can make admins' };
+    const t = this.find(m.name);
+    if (!t) return { error: 'No such rider' };
+    if (this.isOwner(t)) return { error: `${t.name} is an owner` };
+    const list = this.A.db.admins || (this.A.db.admins = []);
+    const on = m.on !== false;
+    this.A.db.admins = on ? [...new Set([...list, t.key])] : list.filter((k) => k !== t.key);
+    if (on && t.banned) t.banned = false;
+    this.A.save();
+    this.record(u, on ? 'makeadmin' : 'removeadmin', t.name);
+    return { ok: on ? `${t.name} is now an admin` : `${t.name} is no longer an admin` };
+  }
 
   // ---- events
   startEvent(u, m) {
@@ -65,14 +183,14 @@ export class Admin {
   // "an admin wants to join you": handed to that rider's game with its next friends poll
   pull(key, from) { this.pulls.set(key, { from, at: Date.now() }); }
   takePull(key) { const x = this.pulls.get(key); this.pulls.delete(key); return x && Date.now() - x.at < 60_000 ? x : null; }
-  isAdmin(u) { return !!u && ADMINS.includes(u.key); }
+  isAdmin(u) { return !!u && (ADMINS.includes(u.key) || (this.A.db.admins || []).includes(u.key)); }
 
   users(q) {
     q = String(q || '').trim().toLowerCase();
     const F = this.A.friends;
     const list = Object.values(this.A.db.users)
       .filter((u) => !q || u.key.includes(q))
-      .map((u) => ({ name: u.name, coins: u.coins, created: u.created, lastSeen: u.lastSeen || null, online: !!(F && F.online(u.key)), items: u.owned.length, banned: !!u.banned, admin: this.isAdmin(u) }))
+      .map((u) => ({ name: u.name, coins: u.coins, created: u.created, lastSeen: u.lastSeen || null, online: !!(F && F.online(u.key)), items: u.owned.length, banned: !!u.banned, admin: this.isAdmin(u), owner: this.isOwner(u), muted: !!this.muted(u) }))
       .sort((a, b) => (b.online - a.online) || (b.lastSeen || 0) - (a.lastSeen || 0));
     return { users: list, total: Object.keys(this.A.db.users).length };
   }
@@ -182,7 +300,27 @@ export class Admin {
   handle(route, u, m, url) {
     if (!route.startsWith('admin/')) return null;
     if (!this.isAdmin(u)) return { error: 'Admins only' };
+    const out = this.route(route, u, m, url);
+    // everything that changes something goes in the log (the new tools log themselves)
+    const logged = { 'admin/coins': 'coins', 'admin/unlock': 'unlock', 'admin/give': 'give', 'admin/reset': 'reset', 'admin/ban': 'ban', 'admin/delete': 'delete', 'admin/giftall': 'giftall', 'admin/announce': 'announce', 'admin/chatclear': 'chatclear', 'admin/event': 'event' };
+    if (out && !out.error && logged[route]) this.record(u, logged[route], m.name || '', m.add !== undefined ? String(m.add) : m.item || m.text || m.kind || (m.on !== undefined ? String(m.on) : ''));
+    return out;
+  }
+
+  route(route, u, m, url) {
+    // owners are protected from the other admins
+    const t = m && m.name ? this.find(m.name) : null;
+    if (t && this.isOwner(t) && !this.isOwner(u) && ['admin/reset', 'admin/ban', 'admin/delete', 'admin/take', 'admin/coins'].includes(route)) return { error: 'Owners can only be changed by an owner' };
     switch (route) {
+      case 'admin/user': return this.user(url.searchParams.get('name'));
+      case 'admin/log': return { log: [...this.log].reverse() };
+      case 'admin/warn': return this.warn(u, m);
+      case 'admin/kick': return this.kick(u, m);
+      case 'admin/mute': return this.mute(u, m);
+      case 'admin/take': return this.take(u, m);
+      case 'admin/password': return this.password(u, m);
+      case 'admin/closeparty': return this.closeParty(u, m);
+      case 'admin/makeadmin': return this.makeAdmin(u, m);
       case 'admin/users': return this.users(url.searchParams.get('q'));
       case 'admin/stats': return this.stats();
       case 'admin/coins': return this.coins(m);

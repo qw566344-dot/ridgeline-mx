@@ -508,6 +508,13 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
 .adm-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .adm-row input:not([type]), .adm-row select { padding: 6px 9px; font-size: 13px; }
 .adm-row label { display: inline-flex; gap: 5px; align-items: center; font-size: 14px; margin-right: 10px; cursor: pointer; }
+.adm-info td { background: rgba(255, 255, 255, 0.04); }
+.adm-detail { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.adm-detail span { background: rgba(255,255,255,0.07); border-radius: 8px; padding: 4px 9px; font-size: 13px; }
+.adm-detail b { color: var(--gold); }
+.adm-info .adm-row { margin: 5px 0; }
+.adm-log { max-height: 220px; overflow: auto; }
+.adm-logt td { padding: 4px 8px; font-size: 13px; }
 .adm-row .lbl { font-weight: 800; min-width: 92px; color: var(--gold); font-size: 13px; }
 .adm tr.banned td:first-child b { color: var(--bad); text-decoration: line-through; }
 #announce { position: fixed; left: 50%; top: 14px; transform: translate(-50%, -140%); z-index: 60; max-width: min(720px, 92vw);

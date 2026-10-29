@@ -25,6 +25,7 @@ export class Social {
   onAnnounce(f) { this.announceListeners.push(f); }
   onPull(f) { this.pullListener = f; }
   onEvent(f) { this.eventListener = f; }
+  onAdmin(f) { this.adminListener = f; }
   changed() { this.listeners.forEach((f) => f(this.data)); }
 
   start() {
@@ -49,6 +50,7 @@ export class Social {
     const a = r.announce;
     if (a && a.id !== this.lastAnnounce) { this.lastAnnounce = a.id; this.announceListeners.forEach((f) => f(a)); }
     if (r.pull && this.pullListener) this.pullListener(r.pull);
+    if (r.admin && this.adminListener) this.adminListener(r.admin);
     // admin event: time left is turned into a local end time
     const ev = r.event ? { ...r.event, endsAt: Date.now() + r.event.left } : null;
     const fresh = ev && (!this.event || this.event.id !== ev.id);

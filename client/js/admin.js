@@ -5,7 +5,7 @@
 //  everything, ban, reset or delete an account - plus your own cheats.
 // =====================================================================
 import { escapeHtml, ago } from './util.js';
-import { SHOP, GEAR_SETS } from '/shared/shop.js';
+import { SHOP, GEAR_SETS, shopItem } from '/shared/shop.js';
 import { getVehicle, BIKE_COLORS } from '/shared/vehicles.js';
 
 const $ = (id) => document.getElementById(id);
@@ -37,6 +37,7 @@ export class AdminPanel {
     $('adm-ann-go').onclick = send;
     $('adm-ann').onkeydown = (e) => { if (e.key === 'Enter') send(); };
     $('adm-ann-clear').onclick = () => this.act('announce', { text: '' });
+    $('adm-log-btn').onclick = () => { const el = $('adm-log'); el.hidden = !el.hidden; $('adm-log-btn').textContent = el.hidden ? 'Show recent admin actions' : 'Hide'; if (!el.hidden) this.loadLog(); };
     $('adm-ev-go').onclick = () => this.act('event', { kind: $('adm-ev-kind').value, minutes: Number($('adm-ev-min').value) });
     $('adm-ev-stop').onclick = () => this.act('event', { kind: '' });
     $('adm-chat-clear').onclick = () => { const b = $('adm-chat-clear'); if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Sure?'; return; } delete b.dataset.sure; b.textContent = 'Clear chat for everyone'; this.act('chatclear', {}); };
@@ -88,6 +89,7 @@ export class AdminPanel {
     // my own coins changed? refresh
     if (!r.error) { const me = await this.A.api('me').catch(() => null); if (me && me.profile) { this.A.profile = me.profile; this.A.changed(); } }
     this.load();
+    if (!$('adm-log').hidden) this.loadLog();
   }
 
   // drop into a rider (no party needed): connect to the server first, then the
@@ -112,8 +114,9 @@ export class AdminPanel {
     ].map(([k, v]) => `<span>${k} <b>${escapeHtml(String(v))}</b></span>`).join('')
       + (s.announcement ? `<span>Showing: <b>${escapeHtml(s.announcement)}</b></span>` : '')
       + (s.event ? `<span>Event: <b>${escapeHtml(s.event.name)}</b> ${Math.ceil(s.event.left / 60000)} min left</span>` : '')
-      + (s.partyList || []).map((p) => `<span>Party <b>${escapeHtml(p.code)}</b> ${escapeHtml(p.members.join(', '))} <button class="small" data-join="${escapeHtml(p.code)}">Join</button></span>`).join('');
+      + (s.partyList || []).map((p) => `<span>Party <b>${escapeHtml(p.code)}</b> ${escapeHtml(p.members.join(', '))} <button class="small" data-join="${escapeHtml(p.code)}">Join</button><button class="small danger" data-close="${escapeHtml(p.code)}">Close</button></span>`).join('');
     $('adm-stats').querySelectorAll('[data-join]').forEach((b) => b.onclick = () => { this.toggle(false); this.ui.emit('joinParty', { code: b.dataset.join, region: null }); });
+    $('adm-stats').querySelectorAll('[data-close]').forEach((b) => b.onclick = () => { if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Sure?'; return; } this.act('closeparty', { code: b.dataset.close }); });
   }
 
   async load() {
@@ -124,34 +127,86 @@ export class AdminPanel {
     $('adm-total').textContent = `${r.total} accounts`;
     $('adm-list').innerHTML = r.users.map((u) => {
       const n = escapeHtml(u.name);
+      const tags = (u.owner ? ' <small>(owner)</small>' : u.admin ? ' <small>(admin)</small>' : '') + (u.banned ? ' <small>(banned)</small>' : '') + (u.muted ? ' <small>(muted)</small>' : '');
       return `<tr class="${u.banned ? 'banned' : ''}">
-      <td><i class="pdot ${u.online ? 'online' : ''}"></i> <b>${n}</b>${u.admin ? ' <small>(admin)</small>' : ''}${u.banned ? ' <small>(banned)</small>' : ''}<br><small>${u.lastSeen ? 'seen ' + ago(Date.now() - u.lastSeen) : 'never online'}</small></td>
+      <td><i class="pdot ${u.online ? 'online' : ''}"></i> <b>${n}</b>${tags}<br><small>${u.lastSeen ? 'seen ' + ago(Date.now() - u.lastSeen) : 'never online'}</small></td>
       <td>${u.coins.toLocaleString()}</td><td>${u.items}</td>
       <td class="adm-acts">
+        <button class="small" data-a="info" data-n="${n}">${this.infoFor === u.name ? 'Hide' : 'Info'}</button>
         <button class="small" data-a="add" data-v="10000" data-n="${n}">+10K</button>
         <button class="small" data-a="add" data-v="1000000" data-n="${n}">+1M</button>
         <input class="adm-set" type="number" placeholder="add coins" title="Coins to add (a minus number takes coins away), Enter to add" data-n="${n}"><button class="small" data-a="addbox" data-n="${n}">Add</button>
         <button class="small" data-a="unlock" data-n="${n}">Unlock all</button>
-        ${u.online && !u.admin ? `<button class="small" data-a="join" data-n="${n}" data-raw="${n}">Join</button>` : ''}
+        ${u.online && !u.owner ? `<button class="small" data-a="join" data-n="${n}">Join</button><button class="small" data-a="summon" data-n="${n}" title="Bring them into your party">Summon</button>` : ''}
         <button class="small" data-a="give" data-n="${n}">Give item</button>
+        ${u.owner ? '' : `<button class="small" data-a="kick" data-n="${n}">Kick</button>`}
         ${u.admin ? '' : `<button class="small" data-a="ban" data-on="${u.banned ? 0 : 1}" data-n="${n}">${u.banned ? 'Unban' : 'Ban'}</button>`}
         <button class="small danger" data-a="reset" data-n="${n}">Reset</button>
         ${u.admin ? '' : `<button class="small danger" data-a="delete" data-n="${n}">Delete</button>`}
-      </td></tr>`;
+      </td></tr>${this.infoFor === u.name ? `<tr class="adm-info"><td colspan="4" id="adm-info-box">Loading...</td></tr>` : ''}`;
     }).join('');
     $('adm-list').querySelectorAll('[data-a]').forEach((b) => b.onclick = () => {
       const n = b.dataset.n, a = b.dataset.a;
       // the dangerous ones ask "Sure?" first
       const sure = () => { if (b.dataset.sure) return true; b.dataset.sure = 1; b.textContent = 'Sure?'; return false; };
+      if (a === 'info') { this.infoFor = this.infoFor === n ? null : n; this.load(); }
       if (a === 'add') this.act('coins', { name: n, add: Number(b.dataset.v) });
       if (a === 'addbox') { const inp = b.previousElementSibling; if (inp.value.trim() !== '') this.act('coins', { name: n, add: Number(inp.value) }); }
       if (a === 'unlock') this.act('unlock', { name: n });
-      if (a === 'join') this.joinRider(b.dataset.raw);
+      if (a === 'join') this.joinRider(n);
+      if (a === 'summon') this.summonRider(n);
       if (a === 'give') { $('adm-give-name').value = n; $('adm-give-item').focus(); }
+      if (a === 'kick' && sure()) this.act('kick', { name: n });
       if (a === 'ban' && (b.dataset.on === '0' || sure())) this.act('ban', { name: n, on: b.dataset.on === '1' });
       if (a === 'reset' && sure()) this.act('reset', { name: n });
       if (a === 'delete' && sure()) this.act('delete', { name: n });
     });
     $('adm-list').querySelectorAll('.adm-set').forEach((inp) => inp.onkeydown = (e) => { if (e.key === 'Enter' && inp.value.trim() !== '') this.act('coins', { name: inp.dataset.n, add: Number(inp.value) }); });
+    if (this.infoFor && $('adm-info-box')) this.loadInfo(this.infoFor);
+  }
+
+  // bring a rider into your party (they ride in if your party is riding)
+  summonRider(name) {
+    const net = window.MX && window.MX.net;
+    if (!net) return;
+    this.ui.popup(`Bringing <b>${escapeHtml(name)}</b> to you...`);
+    net.whenOnline(() => { net.sendProfile(); net.send({ t: 'adminsummon', name, auth: this.A.token }); });
+  }
+
+  // the Info row: everything about one rider, plus warn / mute / take item / password / admin
+  async loadInfo(name) {
+    const box = $('adm-info-box');
+    const r = await this.A.api('admin/user?name=' + encodeURIComponent(name)).catch(() => ({ error: 'Could not reach the server' }));
+    if (!box.isConnected) return;
+    if (r.error) { box.textContent = r.error; return; }
+    const u = r.user, st = u.stats || {}, eq = u.equipped || {};
+    const paid = u.owned.filter((k) => { const [s2, i2] = k.split(':'); const it = shopItem(s2, i2); return it && it.price > 0; });
+    const nm = (k) => { const [s2, i2] = k.split(':'); const it = shopItem(s2, i2); return it && s2 !== 'upgrade' ? itemName(it) : k; };
+    const where = u.online ? (u.status === 'riding' ? `riding ${u.mode || ''}${u.track ? ' on ' + u.track : ''}` : u.status === 'party' ? 'in a party lobby' : 'in the menus') + (u.party ? ` (party ${u.party})` : '') : 'offline';
+    const n = escapeHtml(u.name);
+    box.innerHTML = `<div class="adm-detail">
+      <span>Status <b>${escapeHtml(where)}</b></span><span>Joined <b>${u.created ? new Date(u.created).toLocaleDateString() : '?'}</b></span>
+      <span>Laps <b>${st.laps || 0}</b></span><span>Wins <b>${st.wins || 0}</b></span><span>Tricks <b>${st.tricks || 0}</b></span><span>Friends <b>${u.friends}</b></span>
+      <span>Riding <b>${escapeHtml(eq.vehicle || '')}</b> · <b>${escapeHtml(eq.color || '')}</b> · <b>${escapeHtml(eq.gear || '')}</b></span>
+      ${u.mutedUntil ? `<span>Muted <b>${Math.ceil((u.mutedUntil - Date.now()) / 60000)} min left</b></span>` : ''}</div>
+      <div class="adm-row"><span class="lbl">Message</span><input id="adm-i-warn" placeholder="Private message / warning for ${n}" maxlength="200" style="flex:1"><button class="small" id="adm-i-warn-go">Send</button></div>
+      <div class="adm-row"><span class="lbl">Chat</span>${[[10, '10 min'], [60, '1 hour'], [1440, '1 day']].map(([m2, t]) => `<button class="small" data-mute="${m2}">Mute ${t}</button>`).join('')}<button class="small" data-mute="0">Unmute</button></div>
+      <div class="adm-row"><span class="lbl">Take item</span><select id="adm-i-take">${paid.length ? paid.map((k) => `<option value="${escapeHtml(k)}">${escapeHtml(nm(k))}</option>`).join('') : '<option value="">(nothing bought)</option>'}</select><button class="small danger" id="adm-i-take-go">Take</button></div>
+      <div class="adm-row"><span class="lbl">Password</span><input id="adm-i-pw" type="text" placeholder="New password (4+ characters)" autocomplete="off" style="width:200px"><button class="small" id="adm-i-pw-go">Set</button><span class="hint">logs them out everywhere</span></div>
+      ${u.owner ? '' : `<div class="adm-row"><span class="lbl">Admin</span><button class="small" id="adm-i-admin">${u.admin ? 'Remove admin' : 'Make admin'}</button><span class="hint">(owners only)</span></div>`}`;
+    const warn = () => { const t = $('adm-i-warn').value.trim(); if (t) this.act('warn', { name: u.name, text: t }); };
+    $('adm-i-warn-go').onclick = warn;
+    $('adm-i-warn').onkeydown = (e) => { if (e.key === 'Enter') warn(); };
+    box.querySelectorAll('[data-mute]').forEach((b) => b.onclick = () => this.act('mute', { name: u.name, minutes: Number(b.dataset.mute) }));
+    $('adm-i-take-go').onclick = () => { const k = $('adm-i-take').value; if (k) this.act('take', { name: u.name, item: k }); };
+    $('adm-i-pw-go').onclick = () => { const pw = $('adm-i-pw').value; if (pw) this.act('password', { name: u.name, password: pw }); };
+    if ($('adm-i-admin')) $('adm-i-admin').onclick = () => this.act('makeadmin', { name: u.name, on: !u.admin });
+  }
+
+  async loadLog() {
+    const el = $('adm-log');
+    const r = await this.A.api('admin/log').catch(() => ({ error: 'Could not reach the server' }));
+    if (r.error) { el.textContent = r.error; return; }
+    el.innerHTML = r.log.length ? `<table class="results adm-logt">${r.log.slice(0, 60).map((x) => `<tr><td>${ago(Date.now() - x.at)} ago</td><td><b>${escapeHtml(x.by)}</b></td><td>${escapeHtml(x.action)}</td><td>${escapeHtml(x.target)}</td><td>${escapeHtml(String(x.detail).slice(0, 60))}</td></tr>`).join('')}</table>` : '<p class="hint">Nothing yet.</p>';
   }
 }

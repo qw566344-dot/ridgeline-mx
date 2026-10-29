@@ -65,6 +65,7 @@ export class Friends {
       announce: this.A.admin ? this.A.admin.current() : null,
       pull: this.A.admin ? this.A.admin.takePull(u.key) : null,
       event: this.A.admin ? this.A.admin.eventFor(u) : null,
+      admin: this.A.admin ? this.A.admin.takeInbox(u.key) : null,
       max: MAX_FRIENDS,
     };
   }

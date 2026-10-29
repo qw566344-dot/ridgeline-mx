@@ -83,10 +83,19 @@ export class Accounts {
     }, 300);
   }
 
+  // new password (admin tool): every login token stops working
+  setPassword(u, password) {
+    u.salt = crypto.randomBytes(16).toString('hex');
+    u.hash = this.hash(password, u.salt);
+    for (const t of u.tokens || []) this.tokens.delete(t);
+    u.tokens = [];
+    this.save();
+  }
+
   hash(password, salt) { return crypto.scryptSync(String(password), salt, 32).toString('hex'); }
 
   profile(u) {
-    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, admin: ADMINS.includes(u.key) };
+    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, admin: this.admin.isAdmin(u) };
   }
 
   issue(u) {

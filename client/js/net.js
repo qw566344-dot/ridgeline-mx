@@ -178,6 +178,8 @@ export class Net {
       case 'notice': this.ui.popup(m.msg); break;
       case 'pchat': if (this.onPartyChat) this.onPartyChat(m); break;
       case 'adminjoined': this.adminJoined(m); break;
+      case 'summoned': if (this.onSummoned) this.onSummoned(m); break;
+      case 'kicked': if (this.game.opts && this.game.opts.mp && this.game.state === 'running') this.ui.emit('mainMenu'); break;
       case 'session': this.onSession(m); break;
       case 'go': // everyone has loaded: start the 3-2-1
         if (this.session && this.session.id === m.id) {

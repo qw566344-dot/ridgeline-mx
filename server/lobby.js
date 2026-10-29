@@ -126,6 +126,7 @@ export class Lobby {
       case 'rejoin': this.rejoin(p); break;
       case 'adminjoin': this.adminJoin(p, m); break;
       case 'pulled': this.pulled(p, m); break;
+      case 'adminsummon': this.adminSummon(p, m); break;
       case 'pchat': this.partyChat(p, m); break;
       case 'loaded': this.loaded(p, m); break;
       case 's': this.state(p, m.d); break;
@@ -203,6 +204,8 @@ export class Lobby {
   // party chat: only the riders in your party get it (one message a second each)
   partyChat(p, m) {
     if (!p.party) return this.err(p, 'NO_PARTY', 'You are not in a party.');
+    const acc = this.accounts && this.accounts.db.users[p.name.toLowerCase()];
+    if (acc && this.accounts.admin.muted(acc)) return this.err(p, 'MUTED', 'You are muted in chat right now.');
     const text = String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
     if (!text) return;
     const now = Date.now();
@@ -219,7 +222,52 @@ export class Lobby {
     const w = this.pending.get(u.key);
     this.pending.delete(u.key);
     if (!w || Date.now() - w.at > 60_000 || !w.admin.connected) return;
-    this.joinRider(w.admin, p);
+    if (w.summon) this.summonRider(w.admin, p); else this.joinRider(w.admin, p);
+  }
+
+  // the other way round: bring a rider into the admin's party (and ride, if
+  // the admin's party is riding a free ride / time trial / freestyle)
+  adminSummon(p, m) {
+    const u = this.accounts && this.accounts.user(String(m.auth || ''));
+    if (!u || !this.accounts.admin.isAdmin(u)) return this.err(p, 'NOT_ADMIN', 'Admins only.');
+    const want = String(m.name || '').trim().toLowerCase();
+    const t = [...this.players.values()].find((x) => x.connected && x !== p && x.name.toLowerCase() === want);
+    if (t) return this.summonRider(p, t);
+    const F = this.accounts.friends;
+    if (!this.accounts.db.users[want] || !(F && F.online(want))) return this.err(p, 'NOT_FOUND', `${m.name} is not online right now.`);
+    this.pending.set(want, { admin: p, at: Date.now(), summon: true });
+    this.accounts.admin.pull(want, p.name);
+    if (p.conn) p.conn.send({ t: 'notice', msg: `Bringing <b>${String(m.name).replace(/[<>&]/g, '')}</b> to you... their game connects in a few seconds` });
+  }
+
+  summonRider(admin, t) {
+    if (!admin.party) this.create(admin);
+    if (t.party === admin.party) return;
+    this.join(t, admin.party.code, true);
+    if (t.conn) t.conn.send({ t: 'summoned', from: admin.name });
+    if (admin.conn) admin.conn.send({ t: 'notice', msg: `<b>${t.name.replace(/[<>&]/g, '')}</b> is in your party now` });
+  }
+
+  // admin tools: kick a rider out of their party (their game also goes back to
+  // the menu through the friends poll); close a whole party
+  kick(name) {
+    const want = String(name || '').trim().toLowerCase();
+    let n = 0;
+    for (const p of this.players.values()) {
+      if (p.name.toLowerCase() !== want) continue;
+      if (p.party) { this.leave(p, true); n++; }
+      if (p.conn) p.conn.send({ t: 'kicked' });
+    }
+    return n;
+  }
+
+  closeParty(code) {
+    const party = this.parties.get(code);
+    if (!party) return -1;
+    const members = [...party.members.values()];
+    for (const p of members) { if (p.conn) p.conn.send({ t: 'ended' }); this.leave(p, true); }
+    this.parties.delete(code);
+    return members.length;
   }
 
   joinRider(admin, t) {
