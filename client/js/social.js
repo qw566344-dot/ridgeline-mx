@@ -71,6 +71,7 @@ export class Social {
 
   // these return { ok: message } or { error: message }
   async act(route, body) {
+    if (route === 'remove' && body && body.name) this.account.forgetFriend(body.name);
     const res = await this.call('friends/' + route, body);
     if (this.error) return { error: this.error };
     return { ok: res };

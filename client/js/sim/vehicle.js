@@ -161,6 +161,9 @@ export class Vehicle {
 
     this.controller.torques(dt, contacts);
     this.trackBounds(dt);
+    // nobody on the throttle or brake, nearly stopped: hold still (no rolling back down slopes)
+    const inp0 = this.input;
+    if (!this.crashed && contacts > 0 && inp0.throttle < 0.05 && inp0.brake < 0.05 && this.speed < 1.5) { this.force.x -= this.vel.x * cfg.mass * 8; this.force.z -= this.vel.z * cfg.mass * 8; }
     // hitting the barrier hard is a crash (straight-on speed in m/s)
     if (!this.crashed && this.barrierHit > ({ bike: 9, atv: 10, car: 11 }[this.cfg.type] || 12)) this.crash('Hit the barrier');
 

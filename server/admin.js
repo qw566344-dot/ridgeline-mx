@@ -48,6 +48,7 @@ export class Admin {
       uptime: Date.now() - started,
       cloud: cloudEnabled,
       announcement: this.current() ? this.announcement.text : null,
+      partyList: parties.map((p) => ({ code: p.code, members: [...p.members.values()].map((m) => m.name) })),
     };
   }
 

@@ -58,7 +58,7 @@ export class Account {
   backup(check) {
     const all = this.backups(), k = this.profile.name.toLowerCase();
     const b = all[k] || {};
-    all[k] = { ...b, name: this.profile.name, profile: this.profile, friends: this.friendNames || b.friends || [], check: check || b.check, salt: b.salt, at: Date.now() };
+    all[k] = { ...b, removed: b.removed || [], name: this.profile.name, profile: this.profile, friends: this.friendNames || b.friends || [], check: check || b.check, salt: b.salt, at: Date.now() };
     LS.set('mx.backups', all);
   }
   async rememberPassword(pw) {
@@ -68,7 +68,26 @@ export class Account {
     LS.set('mx.backups', all);
     this.backup(all[k].check);
   }
-  setFriends(names) { this.friendNames = names; if (this.mode === 'online' && this.profile) this.backup(); }
+  // friends are remembered in this browser too: a wiped server returns an empty list, so
+  // never forget a friend just because the server lost them (only when you remove them)
+  setFriends(names) {
+    if (this.mode !== 'online' || !this.profile) { this.friendNames = names; return; }
+    const b = this.backups()[this.profile.name.toLowerCase()] || {};
+    const gone = new Set((b.removed || []).map((n) => n.toLowerCase()));
+    const all = new Map();
+    for (const n of [...(b.friends || []), ...names]) if (!gone.has(n.toLowerCase()) || names.includes(n)) all.set(n.toLowerCase(), n);
+    this.friendNames = [...all.values()];
+    this.backup();
+  }
+  forgetFriend(name) {
+    if (!this.profile) return;
+    const all = this.backups(), k = this.profile.name.toLowerCase();
+    if (!all[k]) return;
+    all[k].removed = [...new Set([...(all[k].removed || []), name])];
+    all[k].friends = (all[k].friends || []).filter((n) => n.toLowerCase() !== String(name).toLowerCase());
+    this.friendNames = all[k].friends;
+    LS.set('mx.backups', all);
+  }
   // the server does not know this name: bring the account back from this browser's copy
   async restore(name, password) {
     const b = this.backups()[name.trim().toLowerCase()];

@@ -81,7 +81,9 @@ export class AdminPanel {
       ['Banned', s.banned], ['Coins out there', s.coins.toLocaleString()], ['Server up', fmtUp(s.uptime)],
       ['Accounts saved', s.cloud ? 'cloud (safe)' : 'this server only'],
     ].map(([k, v]) => `<span>${k} <b>${escapeHtml(String(v))}</b></span>`).join('')
-      + (s.announcement ? `<span>Showing: <b>${escapeHtml(s.announcement)}</b></span>` : '');
+      + (s.announcement ? `<span>Showing: <b>${escapeHtml(s.announcement)}</b></span>` : '')
+      + (s.partyList || []).map((p) => `<span>Party <b>${escapeHtml(p.code)}</b> ${escapeHtml(p.members.join(', '))} <button class="small" data-join="${escapeHtml(p.code)}">Join</button></span>`).join('');
+    $('adm-stats').querySelectorAll('[data-join]').forEach((b) => b.onclick = () => { this.toggle(false); this.ui.emit('joinParty', { code: b.dataset.join, region: null }); });
   }
 
   async load() {
