@@ -7,7 +7,7 @@
 //  browser instead, with the password hashed. Guests also save locally.
 // =====================================================================
 import { serverBase } from './config.js';
-import { STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop } from '/shared/shop.js';
+import { STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice } from '/shared/shop.js';
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -219,6 +219,7 @@ export class Account {
   get coins() { return this.profile ? this.profile.coins : 0; }
 
   async buy(slot, id) {
+    if (slot === 'bundle') return this.buyBundle(id);
     const item = shopItem(slot, id);
     if (!item) return 'No such item';
     if (!this.owns(slot, id) && !inShop(slot, id)) return 'That is not in the item shop right now';
@@ -231,6 +232,22 @@ export class Account {
     if (slot === 'upgrade') for (const n of upgradeNeeds(item)) { const [s2, i2] = n.split(':'); if (!this.owns(s2, i2)) return s2 === 'vehicle' ? 'Buy the vehicle first' : 'Buy the level below first'; }
     if (p.coins < item.price) return `Not enough coins (need ${item.price})`;
     p.coins -= item.price; p.owned.push(slot + ':' + id); if (slot !== 'upgrade') p.equipped[slot] = id;
+    this.persistLocal();
+    return null;
+  }
+
+  // a bike skin + its matching rider kit (both get equipped)
+  async buyBundle(id) {
+    const b = getBundle(id);
+    if (!b) return 'No such bundle';
+    if (this.mode === 'online') {
+      try { const r = await this.api('buy', { slot: 'bundle', id }); if (r.error) return r.error; this.profile = r.profile; this.changed(); return null; }
+      catch { return 'Can not reach the server to buy right now'; }
+    }
+    const p = this.profile, price = bundlePrice(b, (s, i) => this.owns(s, i));
+    if (p.coins < price) return `Not enough coins (need ${price})`;
+    p.coins -= price;
+    for (const [s, i] of bundleParts(b)) { if (!this.owns(s, i)) p.owned.push(s + ':' + i); p.equipped[s] = i; }
     this.persistLocal();
     return null;
   }

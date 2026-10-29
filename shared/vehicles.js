@@ -69,6 +69,20 @@ export const BIKE_COLORS = [
   { id: 'desertcamo', name: 'Desert Camo', pattern: 'camo', body: 0xc8a165, accent: 0x8a6a3d, third: 0xe7d3a8, gear: [0xc8a165, 0x5c4526, 0xe7d3a8] },
   { id: 'bumblebee', name: 'Bumblebee', pattern: 'stripes', body: 0xfacc15, accent: 0x111111, gear: [0xfacc15, 0x111111, 0xffffff] },
   { id: 'zombie', name: 'Zombie', pattern: 'splatter', body: 0x65a30d, accent: 0x7f1d1d, third: 0x1c1917, gear: [0x3f6212, 0x7f1d1d, 0xd9f99d] },
+  { id: 'bubblegum', name: 'Bubblegum', pattern: 'dots', body: 0xf9a8d4, accent: 0x60a5fa, third: 0xffffff, gear: [0xf9a8d4, 0x1e3a8a, 0xffffff] },
+  { id: 'nebula', name: 'Teal Nebula', pattern: 'galaxy', body: 0x042f2e, accent: 0x2dd4bf, gear: [0x115e59, 0x042f2e, 0x99f6e4] },
+  { id: 'cherrybomb', name: 'Cherry Bomb', pattern: 'checker', body: 0xdc2626, accent: 0x111111, gear: [0xdc2626, 0x111111, 0xffffff] },
+  { id: 'jungle', name: 'Jungle Cat', pattern: 'tiger', body: 0x15803d, accent: 0x052e16, gear: [0x15803d, 0x052e16, 0xfacc15] },
+  { id: 'frostbite', name: 'Frostbite', pattern: 'hex', body: 0xbae6fd, accent: 0x0369a1, gear: [0xbae6fd, 0x0c4a6e, 0xffffff] },
+  { id: 'police', name: 'Highway Patrol', pattern: 'bolt', body: 0xf8fafc, accent: 0x1d4ed8, gear: [0x1e3a8a, 0xf8fafc, 0xef4444] },
+  { id: 'firestorm', name: 'Firestorm', pattern: 'lava', body: 0xfb923c, accent: 0xfef08a, third: 0x450a0a, gear: [0x450a0a, 0xfb923c, 0xfef08a] },
+  { id: 'matrix', name: 'Matrix', pattern: 'pixel', body: 0x020a02, accent: 0x22c55e, third: 0x14532d, gear: [0x020a02, 0x22c55e, 0x86efac] },
+  { id: 'candycane', name: 'Candy Cane', pattern: 'stripes', body: 0xffffff, accent: 0xdc2626, gear: [0xffffff, 0xdc2626, 0x16a34a] },
+  { id: 'blackchrome', name: 'Black Chrome', pattern: 'chrome', body: 0x27272a, accent: 0xef4444, gear: [0x18181b, 0x3f3f46, 0xef4444] },
+  { id: 'copper', name: 'Copper', pattern: 'chrome', body: 0xb45309, accent: 0x1c1917, gear: [0xb45309, 0x1c1917, 0xfde68a] },
+  { id: 'patriot', name: 'Patriot', pattern: 'race', body: 0x1e3a8a, accent: 0xffffff, third: 0xdc2626, gear: [0x1e3a8a, 0xffffff, 0xdc2626] },
+  { id: 'woodland', name: 'Woodland', pattern: 'camo', body: 0x3f4f2a, accent: 0x6b5d3a, third: 0x1f2a16, gear: [0x3f4f2a, 0x1f2a16, 0xc2b280] },
+  { id: 'unicorn', name: 'Unicorn', pattern: 'aurora', body: 0xf0abfc, accent: 0x93c5fd, third: 0xfde68a, gear: [0xf0abfc, 0x6b21a8, 0xfde68a] },
 ];
 export const PATTERNS = ['solid', 'stripes', 'flames', 'camo', 'galaxy', 'carbon', 'chrome', 'tiger', 'gradient', 'checker', 'hex', 'bolt', 'splatter', 'pixel', 'aurora', 'lava', 'marble', 'race'];
 

@@ -20,6 +20,27 @@ export const GEAR_SETS = [
   { id: 'royal', name: 'Royal', colors: [0x581c87, 0xd4a017, 0xfff4cc] },
   { id: 'rosegold', name: 'Rose Gold', colors: [0xd4917f, 0x2a1d1d, 0xfde2d8] },
   { id: 'arctic', name: 'Arctic', colors: [0xf8fafc, 0x94a3b8, 0x38bdf8] },
+  // bundle kits: the rider wears the bike skin's pattern and colours (sold in BUNDLES only)
+  { id: 'kit-inferno', name: 'Inferno Kit', skin: 'inferno' },
+  { id: 'kit-galaxy', name: 'Galaxy Kit', skin: 'galaxy' },
+  { id: 'kit-tiger', name: 'Tiger Kit', skin: 'tiger' },
+  { id: 'kit-toxic', name: 'Toxic Kit', skin: 'toxic' },
+  { id: 'kit-digicamo', name: 'Digital Camo Kit', skin: 'digicamo' },
+  { id: 'kit-aurora', name: 'Aurora Kit', skin: 'aurora' },
+  { id: 'kit-lava', name: 'Molten Kit', skin: 'lava' },
+  { id: 'kit-rainbow', name: 'Rainbow Kit', skin: 'rainbow' },
+  { id: 'kit-hologram', name: 'Hologram Kit', skin: 'hologram' },
+  { id: 'kit-zebra', name: 'Zebra Kit', skin: 'zebra' },
+  { id: 'kit-thunder', name: 'Thunderbolt Kit', skin: 'thunder' },
+  { id: 'kit-eightbit', name: '8-Bit Kit', skin: 'eightbit' },
+  { id: 'kit-nebula', name: 'Nebula Kit', skin: 'nebula' },
+  { id: 'kit-jungle', name: 'Jungle Cat Kit', skin: 'jungle' },
+  { id: 'kit-police', name: 'Patrol Kit', skin: 'police' },
+  { id: 'kit-matrix', name: 'Matrix Kit', skin: 'matrix' },
+  { id: 'kit-patriot', name: 'Patriot Kit', skin: 'patriot' },
+  { id: 'kit-unicorn', name: 'Unicorn Kit', skin: 'unicorn' },
+  { id: 'kit-splatter', name: 'Splatter Kit', skin: 'splatter' },
+  { id: 'kit-retro', name: 'Retro Kit', skin: 'retro' },
 ];
 
 export const SHOP = [
@@ -94,6 +115,20 @@ export const SHOP = [
   { id: 'royal', slot: 'color', price: 12500, rarity: 'Legendary' },
   { id: 'hologram', slot: 'color', price: 16000, rarity: 'Legendary' },
   { id: 'rainbow', slot: 'color', price: 18000, rarity: 'Legendary' },
+  { id: 'bubblegum', slot: 'color', price: 3000, rarity: 'Rare' },
+  { id: 'cherrybomb', slot: 'color', price: 2700, rarity: 'Rare' },
+  { id: 'candycane', slot: 'color', price: 2500, rarity: 'Rare' },
+  { id: 'woodland', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'nebula', slot: 'color', price: 5200, rarity: 'Epic' },
+  { id: 'jungle', slot: 'color', price: 4700, rarity: 'Epic' },
+  { id: 'frostbite', slot: 'color', price: 4300, rarity: 'Epic' },
+  { id: 'police', slot: 'color', price: 4900, rarity: 'Epic' },
+  { id: 'matrix', slot: 'color', price: 5400, rarity: 'Epic' },
+  { id: 'patriot', slot: 'color', price: 4100, rarity: 'Epic' },
+  { id: 'firestorm', slot: 'color', price: 10500, rarity: 'Legendary' },
+  { id: 'blackchrome', slot: 'color', price: 9800, rarity: 'Legendary' },
+  { id: 'copper', slot: 'color', price: 9200, rarity: 'Legendary' },
+  { id: 'unicorn', slot: 'color', price: 15500, rarity: 'Legendary' },
   // rider gear
   { id: 'match', slot: 'gear', price: 0 },
   { id: 'black', slot: 'gear', price: 700 },
@@ -109,7 +144,31 @@ export const SHOP = [
   { id: 'galaxy', slot: 'gear', price: 2500 },
   { id: 'rosegold', slot: 'gear', price: 3500 },
   { id: 'royal', slot: 'gear', price: 4000 },
+  // bundle kits (only sold in their bundle; priced from their skin below)
 ];
+for (const g of GEAR_SETS) if (g.skin) SHOP.push({ id: g.id, slot: 'gear', price: 0, bundleOnly: true });
+
+// ---------------------------------------------------------------------
+//  BUNDLES: a bike skin and the rider kit that matches it, together for
+//  25% less. Always for sale. Parts you already own come off the price.
+// ---------------------------------------------------------------------
+export const BUNDLES = GEAR_SETS.filter((g) => g.skin).map((g) => {
+  const skin = SHOP.find((i) => i.slot === 'color' && i.id === g.skin);
+  const kitItem = SHOP.find((i) => i.slot === 'gear' && i.id === g.id);
+  kitItem.price = Math.round((skin.price * 0.45) / 100) * 100; // what the kit counts as on its own
+  kitItem.rarity = skin.rarity;
+  return { id: g.skin, name: g.name.replace(/ Kit$/, '') + ' Bundle', color: g.skin, gear: g.id, rarity: skin.rarity, full: skin.price + kitItem.price, price: Math.round(((skin.price + kitItem.price) * 0.75) / 100) * 100 };
+});
+export function getBundle(id) { return BUNDLES.find((b) => b.id === id) || null; }
+export function bundleParts(b) { return [['color', b.color], ['gear', b.gear]]; }
+// price for someone who owns some of it already (owns(slot, id) -> bool)
+export function bundlePrice(b, owns) {
+  const left = bundleParts(b).filter(([s2, i2]) => !owns(s2, i2));
+  if (!left.length) return 0;
+  if (left.length === 2) return b.price;
+  const it = shopItem(left[0][0], left[0][1]);
+  return Math.round((it.price * 0.75) / 100) * 100;
+}
 
 // performance upgrades: 3 levels of engine / suspension / tyres for every vehicle
 for (const v of VEHICLES) {
@@ -151,7 +210,7 @@ function shuffled(list, r) { const a = [...list]; for (let i = a.length - 1; i >
 export function shopRotation(now = Date.now()) {
   const slot = Math.floor(now / ROTATION_MS);
   const r = rotRng(slot + 7);
-  const paid = SHOP.filter((i) => (i.slot === 'color' || i.slot === 'gear') && i.price > 0);
+  const paid = SHOP.filter((i) => (i.slot === 'color' || i.slot === 'gear') && i.price > 0 && !i.bundleOnly);
   const big = paid.filter((i) => i.slot === 'color' && ['Epic', 'Legendary'].includes(rarityOf(i)));
   const featured = shuffled(big, r).slice(0, 3);
   const rest = paid.filter((i) => !featured.includes(i));
@@ -165,6 +224,7 @@ export function inShop(slot, id, now = Date.now()) {
   if (slot === 'vehicle' || slot === 'upgrade') return true;
   const it = shopItem(slot, id);
   if (!it || it.price === 0) return true;
+  if (it.bundleOnly) return false; // only with its bundle
   for (const t of [now, now - 120_000]) {
     const R = shopRotation(t);
     if ([...R.featured, ...R.daily].some((x) => x.slot === slot && x.id === id)) return true;

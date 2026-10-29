@@ -4,7 +4,7 @@
 //  one per frame so the menus never stutter, then kept as image URLs.
 // =====================================================================
 import * as THREE from 'three';
-import { getVehicle, paintFor } from '/shared/vehicles.js';
+import { getVehicle, paintFor, BIKE_COLORS } from '/shared/vehicles.js';
 import { VehicleVisual } from './render/vehicleModel.js';
 import { Rider, riderScheme } from './render/rider.js';
 import { GEAR_SETS } from '/shared/shop.js';
@@ -56,7 +56,7 @@ export class Thumbs {
     vis.tryLoadModel();
     vis.root.position.y = vis.cfg.rideHeight;
     this.scene.add(vis.root);
-    const rider = new Rider(riderScheme(scheme, job.gearId, GEAR_SETS));
+    const rider = new Rider(riderScheme(scheme, job.gearId, GEAR_SETS, BIKE_COLORS));
     rider.attachTo(vis.model);
     const wheels = vis.cfg.wheels.map((w) => ({ comp: w.sag * w.travel, spin: 0, steer: 0 }));
     const fake = { input: { throttle: 0, brake: 0, lean: 0 }, speed: 0, grounded: true, airTime: 0, lean: 0, wheels: vis.cfg.wheels.map((w) => ({ comp: w.sag * w.travel, cfg: w })), controller: { steer: 0 } };

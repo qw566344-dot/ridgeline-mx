@@ -9,7 +9,7 @@
 //  Uses the main renderer; drawn instead of the track while a menu is up.
 // =====================================================================
 import * as THREE from 'three';
-import { getVehicle, paintFor } from '/shared/vehicles.js';
+import { getVehicle, paintFor, BIKE_COLORS } from '/shared/vehicles.js';
 import { VehicleVisual } from './render/vehicleModel.js';
 import { Rider, riderScheme } from './render/rider.js';
 import { GEAR_SETS } from '/shared/shop.js';
@@ -153,7 +153,7 @@ export class Stage {
     holder.add(vis.root);
     vis.root.position.y = vis.cfg.rideHeight;
     this.scene.add(holder);
-    const rs = riderScheme(scheme, d.gearId || 'match', GEAR_SETS);
+    const rs = riderScheme(scheme, d.gearId || 'match', GEAR_SETS, BIKE_COLORS);
     const rider = new Rider(rs);
     if (d.number) rider.setNumber(d.number, rs);
     rider.attachTo(vis.model);

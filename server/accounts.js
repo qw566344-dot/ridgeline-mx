@@ -9,7 +9,7 @@
 //         it on every restart) so nobody loses their progress
 //    POST /api/login    {name, password}     -> {token, profile}
 //    GET  /api/me                            -> {profile}
-//    POST /api/buy      {slot, id}           -> {profile}
+//    POST /api/buy      {slot, id}           -> {profile}   (slot 'bundle': skin + matching kit)
 //    POST /api/equip    {slot, id}           -> {profile}
 //    POST /api/reward   {kind, amount}       -> {profile}
 //    POST /api/logout
@@ -18,7 +18,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop } from '../shared/shop.js';
+import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
 import { Chat } from './chat.js';
@@ -168,7 +168,21 @@ export class Accounts {
 
   user(token) { const k = this.tokens.get(token); return k ? this.db.users[k] : null; }
 
+  // a bike skin + its matching rider kit, both equipped
+  buyBundle(u, id) {
+    const b = getBundle(id);
+    if (!b) return { error: 'No such bundle' };
+    const owns = (s, i) => this.has(u, s + ':' + i);
+    const price = bundlePrice(b, owns);
+    if (u.coins < price) return { error: `Not enough coins (need ${price})` };
+    u.coins -= price;
+    for (const [s, i] of bundleParts(b)) { if (!owns(s, i)) u.owned.push(s + ':' + i); u.equipped[s] = i; }
+    this.save();
+    return { profile: this.profile(u) };
+  }
+
   buy(u, slot, id) {
+    if (slot === 'bundle') return this.buyBundle(u, id);
     const item = shopItem(slot, id);
     if (!item) return { error: 'No such item' };
     const k = slot + ':' + id;

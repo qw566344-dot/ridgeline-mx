@@ -12,7 +12,7 @@
 // =====================================================================
 import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES } from '/shared/vehicles.js';
-import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop } from '/shared/shop.js';
+import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop, BUNDLES, getBundle, bundlePrice } from '/shared/shop.js';
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
@@ -188,6 +188,7 @@ export class UI {
       if (sel && sel.slot === 'vehicle') { v = sel.id; c = 'stock'; }
       if (sel && sel.slot === 'color') c = sel.id;
       if (sel && sel.slot === 'gear') g = sel.id;
+      if (sel && sel.slot === 'bundle') { const b = getBundle(sel.id); if (b) { c = b.color; g = b.gear; } }
       if (sel && sel.slot === 'upgrade') v = shopItem('upgrade', sel.id).vehicle, c = v === S.get('vehicle') ? c : 'stock';
       st.setLineup([{ key: 'view', vehicleId: v, colorId: c, gearId: g, name: '' }]);
       st.setView('focus', 'view'); st.screenShift = window.innerWidth > 820 ? 0.17 : 0;
@@ -466,7 +467,10 @@ export class UI {
     const paintItems = [{ id: 'stock', name: 'Factory colours' }, ...BIKE_COLORS];
     sw($('g-paint'), paintItems, 'color', (c) => { const p = paintFor(view, c.id); return [p.body, p.accent]; }, (c) => c.name, view === cur ? S.get('color') : 'stock');
     const paint = paintFor(cur, S.get('color'));
-    sw($('g-gear'), GEAR_SETS, 'gear', (g) => (g.colors ? [g.colors[0], g.colors[2]] : [paint.gear[0], paint.gear[2]]), (g) => g.name, S.get('gear') || 'match');
+    // bundle kits show once you own them (they wear their skin's colours)
+    const kitCols = (g) => { const k = BIKE_COLORS.find((c) => c.id === g.skin); return k ? [k.body, k.accent] : [paint.gear[0], paint.gear[2]]; };
+    const gearItems = GEAR_SETS.filter((g) => !g.skin || (A && A.owns('gear', g.id)));
+    sw($('g-gear'), gearItems, 'gear', (g) => (g.skin ? kitCols(g) : g.colors ? [g.colors[0], g.colors[2]] : [paint.gear[0], paint.gear[2]]), (g) => g.name, S.get('gear') || 'match');
     $('g-paint').style.opacity = view === cur ? '' : '0.45';
     $('g-paint').style.pointerEvents = view === cur ? '' : 'none';
     const act = $('g-action');
@@ -499,6 +503,7 @@ export class UI {
     const grid = $('shop-grid');
     grid.innerHTML = `<div class="shop-head"><div><h2>Item Shop</h2><small>Skins and gear are only here while they are in the shop. Vehicles are always for sale.</small></div><div class="reset">NEW ITEMS IN <b id="shop-timer">${mm}:${ss}</b></div></div>
       <h3 class="fsec">Featured</h3><div class="fgrid featured">${R.featured.map((x) => this.shopCard(x, true)).join('')}</div>
+      <h3 class="fsec">Bundles <small class="fsec-note">bike skin + matching rider kit, 25% off</small></h3><div class="fgrid">${BUNDLES.map((b) => this.bundleCard(b)).join('')}</div>
       <h3 class="fsec">Daily</h3><div class="fgrid">${R.daily.map((x) => this.shopCard(x)).join('')}</div>
       <h3 class="fsec">Vehicles</h3><div class="fgrid">${VEHICLES.map((v) => this.shopCard({ slot: 'vehicle', id: v.id })).join('')}</div>`;
     $('shop-tabs').innerHTML = ''; $('shop-sub').innerHTML = '';
@@ -512,6 +517,19 @@ export class UI {
       const t = $('shop-timer'); if (t) t.textContent = String(Math.floor(l / 60000)).padStart(2, '0') + ':' + String(Math.floor(l / 1000) % 60).padStart(2, '0');
     }, 1000);
     this.renderShopDetail();
+  }
+
+  // a bundle card: the bike in the skin with the rider in the matching kit
+  bundleCard(b) {
+    const S = this.settings, A = this.account;
+    const owns = (s, i) => !A || A.owns(s, i);
+    const own = owns('color', b.color) && owns('gear', b.gear);
+    const price = bundlePrice(b, owns);
+    const img = this.thumbs && this.thumbs.get(S.get('vehicle'), b.color, b.gear);
+    const sel = this.shopSel && this.shopSel.slot === 'bundle' && this.shopSel.id === b.id;
+    return `<button class="fcard bundle ${b.rarity}${sel ? ' sel' : ''}${own ? ' is-owned' : ''}" data-slot="bundle" data-id="${b.id}">
+      <span class="rar">Bundle</span>${img ? `<img src="${img}" alt="">` : '<span class="loading-img"></span>'}
+      <span class="fname"><b>${escapeHtml(b.name)}</b><small>Skin + rider kit</small><span class="fprice">${own ? '<span class="owned">OWNED</span>' : `<s>${b.full.toLocaleString()}</s> <i class="coin"></i>${price.toLocaleString()}`}</span></span></button>`;
   }
 
   // one shop card: rarity colours, a rendered picture, name and price
@@ -542,6 +560,7 @@ export class UI {
       el.innerHTML = `<h3>Shop</h3><p class="hint">Pick something to see it on your vehicle. Coins come from riding: laps, records, races, big air and tricks.</p><div class="price-big"><i class="coin"></i>${coins.toLocaleString()}</div>`;
       return;
     }
+    if (sel.slot === 'bundle') return this.renderBundleDetail(getBundle(sel.id));
     const it = shopItem(sel.slot, sel.id);
     const own = !A || A.owns(sel.slot, sel.id);
     let title = '', body = '';
@@ -572,6 +591,33 @@ export class UI {
     };
     const eq = $('shop-equip');
     if (eq) eq.onclick = async () => { if (A) await A.equip(sel.slot, sel.id); S.set(sel.slot, sel.id); this.emit('garageChange'); this.renderShop(); this.syncStage(); };
+  }
+
+  renderBundleDetail(b) {
+    const el = $('shop-detail'), A = this.account, S = this.settings;
+    const coins = A ? A.coins : 0;
+    const owns = (s, i) => !A || A.owns(s, i);
+    const skin = BIKE_COLORS.find((c) => c.id === b.color), kit = GEAR_SETS.find((g) => g.id === b.gear);
+    const own = owns('color', b.color) && owns('gear', b.gear), price = bundlePrice(b, owns);
+    const using = S.get('color') === b.color && S.get('gear') === b.gear;
+    const row = (name, has) => `<li>${escapeHtml(name)}${has ? ' <span class="owned">OWNED</span>' : ''}</li>`;
+    const btn = own ? (using ? '<button class="wide" disabled>Owned - in use</button>' : '<button id="shop-equip" class="primary wide">Use both now</button>')
+      : `<button id="shop-buy" class="primary wide" ${coins >= price ? '' : 'disabled'}>${coins >= price ? 'Buy bundle for ' + price.toLocaleString() + ' coins' : 'Need ' + (price - coins).toLocaleString() + ' more coins'}</button>`;
+    el.innerHTML = `<h2>${escapeHtml(b.name)}</h2><p class="desc">The ${escapeHtml(skin.name)} skin for every vehicle you own, and the ${escapeHtml(kit.name)}: jersey, pants and helmet in the same pattern. The kit is only sold in this bundle.</p>
+      <ul class="bundle-list">${row(skin.name + ' skin', owns('color', b.color))}${row(kit.name, owns('gear', b.gear))}</ul>
+      ${own ? '' : `<div class="price-big"><s>${b.full.toLocaleString()}</s> <i class="coin"></i>${price.toLocaleString()}</div>`}${btn}<div class="lock-note">You have ${coins.toLocaleString()} coins.</div><div class="error" id="shop-err"></div>`;
+    const done = () => { this.emit('garageChange'); this.renderShop(); this.renderTop(); this.syncStage(); };
+    const buy = $('shop-buy');
+    if (buy) buy.onclick = async () => {
+      buy.disabled = true;
+      const e = await A.buyBundle(b.id);
+      if (e) { $('shop-err').textContent = e; buy.disabled = false; return; }
+      S.set('color', b.color); S.set('gear', b.gear);
+      this.popup(`Unlocked <b>${escapeHtml(b.name)}</b> - equipped`, 'good');
+      done();
+    };
+    const eq = $('shop-equip');
+    if (eq) eq.onclick = async () => { if (A) { await A.equip('color', b.color); await A.equip('gear', b.gear); } S.set('color', b.color); S.set('gear', b.gear); done(); };
   }
 
   // ------------------------------------------------------------- friends

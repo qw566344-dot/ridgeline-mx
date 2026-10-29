@@ -95,7 +95,7 @@ uniform vec3 hA; uniform vec3 hB; uniform vec3 hC; uniform vec3 hMin; uniform ve
 varying vec3 vHel;
 vec3 helmetPaint(vec3 p) {
   vec3 n = (p - hMin) / (hMax - hMin);           // 0..1: x left-right, y bottom-top, z back-front
-  vec3 c = hA;
+  vec3 c = uPat > 0.5 ? skinColor(p * 5.0) : hA; // the bike's skin pattern, if the kit has one
   if (abs(p.x) < 0.016 && n.y > 0.5 && n.z < 0.7) c = hC;                    // stripe over the top
   if (abs(p.x) > 0.02 && abs(p.x) < 0.03 && n.y > 0.55 && n.z < 0.62) c = hB; // pinstripes beside it
   if (n.y > 0.6 && n.z > 0.66) c = hC;                                        // peak
@@ -106,19 +106,22 @@ vec3 helmetPaint(vec3 p) {
 `;
 const helmetMats = new Map();
 let lensMat = null;
-// gear: [main, second, accent] colours (riderScheme(...).gear)
-export function helmetMaterial(gear) {
+// scheme: a rider scheme (riderScheme in rider.js): gear = [main, second, accent]
+// colours, plus gearPattern / gearCols when the kit wears the bike's skin
+export function helmetMaterial(scheme) {
   if (!helmet) return null;
-  const [a, b2, c] = Array.isArray(gear) ? gear : [gear, 0x1d1f24, 0xffffff];
-  const key = a + ':' + b2 + ':' + c;
+  const [a, b2, c] = scheme.gear;
+  const pat = patterned(scheme.gearPattern) ? scheme.gearPattern : 'solid';
+  const cols = scheme.gearCols || scheme.gear;
+  const key = [a, b2, c, pat, ...cols].join(':');
   if (!helmetMats.has(key)) {
     const m = new THREE.MeshStandardMaterial({ color: a, roughness: 0.32, metalness: 0.06, envMapIntensity: 0.9 });
     const box = helmet.box;
-    const u = { hA: { value: new THREE.Color(a) }, hB: { value: new THREE.Color(b2) }, hC: { value: new THREE.Color(c) }, hMin: { value: box.min.clone() }, hMax: { value: box.max.clone() } };
+    const u = { hA: { value: new THREE.Color(a) }, hB: { value: new THREE.Color(b2) }, hC: { value: new THREE.Color(c) }, hMin: { value: box.min.clone() }, hMax: { value: box.max.clone() }, ...skinUniforms(cols, pat) };
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, u);
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vHel;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvHel = position;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + HELMET_GLSL).replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = helmetPaint(vHel);');
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vHel; varying vec3 vPat;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvHel = position; vPat = position;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + SKIN_GLSL + HELMET_GLSL).replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = helmetPaint(vHel);');
     };
     m.customProgramCacheKey = () => 'helmet-shell';
     helmetMats.set(key, m);
@@ -330,10 +333,16 @@ function buildTemplate(key, scene) {
 
 // ---------------------------------------------------------------- instances
 // paint: a plain colour, or a skin pattern drawn in the model's own space
-const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17, zebra: 18, dots: 19, rainbow: 20, argyle: 21, holo: 22 };
+// uniforms for SKIN_GLSL: the skin's three colours and pattern (also used by
+// the rider's kit and helmet so they match the bike)
+export function skinUniforms(cols, pat) {
+  return { uA: { value: new THREE.Color(cols[0]) }, uB: { value: new THREE.Color(cols[1]) }, uC: { value: new THREE.Color(cols[2] || 0x111111) }, uPat: { value: PATTERN_ID[pat] || 0 }, uTime: skinTime };
+}
+export const patterned = (pat) => !!pat && pat !== 'solid' && pat !== 'chrome';
+export const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17, zebra: 18, dots: 19, rainbow: 20, argyle: 21, holo: 22 };
 // animated skins (aurora, lava) read this clock; main.js moves it every frame
 export const skinTime = { value: 0 };
-const SKIN_GLSL = `
+export const SKIN_GLSL = `
 uniform vec3 uA; uniform vec3 uB; uniform vec3 uC; uniform float uPat; uniform float uTime;
 varying vec3 vPat;
 float skinHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
@@ -413,8 +422,8 @@ function paintMaterial(base, scheme, which, key) {
     if (pat === 'chrome') { m.metalness = 1; m.roughness = 0.12; m.envMapIntensity = 1.4; }
     if (pat === 'carbon') { m.roughness = 0.3; }
     if (pat === 'holo') { m.metalness = 0.7; m.roughness = 0.2; }
-    if (pat !== 'solid' && pat !== 'chrome') {
-      const u = { uA: { value: new THREE.Color(scheme.body) }, uB: { value: new THREE.Color(scheme.accent) }, uC: { value: new THREE.Color(scheme.third || 0x111111) }, uPat: { value: PATTERN_ID[pat] || 0 }, uTime: skinTime };
+    if (patterned(pat)) {
+      const u = skinUniforms([scheme.body, scheme.accent, scheme.third], pat);
       m.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, u);
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vPat;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPat = position;');

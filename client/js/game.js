@@ -109,7 +109,7 @@ export class Game {
     const vis = new VehicleVisual(def, scheme, number);
     vis.tryLoadModel();
     this.scene.add(vis.root);
-    const rs = riderScheme(scheme, gearId, GEAR_SETS);
+    const rs = riderScheme(scheme, gearId, GEAR_SETS, BIKE_COLORS);
     const rider = new Rider(rs);
     rider.setNumber(number, rs);
     rider.attachTo(vis.model);

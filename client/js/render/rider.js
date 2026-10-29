@@ -13,13 +13,38 @@
 import * as THREE from 'three';
 import { box, cyl, sphere, torus, merge, colorize, clean, place, roundBox } from './geo.js';
 import { heightAt } from '/shared/terrain.js';
-import { helmetModel, helmetMaterial } from './modelRig.js';
+import { helmetModel, helmetMaterial, SKIN_GLSL, skinUniforms, patterned } from './modelRig.js';
 
 const B = { root: 0, pelvis: 1, torso: 2, head: 3, uaL: 4, faL: 5, hL: 6, uaR: 7, faR: 8, hR: 9, thL: 10, shL: 11, ftL: 12, thR: 13, shR: 14, ftR: 15 };
 const BONES = 16;
 const LEN = { ua: 0.29, fa: 0.27, th: 0.44, sh: 0.43, torso: 0.52 };
 const geoCache = new Map();
 let riderMat = null;
+const patternMats = new Map();
+
+// the rider's material: plain vertex colours, or - when the kit wears a skin -
+// the bike's skin pattern drawn on the jersey (zone 1) and, a little darker,
+// the pants (zone 2). Every part is in its own bone's space, so the pattern
+// sits on each panel like a print.
+function riderMaterial(scheme) {
+  if (!riderMat) riderMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.02, envMapIntensity: 0.6 });
+  if (!patterned(scheme.gearPattern)) return riderMat;
+  const cols = scheme.gearCols || scheme.gear;
+  const key = scheme.gearPattern + ':' + cols.join(':');
+  if (!patternMats.has(key)) {
+    const m = riderMat.clone();
+    const u = skinUniforms(cols, scheme.gearPattern);
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, u);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float zone; varying float vZone; varying vec3 vPat;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPat = position * 3.0; vZone = zone;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vZone;\n' + SKIN_GLSL)
+        .replace('#include <color_fragment>', '#include <color_fragment>\nif (vZone > 0.5) { vec3 k = skinColor(vPat); diffuseColor.rgb = vZone > 1.5 ? k * 0.72 : k; }');
+    };
+    m.customProgramCacheKey = () => 'rider-skin';
+    patternMats.set(key, m);
+  }
+  return patternMats.get(key);
+}
 
 function capsule(r, len, color) {
   const g = clean(new THREE.CapsuleGeometry(r, Math.max(0.001, len - 2 * r), 6, 14));
@@ -83,11 +108,16 @@ function partGeo(scheme) {
     add(roundBoxC(0.105, 0.05, 0.06, 0.02, dark, [0, -0.01, -0.01]), ft);                          // heel
     add(box(0.12, 0.27, 0.022, dark, [0, 0.1, -0.05]), ft);                                        // sole
   }
-  // merge, tagging every vertex with its bone
+  // merge, tagging every vertex with its bone, and jersey / pants parts with
+  // a zone so a skin pattern can be printed on them (see riderMaterial)
+  const cJ = new THREE.Color(jersey), cP = new THREE.Color(pants);
   const geos = parts.map(([g, b]) => {
     const n = g.attributes.position.count;
     const si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
     for (let i = 0; i < n; i++) { si[i * 4] = b; sw[i * 4] = 1; }
+    const col = g.attributes.color, same = (c) => Math.abs(col.getX(0) - c.r) + Math.abs(col.getY(0) - c.g) + Math.abs(col.getZ(0) - c.b) < 1e-4;
+    const z = b === B.head ? 0 : same(cJ) ? 1 : same(cP) ? 2 : 0;
+    g.setAttribute('zone', new THREE.Float32BufferAttribute(new Float32Array(n).fill(z), 1));
     g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
     g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
     return g;
@@ -134,7 +164,6 @@ export class Rider {
   constructor(scheme) {
     const key = scheme.id;
     if (!geoCache.has(key)) geoCache.set(key, partGeo(scheme));
-    if (!riderMat) riderMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.02, envMapIntensity: 0.6 });
     this.group = new THREE.Group();
     this.group.name = 'rider';
     this.bones = [];
@@ -144,7 +173,7 @@ export class Rider {
       this.bones.push(b);
     }
     this.group.add(this.bones[0]);
-    this.mesh = new THREE.SkinnedMesh(geoCache.get(key), riderMat);
+    this.mesh = new THREE.SkinnedMesh(geoCache.get(key), riderMaterial(scheme));
     this.mesh.frustumCulled = false;
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
@@ -152,7 +181,7 @@ export class Rider {
     this.mesh.bind(new THREE.Skeleton(this.bones, this.bones.map(() => new THREE.Matrix4())), new THREE.Matrix4());
     const hm = helmetModel();
     if (hm) {
-      this.helmet = new THREE.Mesh(hm.geometry, helmetMaterial(scheme.gear));
+      this.helmet = new THREE.Mesh(hm.geometry, helmetMaterial(scheme));
       this.helmet.castShadow = true;
       this.bones[B.head].add(this.helmet);
     }
@@ -421,8 +450,16 @@ export class Rider {
 }
 
 // rider colours: the paint scheme's kit, or a gear set from the shop
-export function riderScheme(paint, gearId, GEAR_SETS) {
+// what the rider wears: Team Kit ('match') takes the bike paint's colours and,
+// for a skin, its pattern too; a bundle kit (gear with `skin`) wears that skin;
+// any other gear set is its own plain colours
+export function riderScheme(paint, gearId, GEAR_SETS, COLORS) {
   const g = GEAR_SETS.find((x) => x.id === gearId);
-  if (!g || !g.colors) return paint;
-  return { ...paint, id: paint.id + '|' + g.id, gear: g.colors };
+  const skinOf = (p) => ({ gearPattern: p.pattern || null, gearCols: [p.body, p.accent, p.third || 0x111111] });
+  if (!g || (!g.colors && !g.skin)) return { ...paint, ...skinOf(paint) };
+  if (g.skin) {
+    const s = (COLORS || []).find((c) => c.id === g.skin);
+    if (s) return { ...paint, id: paint.id + '|' + g.id, gear: s.gear, ...skinOf(s) };
+  }
+  return { ...paint, id: paint.id + '|' + g.id, gear: g.colors, gearPattern: null, gearCols: null };
 }
