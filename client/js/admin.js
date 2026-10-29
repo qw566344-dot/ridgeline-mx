@@ -37,6 +37,7 @@ export class AdminPanel {
     $('adm-ann-go').onclick = send;
     $('adm-ann').onkeydown = (e) => { if (e.key === 'Enter') send(); };
     $('adm-ann-clear').onclick = () => this.act('announce', { text: '' });
+    $('adm-chat-clear').onclick = () => { const b = $('adm-chat-clear'); if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Sure?'; return; } delete b.dataset.sure; b.textContent = 'Clear chat for everyone'; this.act('chatclear', {}); };
     document.querySelectorAll('[data-gift]').forEach((b) => b.onclick = () => this.act('giftall', { add: Number(b.dataset.gift) }));
     const groups = { vehicle: 'Vehicles', color: 'Paint & skins', gear: 'Rider gear' };
     $('adm-give-item').innerHTML = Object.entries(groups).map(([slot, label]) => `<optgroup label="${label}">${SHOP.filter((i) => i.slot === slot).map((i) => `<option value="${slot}:${i.id}">${escapeHtml(itemName(i))}</option>`).join('')}</optgroup>`).join('');

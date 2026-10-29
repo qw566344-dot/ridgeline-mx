@@ -13,6 +13,7 @@ import { Stage } from './stage.js';
 import { Thumbs } from './thumbs.js';
 import { CasinoUI } from './casino.js';
 import { AdminPanel } from './admin.js';
+import { ChatBox } from './chat.js';
 import { Net } from './net.js';
 import { Account } from './account.js';
 import { Social } from './social.js';
@@ -38,6 +39,7 @@ game.account = account;
 const net = new Net(ui, game, settings);
 ui.casino = new CasinoUI(ui, account);
 new AdminPanel(ui, account);
+new ChatBox(ui, account);
 ui.net = net;
 social.presence = () => net.presence();
 

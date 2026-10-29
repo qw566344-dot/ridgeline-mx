@@ -21,6 +21,7 @@ import path from 'path';
 import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
+import { Chat } from './chat.js';
 import { cloudEnabled, cloudLoad, cloudSave } from './store.js';
 import { Casino } from './casino.js';
 import { Admin, ADMINS } from './admin.js';
@@ -45,6 +46,7 @@ export class Accounts {
     this.friends = new Friends(this);
     this.casino = new Casino(this);
     this.admin = new Admin(this);
+    this.chat = new Chat(this);
     this.ready = this.loadCloud();
   }
 
@@ -246,6 +248,7 @@ export class Accounts {
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));
       if (r === 'logout') return send(200, this.logout(token));
       if (r.startsWith('casino/')) { const out = this.casino.handle(r, u, m); if (out) return send(200, out); }
+      if (r === 'chat' || r.startsWith('chat/')) { const out = this.chat.handle(r, u, m, url); if (out) return send(200, out); }
       if (r.startsWith('admin/')) return send(200, this.admin.handle(r, u, m, url));
       if (r === 'friends' || r.startsWith('friends/')) { const out = this.friends.handle(r, u, m, url); if (out) return send(200, out); }
       return send(404, { error: 'Unknown' });

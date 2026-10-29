@@ -11,6 +11,7 @@
 //    POST /api/admin/delete {name}       (removes the account for good)
 //    POST /api/admin/giftall {add}       (coins for everyone online right now)
 //    POST /api/admin/announce {text}     (a message that pops up for everyone online)
+//    POST /api/admin/chatdelete {id} / chatclear  (moderate the chat)
 // =====================================================================
 import { SHOP, STARTER, shopItem } from '../shared/shop.js';
 import { cloudEnabled } from './store.js';
@@ -30,7 +31,7 @@ export class Admin {
       .filter((u) => !q || u.key.includes(q))
       .map((u) => ({ name: u.name, coins: u.coins, created: u.created, lastSeen: u.lastSeen || null, online: !!(F && F.online(u.key)), items: u.owned.length, banned: !!u.banned, admin: this.isAdmin(u) }))
       .sort((a, b) => (b.online - a.online) || (b.lastSeen || 0) - (a.lastSeen || 0));
-    return { users: list.slice(0, 200), total: Object.keys(this.A.db.users).length };
+    return { users: list, total: Object.keys(this.A.db.users).length };
   }
 
   stats() {
@@ -147,6 +148,8 @@ export class Admin {
       case 'admin/delete': return this.remove(m);
       case 'admin/giftall': return this.giftAll(m);
       case 'admin/announce': return this.announce(u, m);
+      case 'admin/chatdelete': return this.A.chat.remove(m.id);
+      case 'admin/chatclear': return this.A.chat.clear();
       default: return { error: 'Unknown admin action' };
     }
   }

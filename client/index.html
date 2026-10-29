@@ -12,6 +12,11 @@
 <body>
   <canvas id="game"></canvas>
   <div id="stage-tags"></div>
+  <!-- CHAT (online accounts): Enter to type, Esc to close -->
+  <div id="chat" class="chat">
+    <div id="chat-log" class="chat-log"></div>
+    <div class="chat-row"><input id="chat-input" maxlength="200" placeholder="Press Enter to chat" autocomplete="off"><button id="chat-send" class="small">Send</button></div>
+  </div>
 
   <div id="ui">
     <!-- LOADING -->
@@ -195,6 +200,7 @@
         <div class="adm-tools">
           <div id="adm-stats" class="adm-stats"></div>
           <div class="adm-row"><span class="lbl">Announce</span><input id="adm-ann" placeholder="Message that pops up for everyone online" maxlength="140" style="flex:1"><button id="adm-ann-go" class="small">Send</button><button id="adm-ann-clear" class="small">Clear</button></div>
+          <div class="adm-row"><span class="lbl">Chat</span><button id="adm-chat-clear" class="small danger">Clear chat for everyone</button><span class="hint">(click a message in the chat to delete it)</span></div>
           <div class="adm-row"><span class="lbl">Gift online</span><button class="small" data-gift="1000">+1K each</button><button class="small" data-gift="10000">+10K each</button><button class="small" data-gift="100000">+100K each</button></div>
           <div class="adm-row"><span class="lbl">Give item</span><input id="adm-give-name" placeholder="Rider name" autocomplete="off" style="width:130px"><select id="adm-give-item"></select><button id="adm-give-go" class="small">Give</button></div>
           <div class="adm-row"><span class="lbl">My cheats</span>
