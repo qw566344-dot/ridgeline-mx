@@ -1,5 +1,5 @@
-// No barriers: riding off the edge of the track is out of bounds - bikes and
-// quads crash, cars are flagged for a reset. Also checks the admin cheats.
+// Barriers: a hard hit crashes you, a gentle one does not, and going over the
+// barrier puts you back on the track. Also checks the admin cheats.
 //   node tools/edge-test.js
 import { getTrack } from '../shared/tracks.js';
 import { makeWorld } from '../shared/terrain.js';
@@ -29,18 +29,32 @@ function rideOff(id, set = {}) {
   return { v, maxPast, offT };
 }
 
-for (const id of ['mx250', 'atv450']) {
+for (const id of ['mx250', 'atv450', 'utv']) {
   const { v, maxPast } = rideOff(id);
-  ok(v.crashed && v.crashReason === 'Out of bounds', `${id} rides off the edge and crashes out of bounds (crashed ${v.crashed} ${v.crashReason || ''})`);
-  ok(maxPast > 0.4, `${id} is not stopped by a barrier (got ${maxPast.toFixed(1)} m past the edge)`);
+  ok(v.crashed && v.crashReason === 'Hit the barrier', `${id} slams into the barrier and crashes (crashed ${v.crashed} ${v.crashReason || ''})`);
+  ok(maxPast < 0.5, `${id} is stopped by the barrier (${maxPast.toFixed(1)} m past it)`);
+}
+// a gentle bump just scrapes along
+{
+  const v = new Vehicle('mx250', W);
+  const s0 = T.gateS + 20, p = pointAt(T, s0, sampleArr(T, T.fenceL, s0) - 2);
+  const a = 0.25, tx = p.tx * Math.cos(a) - p.tz * Math.sin(a), tz = p.tx * Math.sin(a) + p.tz * Math.cos(a);
+  v.placeAt(p.x, p.z, tx, tz);
+  for (let i = 0; i < 120 * 3; i++) { v.input.throttle = 0.35; v.step(FIXED_DT); }
+  ok(!v.crashed, `a gentle bump into the barrier is not a crash (crashed ${v.crashed} ${v.crashReason || ''})`);
+}
+// over the barrier (came down outside it) = reset, not a crash
+for (const id of ['mx250', 'utv']) {
+  const v = new Vehicle(id, W);
+  const s0 = T.gateS + 20, p = pointAt(T, s0, sampleArr(T, T.fenceL, s0) + 6);
+  v.placeAt(p.x, p.z, p.tx, p.tz);
+  let off = 0;
+  for (let i = 0; i < 120; i++) { v.step(FIXED_DT); off = Math.max(off, v.offTrack); }
+  ok(!v.crashed && off >= 0.9, `${id} landing past the barrier is reset (offTrack ${off.toFixed(2)}, crashed ${v.crashed})`);
 }
 {
-  const { v, offT } = rideOff('utv');
-  ok(!v.crashed && offT >= 0.9, `side-by-side off the edge is reset, not crashed (offTrack ${offT.toFixed(2)})`);
-}
-{
-  const { v, offT } = rideOff('mx250', { noCrash: true });
-  ok(!v.crashed && offT >= 0.9, `"No crashing" cheat: no crash, still reset off the edge`);
+  const { v } = rideOff('mx250', { noCrash: true });
+  ok(!v.crashed, '"No crashing" cheat: no crash on the barrier');
 }
 // moon gravity: falls slower
 function fall(scale) {

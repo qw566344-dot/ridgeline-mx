@@ -132,6 +132,7 @@ export class Vehicle {
     this.time += dt;
     this.prevPos.copy(this.pos); this.prevQuat.copy(this.quat); this.prevVel.copy(this.vel);
     this.hardHit = 0;
+    this.barrierHit = 0;
     this.up.set(0, 1, 0).applyQuaternion(this.quat);
     this.fwd.set(0, 0, 1).applyQuaternion(this.quat);
     this.left.set(1, 0, 0).applyQuaternion(this.quat);
@@ -160,6 +161,8 @@ export class Vehicle {
 
     this.controller.torques(dt, contacts);
     this.trackBounds(dt);
+    // hitting the barrier hard is a crash (straight-on speed in m/s)
+    if (!this.crashed && this.barrierHit > ({ bike: 9, atv: 10, car: 11 }[this.cfg.type] || 12)) this.crash('Hit the barrier');
 
     // --- integrate (semi-implicit Euler)
     this.vel.addScaledVector(this.force, dt / cfg.mass);
@@ -466,36 +469,63 @@ export class Vehicle {
     return hit;
   }
 
-  // --- Track edge ------------------------------------------------------------
-  // There are no barriers: the track is open. Go past the edge and you are out
-  // of bounds - land out there and bikes / quads crash, cars are put back on
-  // the track. A jump that only clips the edge in the air is fine as long as
-  // you come down inside.
+  // --- Track barriers --------------------------------------------------------
+  // A solid barrier: hitting it stops the outward motion dead (no spring, so
+  // no trampoline bounce) and scrapes speed off along it; hit it hard and you
+  // crash (see step). Fly over it and you are out of bounds - you are put
+  // back on the track.
   trackBounds(dt) {
     const W = this.world, T = W.T;
     let loc = locatePrecise(T, W.F, this.pos.x, this.pos.z, this.trackS);
     if (!loc || Math.abs(loc.u) > 40) loc = locatePrecise(T, W.F, this.pos.x, this.pos.z, null);
     if (!loc) { this.offTrack += dt; return; }
     this.trackS = loc.s; this.trackU = loc.u;
-    const edgeL = sampleArr(T, T.fenceL, loc.s), edgeR = sampleArr(T, T.fenceR, loc.s);
-    const past = Math.max(loc.u - edgeL, -edgeR - loc.u); // metres past the edge (< 0 = inside)
-    // AI riders get an invisible guide rail a little inside the edge, so races
-    // keep going (riders never see it and players never touch it)
-    if (this.isAI && past > -1.5 && past < 4) {
-      const p = pointAt(T, loc.s, 0), side = loc.u > 0 ? 1 : -1;
-      const nx = -p.tz * side, nz = p.tx * side; // points back into the track
-      const vin = this.vel.x * nx + this.vel.z * nz;
-      if (vin < 0) { this.vel.x -= nx * vin; this.vel.z -= nz * vin; }
-      const back = Math.min(past + 1.5, 0.5) * Math.min(1, dt * 10);
-      this.pos.x += nx * back; this.pos.z += nz * back;
-      this.offTrack = 0;
+    const half = this.cfg.halfWidth || 0.5;
+    const fenceL = sampleArr(T, T.fenceL, loc.s), fenceR = sampleArr(T, T.fenceR, loc.s);
+    const limL = fenceL - half, limR = fenceR - half;
+    const p = pointAt(T, loc.s, 0);
+    let over = 0, nx = 0, nz = 0; // n = pointing back into the track
+    if (loc.u > limL) { over = loc.u - limL; nx = -p.tz; nz = p.tx; }
+    else if (loc.u < -limR) { over = -limR - loc.u; nx = p.tz; nz = -p.tx; }
+    // well past the barrier = went over it: back to the track
+    const beyond = loc.u > fenceL + 2.5 || loc.u < -fenceR - 2.5;
+    if (beyond) {
+      this.offTrack += dt;
+      if (this.grounded && this.groundTime > 0.05) this.offTrack = Math.max(this.offTrack, 1);
       return;
     }
-    if (past <= 0.5) { this.offTrack = 0; return; }
-    if (this.grounded && this.groundTime > 0.05) {
-      if (this.cfg.type === 'car' || this.crashed || this.noCrash) this.offTrack = Math.max(this.offTrack + dt, 1);
-      else this.crash('Out of bounds');
-    } else if (past > 8) this.offTrack += dt; // flying far off the course
+    this.offTrack = 0;
+    // AI riders keep a little way off the barrier (an invisible guide rail)
+    if (this.isAI && !over) {
+      const gap = Math.max(loc.u - (limL - 1.5), -(limR - 1.5) - loc.u);
+      if (gap > 0) {
+        const side = loc.u > 0 ? 1 : -1, gx = -p.tz * side, gz = p.tx * side;
+        const vin = this.vel.x * gx + this.vel.z * gz;
+        if (vin < 0) { this.vel.x -= gx * vin; this.vel.z -= gz * vin; }
+        const back = Math.min(gap, 0.5) * Math.min(1, dt * 10);
+        this.pos.x += gx * back; this.pos.z += gz * back;
+      }
+      return;
+    }
+    if (over <= 0) return;
+    // high enough to fly over the barrier? then it does not touch you
+    groundAt(W, this.pos.x, this.pos.z, g0);
+    if (this.pos.y - this.cfg.rideHeight * 0.5 > g0.h + 1.3 && over < 1.5) return;
+    const m = this.cfg.mass;
+    const vin = this.vel.x * nx + this.vel.z * nz; // < 0 = moving out through it
+    if (vin < 0) {
+      this.barrierHit = Math.max(this.barrierHit, -vin);
+      this.vel.x -= nx * vin; this.vel.z -= nz * vin;            // stop going outward (no bounce)
+      const loss = Math.min(0.55, -vin * 0.05);                   // a hard hit scrubs speed
+      const tx = this.vel.x, tz = this.vel.z;
+      this.vel.x = tx * (1 - loss); this.vel.z = tz * (1 - loss);
+      this.angVel.multiplyScalar(1 - Math.min(0.6, -vin * 0.04));
+    }
+    // ease the vehicle back inside, and scrape along while touching
+    const back = Math.min(over, 0.6) * Math.min(1, dt * 12);
+    this.pos.x += nx * back; this.pos.z += nz * back;
+    this.force.x -= this.vel.x * m * 0.9; this.force.z -= this.vel.z * m * 0.9;
+    this.angVel.y *= 1 - Math.min(1, dt * 3);
   }
 
   // Pitch of the body relative to the ground under it, degrees (nose up = positive)

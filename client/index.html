@@ -12,8 +12,10 @@
 <body>
   <canvas id="game"></canvas>
   <div id="stage-tags"></div>
-  <!-- CHAT (online accounts): Enter to type, Esc to close -->
-  <div id="chat" class="chat">
+  <!-- CHAT (online accounts, lobby only): a small button bottom-left opens it -->
+  <div id="chat" class="chat off">
+    <button id="chat-pill" class="chat-pill">Chat <b id="chat-unread" hidden></b></button>
+    <div class="chat-head"><span>Chat</span><button id="chat-close" class="small">Hide</button></div>
     <div id="chat-log" class="chat-log"></div>
     <div class="chat-row"><input id="chat-input" maxlength="200" placeholder="Press Enter to chat" autocomplete="off"><button id="chat-send" class="small">Send</button></div>
   </div>
