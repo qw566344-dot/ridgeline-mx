@@ -39,7 +39,7 @@ game.account = account;
 const net = new Net(ui, game, settings);
 ui.casino = new CasinoUI(ui, account);
 new AdminPanel(ui, account);
-new ChatBox(ui, account);
+new ChatBox(ui, account, net);
 ui.net = net;
 social.presence = () => net.presence();
 

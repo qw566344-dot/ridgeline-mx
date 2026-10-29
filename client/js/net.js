@@ -176,6 +176,7 @@ export class Net {
         if (this.waitParty) { this.waitParty(null); this.waitParty = null; }
         break;
       case 'notice': this.ui.popup(m.msg); break;
+      case 'pchat': if (this.onPartyChat) this.onPartyChat(m); break;
       case 'adminjoined': this.adminJoined(m); break;
       case 'session': this.onSession(m); break;
       case 'go': // everyone has loaded: start the 3-2-1

@@ -126,6 +126,7 @@ export class Lobby {
       case 'rejoin': this.rejoin(p); break;
       case 'adminjoin': this.adminJoin(p, m); break;
       case 'pulled': this.pulled(p, m); break;
+      case 'pchat': this.partyChat(p, m); break;
       case 'loaded': this.loaded(p, m); break;
       case 's': this.state(p, m.d); break;
       case 'ev':
@@ -197,6 +198,18 @@ export class Lobby {
     this.pending.set(want, { admin: p, at: Date.now() });
     this.accounts.admin.pull(want, p.name);
     if (p.conn) p.conn.send({ t: 'notice', msg: `Joining <b>${String(m.name).replace(/[<>&]/g, '')}</b>... their game connects in a few seconds` });
+  }
+
+  // party chat: only the riders in your party get it (one message a second each)
+  partyChat(p, m) {
+    if (!p.party) return this.err(p, 'NO_PARTY', 'You are not in a party.');
+    const text = String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+    if (!text) return;
+    const now = Date.now();
+    if (now - (p.chatAt || 0) < 1000) return this.err(p, 'SLOW', 'Slow down a little');
+    p.chatAt = now;
+    const msg = JSON.stringify({ t: 'pchat', name: p.name, text, at: now });
+    for (const x of p.party.members.values()) if (x.conn) x.conn.send(msg);
   }
 
   // a rider's game answered the admin's call (checked with their account login)
