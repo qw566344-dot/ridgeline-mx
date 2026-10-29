@@ -44,8 +44,19 @@ A.send({ t: 'start' });
 const sa = await A.wait((m) => m.t === 'session');
 await B.wait((m) => m.t === 'session');
 console.log('session started on', sa.track, sa.mode, 'riders', sa.players.map((p) => p.name).join(', '));
+// the countdown waits until both riders have loaded the track
+const sb = B.msgs.find((m) => m.t === 'session');
+const early = await A.wait((m) => m.t === 'go', 1500).catch(() => null);
+console.log('no countdown before everyone has loaded:', sa.waiting === true && !early);
+A.send({ t: 'loaded', id: sa.id });
+await new Promise((r) => setTimeout(r, 300));
+console.log('still waiting for Bob:', !A.msgs.some((m) => m.t === 'go'));
+B.send({ t: 'loaded', id: sb.id });
+const go = await A.wait((m) => m.t === 'go');
+console.log('everyone loaded -> 3-2-1 starts, gate in', ((go.goAt - Date.now()) / 1000).toFixed(1), 's');
+if (!(sa.waiting === true && !early && go.goAt - Date.now() > 2000)) throw new Error('start countdown is wrong');
 // both ride the lap; Alice 28 m/s, Bob 25 m/s; they start at the gate after the gate drops
-const wait = Math.max(0, sa.goAt - Date.now()) + 100;
+const wait = Math.max(0, go.goAt - Date.now()) + 100;
 await new Promise((r) => setTimeout(r, wait));
 const speeds = { A: 28 * 2.5, B: 25 * 2.5 }; // sped up so the test is quick, but still under the anti-teleport limit per packet
 let sA = T.gateS, sB = T.gateS;
@@ -65,7 +76,9 @@ A.send({ t: 'settings', track: 'freestyle', mode: 'freestyle', laps: 1 });
 await A.wait((m) => m.t === 'party' && m.settings.mode === 'freestyle');
 A.send({ t: 'start' });
 const fsS = await B.wait((m) => m.t === 'session' && m.mode === 'freestyle');
-await new Promise((r) => setTimeout(r, Math.max(0, fsS.goAt - Date.now()) + 300));
+A.send({ t: 'loaded', id: fsS.id }); B.send({ t: 'loaded', id: fsS.id });
+const fsGo = await B.wait((m) => m.t === 'go' && m.id === fsS.id);
+await new Promise((r) => setTimeout(r, Math.max(0, fsGo.goAt - Date.now()) + 300));
 B.send({ t: 'ev', e: 'trick', v: 750 }); A.send({ t: 'ev', e: 'trick', v: 300 });
 const board = await A.wait((m) => m.t === 'race' && m.mode === 'freestyle' && m.rows.some((r) => r.score === 750), 5000).catch(() => null);
 console.log('freestyle board:', board ? board.rows.map((r) => r.name + ' ' + r.score).join(', ') : 'none');

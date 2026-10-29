@@ -16,6 +16,9 @@ import { LapTracker, GAME } from '../shared/rules.js';
 import { GEAR_SETS } from '../shared/shop.js';
 import { CODE_CHARS, CODE_LENGTH, validCode, cleanName, STATE_LEN, MODES, SNAPSHOT_RATE, PROTOCOL_VERSION } from '../shared/protocol.js';
 
+const LOAD_WAIT_MS = 15000; // longest wait for a slow rider to load the track
+const GO_DELAY_MS = 3000;   // then 3-2-1 (the gate drops 1 s after goAt on the riders' screens)
+
 const RECONNECT_GRACE = 60_000;   // ms a disconnected player keeps their seat
 const PARTY_EXPIRY = 120_000;     // ms an empty party survives
 const MAX_PER_IP = 16;
@@ -120,6 +123,7 @@ export class Lobby {
       case 'start': this.start(p); break;
       case 'end': this.endSession(p); break;
       case 'rejoin': this.rejoin(p); break;
+      case 'loaded': this.loaded(p, m); break;
       case 's': this.state(p, m.d); break;
       case 'ev':
         if (m.e === 'reset' || m.e === 'crash') p.resetAt = Date.now();
@@ -248,7 +252,8 @@ export class Lobby {
     const st = party.settings;
     party.session = {
       id: crypto.randomBytes(4).toString('hex'), track: st.track, mode: st.mode, laps: st.laps,
-      goAt: now + (st.mode === 'race' ? 6500 : 4500), started: now, over: false, firstFinish: null, results: null,
+      // the countdown starts once every rider has loaded the track (or after LOAD_WAIT_MS)
+      goAt: now + LOAD_WAIT_MS + GO_DELAY_MS, waiting: st.mode !== 'freeride', loaded: new Set(), started: now, over: false, firstFinish: null, results: null,
       players: members.map((m, i) => this.sessionPlayer(m, i)),
     };
     for (const m of members) this.setupTracker(party, m);
@@ -256,6 +261,24 @@ export class Lobby {
     this.log(`[${party.code}] session ${party.session.id}: ${st.mode} on ${st.track}, ${members.length} riders`);
     for (const m of party.members.values()) if (m.conn) m.conn.send(this.sessionMsg(party));
     this.broadcastParty(party);
+  }
+
+  // a rider finished loading the session's track
+  loaded(p, m) {
+    const party = p.party, S = party && party.session;
+    if (!S || S.id !== m.id || !S.waiting) return;
+    S.loaded.add(p.id);
+    const need = S.players.map((sp) => this.players.get(sp.id)).filter((x) => x && x.connected && x.party === party);
+    if (need.every((x) => S.loaded.has(x.id))) this.go(party);
+  }
+
+  // everyone is ready: 3-2-1 from now
+  go(party) {
+    const S = party.session;
+    if (!S || !S.waiting) return;
+    S.waiting = false;
+    S.goAt = Date.now() + GO_DELAY_MS;
+    for (const m of party.members.values()) if (m.conn) m.conn.send({ t: 'go', id: S.id, goAt: S.goAt, s: Date.now() });
   }
 
   // back into a running session (after visiting the menu, or a page reload)
@@ -282,7 +305,7 @@ export class Lobby {
 
   sessionMsg(party, rejoin = false) {
     const S = party.session;
-    return { t: 'session', id: S.id, track: S.track, mode: S.mode, laps: S.laps, goAt: S.goAt, players: S.players, rejoin, s: Date.now() };
+    return { t: 'session', id: S.id, track: S.track, mode: S.mode, laps: S.laps, goAt: S.goAt, waiting: !!S.waiting, players: S.players, rejoin, s: Date.now() };
   }
 
   // ------------------------------------------------------------- rider state
@@ -373,6 +396,8 @@ export class Lobby {
       }
       // nobody connected is in it any more: end it so the party can start fresh
       if (!S.over && !S.players.some((sp) => { const m = this.players.get(sp.id); return m && m.connected && m.party === party; })) { party.session = null; this.broadcastParty(party); continue; }
+      // someone is taking too long to load: start without waiting any longer
+      if (S.waiting && now - S.started > LOAD_WAIT_MS) this.go(party);
       // race end conditions
       if (S.mode === 'race' && !S.over && now > S.goAt) {
         const racers = S.players.map((sp) => this.players.get(sp.id)).filter((x) => x && x.party === party);

@@ -490,7 +490,8 @@ export class Game {
         this.gridSaved = true;
       }
       // multiplayer: everyone counts down to the same server time
-      if (this.opts && this.opts.mp && this.opts.mp.startAt) this.countdown = (this.opts.mp.startAt - this.opts.mp.serverNow()) / 1000;
+      if (this.opts && this.opts.mp && this.opts.mp.waiting) this.countdown = Math.max(this.countdown, 4); // still waiting for riders to load
+      else if (this.opts && this.opts.mp && this.opts.mp.startAt) this.countdown = (this.opts.mp.startAt - this.opts.mp.serverNow()) / 1000;
       else this.countdown -= dt;
       const n = Math.ceil(this.countdown - 1);
       if (n < this.lastBeep && n >= 1 && n <= 3) { this.lastBeep = n; this.audio.beep(false); }

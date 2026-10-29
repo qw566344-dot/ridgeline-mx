@@ -416,19 +416,23 @@ export class Scenery {
   gridSlots(count) {
     const T = this.world.T;
     const hw = sampleArr(T, T.width, T.gateS) / 2;
-    const slots = this.gateSlots || Math.floor((hw * 2 - 1) / 1.6);
-    const step = (hw * 2 - 1) / slots;
-    const order = [];
-    const mid = (slots - 1) / 2;
-    for (let i = 0; i < slots; i++) order.push(i);
-    order.sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid));
+    const pens = this.gateSlots || Math.floor((hw * 2 - 1) / 1.6);
+    const penW = (hw * 2 - 1) / pens;
+    // riders use every other gate pen (or wider), so there are at least 2.6 m between
+    // them - a side-by-side is ~1.7 m wide. More riders start in rows behind.
+    const stride = Math.max(1, Math.ceil(2.6 / penW));
+    const used = [];
+    const first = Math.floor(((pens - 1) % stride) / 2); // keep the used pens centred
+    for (let i = first; i < pens; i += stride) used.push(i);
+    const mid = (pens - 1) / 2;
+    used.sort((x, y) => Math.abs(x - mid) - Math.abs(y - mid));
     const out = [];
     for (let k = 0; k < count; k++) {
-      const i = order[k % slots];
-      const row = Math.floor(k / slots);
+      const i = used[k % used.length];
+      const row = Math.floor(k / used.length);
       // the gate's local +x axis points to the rider's left (= +u)
-      const lx = -hw + 0.5 + step * (i + 0.5);
-      out.push({ s: T.gateS - 1.3 - row * 3.5, u: lx });
+      const lx = -hw + 0.5 + penW * (i + 0.5);
+      out.push({ s: T.gateS - 1.3 - row * 5, u: lx });
     }
     return out;
   }

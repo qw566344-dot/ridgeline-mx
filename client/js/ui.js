@@ -873,7 +873,9 @@ export class UI {
     const c = $('hud-center');
     if (game.phase === 'countdown') {
       const n = Math.ceil(game.countdown - 1);
-      c.textContent = n > 0 ? String(n) : '';
+      const wait = game.opts && game.opts.mp && game.opts.mp.waiting;
+      c.classList.toggle('small', !!wait || n > 3);
+      c.textContent = wait ? 'Waiting for riders...' : n > 3 ? 'Get ready' : n > 0 ? String(n) : '';
     } else if (c.textContent && game.phase === 'go' && game.raceTime > 1) c.textContent = '';
     this.drawMinimap(game);
     this.hudTimer -= dt;

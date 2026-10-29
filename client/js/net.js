@@ -176,6 +176,13 @@ export class Net {
         if (this.waitParty) { this.waitParty(null); this.waitParty = null; }
         break;
       case 'session': this.onSession(m); break;
+      case 'go': // everyone has loaded: start the 3-2-1
+        if (this.session && this.session.id === m.id) {
+          this.session.goAt = m.goAt; this.session.waiting = false;
+          const mp = this.game.opts && this.game.opts.mp;
+          if (mp && this.game.state === 'running') { mp.startAt = m.goAt + 1000; mp.waiting = false; }
+        }
+        break;
       case 'snap': this.onSnap(m); break;
       case 'race': this.standings = m.rows; this.onRace(m); break;
       case 'results': this.onResults(m); break;
@@ -300,10 +307,14 @@ export class Net {
     this.ui.hideResults(); this.ui.hidePause();
     await g.startSession({
       mode: m.mode, trackId: m.track, vehicleId: mine.vehicle, colorId: mine.color, gearId: mine.gear, laps: m.laps, number: mine.number,
-      mp: { myId: this.id, slot: mine.slot, players: m.players, minutes: m.laps, startAt: m.mode === 'freeride' ? null : m.goAt + 1000, serverNow: () => this.serverNow() },
+      mp: { myId: this.id, slot: mine.slot, players: m.players, minutes: m.laps, startAt: m.mode === 'freeride' ? null : m.goAt + 1000, waiting: !!m.waiting, serverNow: () => this.serverNow() },
     });
+    // track loaded: the server starts the 3-2-1 once everyone is here
+    // (if it already started while we were loading, take the real start time)
+    if (this.session === m && m.waiting) this.send({ t: 'loaded', id: m.id });
+    else if (g.opts && g.opts.mp) { g.opts.mp.waiting = false; g.opts.mp.startAt = m.mode === 'freeride' ? null : this.session.goAt + 1000; }
     // late join: the gate already dropped
-    if (m.mode !== 'freeride' && this.serverNow() > m.goAt + 1000 && g.phase === 'countdown') g.countdown = 0.95;
+    if (m.mode !== 'freeride' && this.serverNow() > this.session.goAt + 1000 && g.phase === 'countdown') g.countdown = 0.95;
     g.net = this;
   }
 
