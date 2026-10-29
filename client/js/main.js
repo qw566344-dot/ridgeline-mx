@@ -67,6 +67,9 @@ social.onChange(() => {
   if (ui.screen === 'home') ui.renderFriendsMini();
 });
 social.onAnnounce((a) => ui.announce(a));
+window.addEventListener('mx-banned', () => {
+  ui.popup('<b>You have been banned.</b><br>An admin banned this account, so you have been logged out. You can still play offline or as a guest.', 'bad', [['OK', () => { account.bannedShown = false; }, true]], 30);
+});
 social.onInvite((inv) => {
   ui.popup(`<b>${escapeHtml(inv.from)}</b> invited you to their party`, '', [
     ['Join', () => { ui.emit('joinParty', inv); social.dismiss(inv); }, true],

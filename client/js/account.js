@@ -106,7 +106,14 @@ export class Account {
       headers: { 'Content-Type': 'application/json', ...(this.token ? { Authorization: 'Bearer ' + this.token } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
-    return res.json();
+    const r = await res.json();
+    // banned by an admin: log out and tell the player (once)
+    if (r && r.error && /banned/i.test(r.error) && !this.bannedShown) {
+      this.bannedShown = true;
+      if (this.mode === 'online') this.logout();
+      window.dispatchEvent(new CustomEvent('mx-banned', { detail: r.error }));
+    }
+    return r;
   }
 
   // on start-up: refresh an online profile (coins may have changed elsewhere)
