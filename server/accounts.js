@@ -159,6 +159,7 @@ export class Accounts {
     if (!u) return { error: 'No account with that name' };
     const h = this.hash(password, u.salt);
     if (!crypto.timingSafeEqual(Buffer.from(h, 'hex'), Buffer.from(u.hash, 'hex'))) return { error: 'Wrong password' };
+    if (u.banned) return { error: 'This account has been banned' };
     this.grant(u);
     return { token: this.issue(u), profile: this.profile(u) };
   }
@@ -238,7 +239,7 @@ export class Accounts {
       if (r === 'login') return send(200, this.login(m.name, m.password, ip));
       if (r === 'info') return send(200, { ok: true, accounts: Object.keys(this.db.users).length });
       const u = this.user(token);
-      if (!u) return send(401, { error: 'Please log in again' });
+      if (!u || u.banned) return send(401, { error: u ? 'This account has been banned' : 'Please log in again' });
       if (r === 'me') { this.grant(u); return send(200, { profile: this.profile(u) }); }
       if (r === 'buy') return send(200, this.buy(u, m.slot, m.id));
       if (r === 'equip') return send(200, this.equip(u, m.slot, m.id));

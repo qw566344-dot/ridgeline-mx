@@ -289,6 +289,9 @@ export class Game {
         if (this.autopilot && !holding) this.autopilot.update(dt); // testing / demo: the AI rides your bike
         else Object.assign(v.input, c);
         if (holding) v.input.clutch = true; // rev on the gate
+        // admin cheats (set from the admin panel; only admins can open it)
+        const C = (this.account && this.account.profile && this.account.profile.admin && this.cheats) || {};
+        v.noCrash = !!C.god; v.gravityScale = C.moon ? 0.35 : 1; v.boost = C.turbo ? 7 : 0;
         // auto reset after a crash
         if (v.crashed && v.crashTime > GAME.resetDelay) this.resetRider(r);
         if (!v.crashed && v.offTrack > 0.9) { this.resetRider(r); this.toast('Out of bounds - back on the track', 1.6); }

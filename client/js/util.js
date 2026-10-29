@@ -1,5 +1,11 @@
 // small helpers shared by the menu code
 export function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+// special tags shown above a rider's name tag (in the lobby and on the track)
+export const STAFF_TAGS = { lmkk: [['DEV', 'dev'], ['CREATOR', 'creator']] };
+export function staffTags(name) {
+  const t = STAFF_TAGS[String(name || '').trim().toLowerCase()];
+  return t ? `<div class="staff-tags">${t.map(([label, cls]) => `<b class="stag ${cls}">${label}</b>`).join('')}</div>` : '';
+}
 export function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 export function hex(c) { return '#' + c.toString(16).padStart(6, '0'); }
 export function ago(ms) {

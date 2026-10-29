@@ -64,6 +64,7 @@ social.onChange(() => {
   if (ui.screen === 'friends') ui.renderFriends();
   if (ui.screen === 'home') ui.renderFriendsMini();
 });
+social.onAnnounce((a) => ui.announce(a));
 social.onInvite((inv) => {
   ui.popup(`<b>${escapeHtml(inv.from)}</b> invited you to their party`, '', [
     ['Join', () => { ui.emit('joinParty', inv); social.dismiss(inv); }, true],

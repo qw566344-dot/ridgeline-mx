@@ -59,6 +59,27 @@ try {
   r = await api(adm, 'admin/reset', { name: 'Gambler1' });
   const me2 = await api(a, 'me');
   ok(me2.profile.coins === 500 && !me2.profile.owned.includes('vehicle:mx500'), 'admin reset');
+  r = await api(adm, 'admin/give', { name: 'Gambler1', item: 'vehicle:mx500' });
+  ok(!r.error && (await api(a, 'me')).profile.owned.includes('vehicle:mx500'), 'admin gives one item');
+  r = await api(adm, 'admin/stats');
+  ok(r.accounts === 2 && typeof r.uptime === 'number' && r.parties === 0, 'admin stats');
+  await api(a, 'friends/heartbeat', { status: 'menu' });
+  r = await api(adm, 'admin/giftall', { add: 1000 });
+  ok(!r.error, 'gift everyone online: ' + (r.ok || r.error));
+  r = await api(adm, 'admin/announce', { text: 'Race night at 8!' });
+  const fr = await api(a, 'friends');
+  ok(fr.announce && fr.announce.text === 'Race night at 8!' && fr.announce.from === 'lmkk', 'announcement reaches riders');
+  r = await api(adm, 'admin/ban', { name: 'lmkk' });
+  ok(r.error, 'admins cannot be banned');
+  r = await api(adm, 'admin/ban', { name: 'Gambler1', on: true });
+  ok(!r.error && (await api(a, 'me')).error, 'a banned rider is logged out');
+  r = await api(null, 'login', { name: 'Gambler1', password: pw });
+  ok(/banned/.test(r.error || ''), 'and cannot log back in');
+  await api(adm, 'admin/ban', { name: 'Gambler1', on: false });
+  r = await api(null, 'login', { name: 'Gambler1', password: pw });
+  ok(r.token, 'unbanned rider logs in again');
+  r = await api(adm, 'admin/delete', { name: 'Gambler1' });
+  ok(!r.error && (await api(null, 'login', { name: 'Gambler1', password: pw })).error === 'No account with that name', 'admin deletes an account');
 } catch (e) { console.error(e); fails++; }
 srv.kill();
 console.log(fails ? `${fails} FAILED` : 'all passed');

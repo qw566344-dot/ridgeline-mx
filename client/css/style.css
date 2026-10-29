@@ -341,6 +341,13 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
 .ntag { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: 13px; font-weight: 700; letter-spacing: 0.03em; padding: 2px 8px; border-radius: 10px; background: rgba(8, 10, 14, 0.55); color: #fff; text-shadow: none; will-change: transform; }
 .ntag i { font-style: normal; color: var(--gold); margin-right: 5px; }
 .ntag.friend { background: rgba(37, 99, 235, 0.55); }
+.ntag.staff { background: none; padding: 0; text-align: center; }
+.ntag.staff > i, .ntag.staff { text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
+.staff-tags { display: flex; gap: 4px; justify-content: center; margin-bottom: 3px; }
+.stag { font-size: 10px; font-weight: 900; letter-spacing: 0.12em; padding: 2px 7px; border-radius: 5px; color: #fff; text-shadow: none; box-shadow: 0 2px 6px rgba(0,0,0,0.45); }
+.stag.dev { background: linear-gradient(135deg, #16a34a, #0d9488); }
+.stag.creator { background: linear-gradient(135deg, #f59e0b, #dc2626); }
+.stage-tag .stag { font-size: 12px; }
 
 /* results */
 .results { width: 100%; border-collapse: collapse; font-size: 16px; font-variant-numeric: tabular-nums; }
@@ -445,6 +452,20 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
 .adm-acts { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
 .adm-set { width: 110px; padding: 5px 8px; font-size: 13px; }
 #admin { z-index: 30; }
+.adm-tools { display: grid; gap: 8px; margin: 6px 0 12px; }
+.adm-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+.adm-stats span { background: rgba(255,255,255,0.07); border-radius: 8px; padding: 5px 10px; font-size: 13px; }
+.adm-stats b { color: var(--gold); }
+.adm-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.adm-row input:not([type]), .adm-row select { padding: 6px 9px; font-size: 13px; }
+.adm-row label { display: inline-flex; gap: 5px; align-items: center; font-size: 14px; margin-right: 10px; cursor: pointer; }
+.adm-row .lbl { font-weight: 800; min-width: 92px; color: var(--gold); font-size: 13px; }
+.adm tr.banned td:first-child b { color: var(--bad); text-decoration: line-through; }
+#announce { position: fixed; left: 50%; top: 14px; transform: translate(-50%, -140%); z-index: 60; max-width: min(720px, 92vw);
+  background: linear-gradient(90deg, #7c2d12, #b45309); color: #fff; border-radius: 10px; padding: 10px 22px; font-size: 18px; font-weight: 800;
+  text-align: center; box-shadow: 0 6px 24px rgba(0,0,0,0.5); transition: transform 0.35s ease; pointer-events: none; }
+#announce small { display: block; font-size: 11px; letter-spacing: 0.1em; opacity: 0.85; }
+#announce.show { transform: translate(-50%, 0); }
 @media (max-width: 820px) { .casino-grid { grid-template-columns: 1fr; } }
 .track-card .rec { display: inline-block; margin-left: 4px; font-size: 9px; font-weight: 800; letter-spacing: 0.1em; padding: 2px 5px; border-radius: 6px; background: rgba(255,255,255,0.12); color: #e5e7eb; }
 

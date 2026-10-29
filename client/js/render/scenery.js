@@ -230,51 +230,9 @@ export class Scenery {
     return s;
   }
 
-  // --- fences: wooden stakes + plastic tape along both edges of the track
+  // --- trackside: no fences (the track is open), just banners set well back
   buildFences() {
     const T = this.world.T, W = this.world;
-    const posts = [];
-    const tapePos = [], tapeCol = [], tapeIdx = [];
-    const spacing = 3.2;
-    const tapeColors = [new THREE.Color(0x2563eb), new THREE.Color(0xf4f4f4), new THREE.Color(0xe11d48), new THREE.Color(0xf4f4f4)];
-    for (const side of [1, -1]) {
-      let prev = null;
-      let k = 0;
-      for (let s = 0; s < T.L; s += spacing) {
-        const u = this.fenceU(s, side) * side;
-        const p = pointAt(T, s, u);
-        // skip where this fence would cut through another part of the track
-        const loc = locate(W.F, p.x, p.z);
-        const ok = loc && Math.abs(((loc.s - s + T.L * 1.5) % T.L) - T.L / 2) < 20;
-        const y = heightAt(W, p.x, p.z);
-        if (!ok) { prev = null; continue; }
-        posts.push({ x: p.x, y, z: p.z, rot: Math.atan2(p.tx, p.tz), scale: 1 });
-        if (prev) {
-          const col = tapeColors[Math.floor(k / 6) % 4];
-          for (const hgt of [0.95]) {
-            const b = tapePos.length / 3;
-            tapePos.push(prev.x, prev.y + hgt, prev.z, p.x, y + hgt, p.z, p.x, y + hgt - 0.09, p.z, prev.x, prev.y + hgt - 0.09, prev.z);
-            for (let q = 0; q < 4; q++) tapeCol.push(col.r, col.g, col.b);
-            tapeIdx.push(b, b + 1, b + 2, b, b + 2, b + 3);
-          }
-        }
-        prev = { x: p.x, y, z: p.z };
-        k++;
-      }
-    }
-    const postGeo = merge([cyl(0.04, 0.05, 1.15, 0xc8a878, [0, 0.55, 0], [0, 0, 0], 5), box(0.07, 0.1, 0.07, 0xf2f2f2, [0, 1.05, 0])]);
-    this.addScatter(posts, [{ geometry: postGeo, material: this.matLow, maxDist: 220 }], { radius: 1, every: 3 });
-    const tg = new THREE.BufferGeometry();
-    tg.setAttribute('position', new THREE.Float32BufferAttribute(tapePos, 3));
-    tg.setAttribute('color', new THREE.Float32BufferAttribute(tapeCol, 3));
-    tg.setIndex(tapeIdx);
-    tg.computeVertexNormals();
-    const tm = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
-    const tape = new THREE.Mesh(tg, tm);
-    tape.matrixAutoUpdate = false;
-    this.group.add(tape);
-    this.disposables.push(tg, tm);
-
     // banners on the outside of straights
     const atlas = makeBannerAtlas(this.renderer.renderer);
     this.disposables.push(atlas);
@@ -283,7 +241,7 @@ export class Scenery {
     for (const sec of T.sections) {
       for (let s = sec.s0 + 10; s < sec.s1 - 12; s += 26) {
         const side = (bi % 3 === 0) ? 1 : -1;
-        const u = (this.fenceU(s, side) + 1.2) * side;
+        const u = (this.fenceU(s, side) + 6) * side;
         const p = pointAt(T, s, u);
         const loc = locate(W.F, p.x, p.z);
         if (!loc || Math.abs(((loc.s - s + T.L * 1.5) % T.L) - T.L / 2) > 15) continue;
@@ -443,7 +401,7 @@ export class Scenery {
     // bleachers along the outside of the start straight
     for (const side of [-1, 1]) {
       for (let s = s0; s < s1; s += 14) {
-        const u = (this.fenceU(s, side) + 5) * side;
+        const u = (this.fenceU(s, side) + 9) * side;
         const p = pointAt(T, s, u);
         if (!this.isFree(p.x, p.z, 4, 2)) continue;
         const y = heightAt(W, p.x, p.z);
@@ -512,7 +470,7 @@ export class Scenery {
       const count = 26 + Math.floor(r() * 22);
       for (let i = 0; i < count; i++) {
         const s = f.s0 + r() * (f.s1 - f.s0);
-        const u = (this.fenceU(s, side) + 2.5 + r() * 9) * side;
+        const u = (this.fenceU(s, side) + 5 + r() * 9) * side;
         const p = pointAt(T, s, u);
         if (!this.isFree(p.x, p.z, 0.3, 1.5)) continue;
         const y = heightAt(W, p.x, p.z);

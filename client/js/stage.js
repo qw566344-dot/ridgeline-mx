@@ -13,7 +13,7 @@ import { getVehicle, paintFor } from '/shared/vehicles.js';
 import { VehicleVisual } from './render/vehicleModel.js';
 import { Rider, riderScheme } from './render/rider.js';
 import { GEAR_SETS } from '/shared/shop.js';
-import { escapeHtml } from './util.js';
+import { escapeHtml, staffTags } from './util.js';
 
 // line-up: middle first, then alternating right / left, packed side by side
 // by how wide each vehicle looks at the lobby angle (bikes close, buggies wider)
@@ -178,7 +178,7 @@ export class Stage {
       const d = e.info;
       if (!d) continue;
       const pingCls = d.ping == null ? '' : d.ping < 80 ? 'good' : d.ping < 160 ? 'ok' : 'bad';
-      e.tag.innerHTML = `<div class="tag-name">${d.leader ? '<i class="crown" title="Party leader">&#9819;</i>' : ''}${escapeHtml(d.name)}${d.me ? ' <small>YOU</small>' : ''}</div>
+      e.tag.innerHTML = `${staffTags(d.name)}<div class="tag-name">${d.leader ? '<i class="crown" title="Party leader">&#9819;</i>' : ''}${escapeHtml(d.name)}${d.me ? ' <small>YOU</small>' : ''}</div>
         <div class="tag-sub">${escapeHtml(d.sub || getVehicle(d.vehicleId).name)}</div>
         <div class="tag-row">${d.ready === undefined ? '' : d.ready ? '<span class="pill ready">READY</span>' : d.away ? '<span class="pill gone">RECONNECTING</span>' : '<span class="pill">NOT READY</span>'}${d.ping != null ? `<span class="ping ${pingCls}">${d.ping} ms</span>` : ''}</div>`;
       e.tag.classList.toggle('me', !!d.me);

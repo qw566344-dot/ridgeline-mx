@@ -19,7 +19,7 @@ export function speedProfile(T, cfg) {
   const key = T.id + ':' + cfg.type + ':' + cfg.id;
   if (profiles.has(key)) return profiles.get(key);
   const n = T.n, v = new Float32Array(n), want = new Float32Array(n).fill(0), face = new Uint8Array(n);
-  const mu = cfg.type === 'bike' ? 0.88 : 0.85;
+  const mu = cfg.type === 'bike' ? 0.7 : 0.68; // a bit under the real grip: there are no barriers to lean on
   for (let i = 0; i < n; i++) {
     const k = Math.abs(T.kappa[i]);
     const b = T.bank[i] * 0.55;

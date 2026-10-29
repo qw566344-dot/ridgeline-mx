@@ -16,7 +16,7 @@ import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotatio
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
-import { escapeHtml, ordinal, hex, ago } from './util.js';
+import { escapeHtml, ordinal, hex, ago, staffTags } from './util.js';
 import { liveTrick } from './sim/tricks.js';
 import { regionList, customServer, setServerBase, serverBase } from './config.js';
 
@@ -940,7 +940,9 @@ export class UI {
       if (!el) {
         el = document.createElement('div');
         el.className = 'ntag' + (r.remote ? ' friend' : '');
-        el.innerHTML = `<i>${r.number || ''}</i>${escapeHtml(r.name)}`;
+        const st = staffTags(r.name);
+        if (st) el.classList.add('staff');
+        el.innerHTML = `${st}<i>${r.number || ''}</i>${escapeHtml(r.name)}`;
         box.appendChild(el);
         tags.set(r.key, el);
       }
@@ -966,6 +968,16 @@ export class UI {
       ctx.fill();
       ctx.lineWidth = 1.5; ctx.strokeStyle = '#000'; ctx.stroke();
     }
+  }
+
+  // message from an admin, shown for 8 s over everything
+  announce(a) {
+    let el = $('announce');
+    if (!el) { el = document.createElement('div'); el.id = 'announce'; document.body.appendChild(el); }
+    el.innerHTML = `<small>ANNOUNCEMENT from ${escapeHtml(a.from)}</small>${escapeHtml(a.text)}`;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    clearTimeout(this.announceT);
+    this.announceT = setTimeout(() => el.classList.remove('show'), 8000);
   }
 
   toast(text, time = 1.6, kind = '') {

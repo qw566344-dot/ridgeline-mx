@@ -24,6 +24,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 const serveStatic = makeStaticHandler(ROOT);
 const accounts = new Accounts(process.env.DATA_DIR || path.join(ROOT, 'server', 'data'));
 const lobby = new Lobby((msg) => console.log(new Date().toISOString().slice(11, 19), msg));
+accounts.lobby = lobby;
 
 const server = http.createServer((req, res) => {
   if (req.url.startsWith('/api/lan')) {

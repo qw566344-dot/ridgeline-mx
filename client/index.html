@@ -192,6 +192,16 @@
     <div id="admin" class="screen overlay" hidden>
       <div class="sheet wide">
         <div class="sheet-head"><h2>Admin panel</h2><span id="adm-total" class="hint"></span></div>
+        <div class="adm-tools">
+          <div id="adm-stats" class="adm-stats"></div>
+          <div class="adm-row"><span class="lbl">Announce</span><input id="adm-ann" placeholder="Message that pops up for everyone online" maxlength="140" style="flex:1"><button id="adm-ann-go" class="small">Send</button><button id="adm-ann-clear" class="small">Clear</button></div>
+          <div class="adm-row"><span class="lbl">Gift online</span><button class="small" data-gift="1000">+1K each</button><button class="small" data-gift="10000">+10K each</button><button class="small" data-gift="100000">+100K each</button></div>
+          <div class="adm-row"><span class="lbl">Give item</span><input id="adm-give-name" placeholder="Rider name" autocomplete="off" style="width:130px"><select id="adm-give-item"></select><button id="adm-give-go" class="small">Give</button></div>
+          <div class="adm-row"><span class="lbl">My cheats</span>
+            <label><input type="checkbox" id="adm-god"> No crashing</label>
+            <label><input type="checkbox" id="adm-moon"> Moon gravity</label>
+            <label><input type="checkbox" id="adm-turbo"> Turbo</label></div>
+        </div>
         <div class="search-row"><input id="adm-search" placeholder="Find a rider" autocomplete="off"><button id="adm-close">Close (-)</button></div>
         <div id="adm-msg" class="cmsg"></div>
         <table class="results adm"><thead><tr><th>Rider</th><th>Coins</th><th>Items</th><th>Actions</th></tr></thead><tbody id="adm-list"></tbody></table>

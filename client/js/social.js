@@ -11,6 +11,7 @@ export class Social {
     this.data = { friends: [], incoming: [], outgoing: [], invites: [] };
     this.listeners = [];
     this.inviteListeners = [];
+    this.announceListeners = [];
     this.seen = new Set();
     this.presence = () => ({ status: 'menu' });
     this.fast = true;
@@ -21,6 +22,7 @@ export class Social {
   get available() { return this.account.mode === 'online' && !!this.account.token; }
   onChange(f) { this.listeners.push(f); }
   onInvite(f) { this.inviteListeners.push(f); }
+  onAnnounce(f) { this.announceListeners.push(f); }
   changed() { this.listeners.forEach((f) => f(this.data)); }
 
   start() {
@@ -42,6 +44,8 @@ export class Social {
       const k = inv.from + ':' + inv.code + ':' + inv.at;
       if (!this.seen.has(k)) { this.seen.add(k); this.inviteListeners.forEach((f) => f(inv)); }
     }
+    const a = r.announce;
+    if (a && a.id !== this.lastAnnounce) { this.lastAnnounce = a.id; this.announceListeners.forEach((f) => f(a)); }
     this.changed();
     return null;
   }
