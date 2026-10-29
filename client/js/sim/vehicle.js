@@ -492,11 +492,8 @@ export class Vehicle {
     else if (loc.u < -limR) { over = -limR - loc.u; nx = p.tz; nz = -p.tx; }
     // well past the barrier = went over it: back to the track
     const beyond = loc.u > fenceL + 2.5 || loc.u < -fenceR - 2.5;
-    if (beyond) {
-      this.offTrack += dt;
-      if (this.grounded && this.groundTime > 0.05) this.offTrack = Math.max(this.offTrack, 1);
-      return;
-    }
+    // (flying over it on a jump counts too: reset straight away)
+    if (beyond) { this.offTrack = Math.max(this.offTrack + dt, 1); return; }
     this.offTrack = 0;
     // AI riders keep a little way off the barrier (an invisible guide rail)
     if (this.isAI && !over) {
