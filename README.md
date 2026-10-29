@@ -61,8 +61,9 @@ Test it locally with `node tools/store-test.js`.
 ## Models
 - Dirt bikes: `client/models/kx_dirt_bike.glb`, made from the Tinkercad bike by `tools/bake-kx-bike.py`
   (Blender), which splits it into wheels, fork, swingarm and body.
-- Rider helmet: `client/models/rider_helmet.glb`, made by `tools/bake-helmet.py` (logos removed; the
-  shell takes each rider's colour).
+- Rider helmet: `client/models/rider_helmet.glb`, made from `dirtbike_helmet.glb` by
+  `node tools/bake-helmet-mx.mjs dirtbike_helmet.glb` (turned to face forward, slimmed; the shell is
+  painted in each rider's gear colours, the gold goggle lens stays).
 - Quad, side-by-side and buggy: `pro_450r_quad.glb`, `viper_rs_turbo.glb`, `trophy_buggy.glb`.
 - Pivots and seat / grip / peg points for each model are in `MODELS` in `shared/vehicles.js`.
 

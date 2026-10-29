@@ -64,18 +64,20 @@ export async function preloadModels(onProgress = () => {}) {
 }
 
 // ---------------------------------------------------------------- rider helmet
-// The helmet model sits on the rider's head bone (y up, z towards the face):
-// scaled to 30 cm wide, turned to face +z, back of the shell just behind the neck.
-// The shell is marked magenta in its texture; helmetMaterial swaps that for
-// each rider's jersey colour, keeping the trim, vents and goggles.
+// The helmet model (tools/bake-helmet-mx.mjs) sits on the rider's head bone
+// (y up, z towards the face): scaled to 30 cm wide, turned to face +z, back of
+// the shell just behind the neck. Two parts: the shell, painted per rider in
+// their gear colours (main colour, accent peak and top stripe, darker chin
+// bar and rim), and the gold mirrored goggle lens.
 const HELMET_FILE = 'models/rider_helmet.glb';
 let helmet = null;
 function buildHelmet(root) {
   root.updateMatrixWorld(true);
-  let mesh = null;
-  root.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
-  const g = mesh.geometry.clone();
-  g.applyMatrix4(mesh.matrixWorld);
+  const part = (name) => { let m = null; root.traverse((o) => { if (o.isMesh && !m && (o.name === name || (o.parent && o.parent.name === name))) m = o; }); return m; };
+  const shell = part('shell'), lens = part('lens');
+  if (!shell) throw new Error('helmet has no shell');
+  const geos = [shell, lens].filter(Boolean).map((m) => { const g = m.geometry.clone(); g.applyMatrix4(m.matrixWorld); for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k); return g; });
+  const g = mergeGeometries(geos, true); // group 0 = shell, group 1 = lens
   g.rotateY(Math.PI); // the model faces -z
   g.computeBoundingBox();
   const b = g.boundingBox;
@@ -83,38 +85,46 @@ function buildHelmet(root) {
   g.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -b.min.z);
   g.scale(s, s, s);
   g.translate(0, -0.035, -0.175);
-  const map = mesh.material.map;
-  return { geometry: g, image: map ? map.image : null, flipY: map ? map.flipY : false };
+  g.computeBoundingBox();
+  return { geometry: g, box: g.boundingBox.clone(), hasLens: !!lens };
 }
 export function helmetModel() { return helmet; }
 
+const HELMET_GLSL = `
+uniform vec3 hA; uniform vec3 hB; uniform vec3 hC; uniform vec3 hMin; uniform vec3 hMax;
+varying vec3 vHel;
+vec3 helmetPaint(vec3 p) {
+  vec3 n = (p - hMin) / (hMax - hMin);           // 0..1: x left-right, y bottom-top, z back-front
+  vec3 c = hA;
+  if (abs(p.x) < 0.016 && n.y > 0.5 && n.z < 0.7) c = hC;                    // stripe over the top
+  if (abs(p.x) > 0.02 && abs(p.x) < 0.03 && n.y > 0.55 && n.z < 0.62) c = hB; // pinstripes beside it
+  if (n.y > 0.6 && n.z > 0.66) c = hC;                                        // peak
+  if (n.z > 0.72 && n.y < 0.4) c = hB;                                         // chin bar
+  if (n.y < 0.1) c = vec3(0.09, 0.1, 0.12);                                    // rubber rim
+  return c;
+}
+`;
 const helmetMats = new Map();
-export function helmetMaterial(tint) {
+let lensMat = null;
+// gear: [main, second, accent] colours (riderScheme(...).gear)
+export function helmetMaterial(gear) {
   if (!helmet) return null;
-  if (helmetMats.has(tint)) return helmetMats.get(tint);
-  const opts = { vertexColors: !!helmet.geometry.attributes.color, roughness: 0.38, metalness: 0.05, envMapIntensity: 0.8 };
-  let mat;
-  if (helmet.image) {
-    const c = document.createElement('canvas');
-    c.width = helmet.image.width; c.height = helmet.image.height;
-    const x = c.getContext('2d');
-    x.drawImage(helmet.image, 0, 0);
-    // swap the magenta key (the shell) for the rider's colour
-    const d = x.getImageData(0, 0, c.width, c.height), p = d.data;
-    const tr = (tint >> 16) & 255, tg = (tint >> 8) & 255, tb = tint & 255;
-    for (let i = 0; i < p.length; i += 4) {
-      const k = Math.min(p[i], p[i + 2]) - p[i + 1]; // how magenta this pixel is (0..255)
-      if (k > 60) { const t = Math.min(1, (k - 60) / 150); p[i] += (tr - p[i]) * t; p[i + 1] += (tg - p[i + 1]) * t; p[i + 2] += (tb - p[i + 2]) * t; }
-    }
-    x.putImageData(d, 0, 0);
-    const tex = new THREE.CanvasTexture(c);
-    tex.flipY = helmet.flipY;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = 4;
-    mat = new THREE.MeshStandardMaterial({ map: tex, ...opts });
-  } else mat = new THREE.MeshStandardMaterial({ color: tint, ...opts });
-  helmetMats.set(tint, mat);
-  return mat;
+  const [a, b2, c] = Array.isArray(gear) ? gear : [gear, 0x1d1f24, 0xffffff];
+  const key = a + ':' + b2 + ':' + c;
+  if (!helmetMats.has(key)) {
+    const m = new THREE.MeshStandardMaterial({ color: a, roughness: 0.32, metalness: 0.06, envMapIntensity: 0.9 });
+    const box = helmet.box;
+    const u = { hA: { value: new THREE.Color(a) }, hB: { value: new THREE.Color(b2) }, hC: { value: new THREE.Color(c) }, hMin: { value: box.min.clone() }, hMax: { value: box.max.clone() } };
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, u);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vHel;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvHel = position;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + HELMET_GLSL).replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = helmetPaint(vHel);');
+    };
+    m.customProgramCacheKey = () => 'helmet-shell';
+    helmetMats.set(key, m);
+  }
+  if (!lensMat) lensMat = new THREE.MeshStandardMaterial({ color: 0xffc21a, metalness: 0.85, roughness: 0.12, envMapIntensity: 1.6 }); // mirrored, so solid
+  return helmet.hasLens ? [helmetMats.get(key), lensMat] : helmetMats.get(key);
 }
 
 export function hasModel(key) { return templates.has(key); }

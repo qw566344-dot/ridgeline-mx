@@ -55,11 +55,6 @@ function partGeo(scheme) {
   // head: the helmet model is its own mesh on the head bone (see Rider); this is the face
   // inside it, plus a plain shell in case the helmet model could not be loaded
   add(sphere(0.1, 0xd9a07a, [0, 0.1, 0.03], [1, 1.1, 1], 12, 10), B.head);
-  // goggles over the eyes: frame, tinted lens, strap round the back
-  add(roundBoxC(0.165, 0.068, 0.04, 0.018, accent, [0, 0.125, 0.112]), B.head);
-  add(roundBoxC(0.142, 0.05, 0.02, 0.012, 0x24324a, [0, 0.126, 0.13]), B.head);
-  add(box(0.03, 0.012, 0.004, 0xbfd4ff, [-0.035, 0.138, 0.1405]), B.head);                       // glint
-  add(torus(0.118, 0.011, dark, [0, 0.125, 0.0], [Math.PI / 2, 0, 0], 6, 20), B.head);
   if (!helmetModel()) add(sphere(0.155, jersey, [0, 0.13, 0.0], [1.0, 1.04, 1.13], 16, 12), B.head);
   // arms: smooth sleeves, elbow guards, cuffs, shaped gloves with a knuckle guard
   for (const [ua, fa, h] of [[B.uaL, B.faL, B.hL], [B.uaR, B.faR, B.hR]]) {
@@ -157,7 +152,7 @@ export class Rider {
     this.mesh.bind(new THREE.Skeleton(this.bones, this.bones.map(() => new THREE.Matrix4())), new THREE.Matrix4());
     const hm = helmetModel();
     if (hm) {
-      this.helmet = new THREE.Mesh(hm.geometry, helmetMaterial(scheme.gear[0]));
+      this.helmet = new THREE.Mesh(hm.geometry, helmetMaterial(scheme.gear));
       this.helmet.castShadow = true;
       this.bones[B.head].add(this.helmet);
     }
