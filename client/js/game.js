@@ -248,6 +248,8 @@ export class Game {
   frame(dt) {
     if (!this.world || this.state !== 'running') return;
     dt = Math.min(dt, 0.1);
+    const C = this.adminCheats();
+    if (C.slowmo && !(this.opts && this.opts.mp)) dt *= 0.4; // slow motion (solo only, party timing stays real)
     this.trackFps(dt);
     const inp = this.input;
     const playing = this.mode !== 'menu';
@@ -259,6 +261,14 @@ export class Game {
     if (playing && this.player && this.player.veh) {
       if (inp.pressed('reset')) this.requestReset();
       if (inp.pressed('retry')) this.quickRetry();
+      const v = this.player.veh;
+      if (C.jump && inp.pressed('jump') && !v.crashed) { v.vel.y = Math.max(v.vel.y, 0) + 11; this.toast('Super jump!', 0.8); }
+    }
+    // giant / tiny: the admin cheat for you, the Giant Riders event for everyone
+    const big = this.liveEvent() === 'giant' ? 1.8 : 1;
+    for (const r of this.riders) {
+      const sc = r.isPlayer && C.giant ? 1.8 : r.isPlayer && C.tiny ? 0.55 : big;
+      if (r.vis && r.vis.root.scale.x !== sc) r.vis.root.scale.setScalar(sc);
     }
     if (inp.mouse.dx || inp.mouse.dy) this.cam.mouseLook(inp.mouse.dx, inp.mouse.dy);
 
@@ -290,13 +300,14 @@ export class Game {
         else Object.assign(v.input, c);
         if (holding) v.input.clutch = true; // rev on the gate
         // admin cheats (set from the admin panel; only admins can open it)
-        const C = (this.account && this.account.profile && this.account.profile.admin && this.cheats) || {};
-        v.noCrash = !!C.god; v.gravityScale = C.moon ? 0.35 : 1; v.boost = C.turbo ? 7 : 0;
+        const C = this.adminCheats();
+        const ev = this.liveEvent();
+        v.noCrash = !!C.god; v.gravityScale = C.moon || ev === 'moon' ? 0.35 : 1; v.boost = C.hyper ? 18 : C.turbo || ev === 'turbo' ? 7 : 0;
         // auto reset after a crash
         if (v.crashed && v.crashTime > GAME.resetDelay) this.resetRider(r);
         if (!v.crashed && v.offTrack > 0.9) { this.resetRider(r); this.toast('Out of bounds - back on the track', 1.6); }
       } else if (r.ai) {
-        if (r.ai.enabled && !holding) r.ai.update(dt);
+        if (r.ai.enabled && !holding && !this.adminCheats().freezeAi) r.ai.update(dt);
         else { v.input.throttle = holding ? 0.5 : 0; v.input.clutch = holding; v.input.brake = 0; v.input.steer = 0; }
         if (r.finished && this.mode === 'race') { v.input.throttle = Math.min(v.input.throttle, 0.25); }
       }
@@ -317,9 +328,24 @@ export class Game {
     this.processEvents();
   }
 
+  // the admin event running for everyone online (kind), if any
+  liveEvent() { const e = this.event; return e && Date.now() < e.endsAt && this.mode !== 'menu' ? e.kind : null; }
+
+  // admin cheats (set from the admin panel; only admins can open it)
+  adminCheats() { return (this.account && this.account.profile && this.account.profile.admin && this.cheats) || {}; }
+
+  // admin cheat: jump ahead along the track
+  skipAhead(m) {
+    const p = this.player;
+    if (!p || !p.veh || !(this.account && this.account.profile && this.account.profile.admin)) return;
+    this.placeRider(p, p.veh.trackS + m, 0);
+    this.cam.snapNext = true;
+  }
+
   // simple rider-to-rider bumping (spheres at the centre of mass)
   collide(dt) {
-    const list = this.riders.filter((r) => r.veh || (r.remote && r.remote.state));
+    const ghost = this.adminCheats().ghost;
+    const list = this.riders.filter((r) => (r.veh || (r.remote && r.remote.state)) && !(ghost && r.isPlayer));
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
       const a = list[i], b = list[j];
       if (!a.veh && !b.veh) continue;

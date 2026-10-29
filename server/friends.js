@@ -63,6 +63,8 @@ export class Friends {
       outgoing: u.outgoing.map((k) => this.A.db.users[k]).filter(Boolean).map((f) => ({ name: f.name })),
       invites: inv.map((i) => ({ from: i.from, code: i.code, region: i.region, at: i.at })),
       announce: this.A.admin ? this.A.admin.current() : null,
+      pull: this.A.admin ? this.A.admin.takePull(u.key) : null,
+      event: this.A.admin ? this.A.admin.eventFor(u) : null,
       max: MAX_FRIENDS,
     };
   }

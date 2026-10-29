@@ -1125,6 +1125,25 @@ export class UI {
     ctx.fillText('x1000 RPM', cx, cy - 44);
   }
 
+  // admin event chip (top centre): name and time left
+  setEvent(ev) {
+    let el = $('event-chip');
+    if (!el) { el = document.createElement('div'); el.id = 'event-chip'; document.body.appendChild(el); }
+    this.eventInfo = ev;
+    clearInterval(this.eventTimer);
+    const draw = () => {
+      const e = this.eventInfo, left = e ? e.endsAt - Date.now() : 0;
+      if (!e || left <= 0) { el.hidden = true; clearInterval(this.eventTimer); return; }
+      el.hidden = false;
+      el.classList.toggle('riding', this.screen === 'hud');
+      const s = Math.ceil(left / 1000);
+      el.innerHTML = `<b>EVENT</b> ${escapeHtml(e.name)} <span>${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}</span>`;
+      el.title = e.desc;
+    };
+    draw();
+    if (ev) this.eventTimer = setInterval(draw, 1000);
+  }
+
   // message from an admin, shown for 8 s over everything
   announce(a) {
     let el = $('announce');

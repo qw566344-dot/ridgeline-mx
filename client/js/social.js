@@ -23,6 +23,8 @@ export class Social {
   onChange(f) { this.listeners.push(f); }
   onInvite(f) { this.inviteListeners.push(f); }
   onAnnounce(f) { this.announceListeners.push(f); }
+  onPull(f) { this.pullListener = f; }
+  onEvent(f) { this.eventListener = f; }
   changed() { this.listeners.forEach((f) => f(this.data)); }
 
   start() {
@@ -46,6 +48,13 @@ export class Social {
     }
     const a = r.announce;
     if (a && a.id !== this.lastAnnounce) { this.lastAnnounce = a.id; this.announceListeners.forEach((f) => f(a)); }
+    if (r.pull && this.pullListener) this.pullListener(r.pull);
+    // admin event: time left is turned into a local end time
+    const ev = r.event ? { ...r.event, endsAt: Date.now() + r.event.left } : null;
+    const fresh = ev && (!this.event || this.event.id !== ev.id);
+    const ended = !ev && this.event;
+    this.event = ev;
+    if ((fresh || ended || (ev && ev.rain)) && this.eventListener) this.eventListener(ev, { fresh, ended, rain: ev && ev.rain });
     this.changed();
     return null;
   }

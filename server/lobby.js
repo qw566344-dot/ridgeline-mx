@@ -57,6 +57,7 @@ export class Lobby {
     setInterval(() => this.cleanup(), 5000);
     setInterval(() => this.heartbeat(), 10_000);
     this.live = new Set();
+    this.pending = new Map(); // rider account key -> admin waiting to join them
   }
 
   // ------------------------------------------------------------- connections
@@ -124,6 +125,7 @@ export class Lobby {
       case 'end': this.endSession(p); break;
       case 'rejoin': this.rejoin(p); break;
       case 'adminjoin': this.adminJoin(p, m); break;
+      case 'pulled': this.pulled(p, m); break;
       case 'loaded': this.loaded(p, m); break;
       case 's': this.state(p, m.d); break;
       case 'ev':
@@ -179,32 +181,56 @@ export class Lobby {
     this.log(`[${code}] party created by ${p.name}`);
   }
 
-  // admins (checked with their account login) can drop into any rider's party -
-  // if that rider is alone, a party is made around them first
+  // admins (checked with their account login) can drop into any rider - no
+  // party needed. If the rider is alone, a party is made around them; if
+  // their game is not connected to this server yet (riding solo, or in the
+  // menus), it is asked to connect through the friends poll and the admin
+  // is let in as soon as it does (see pulled()).
   adminJoin(p, m) {
     const u = this.accounts && this.accounts.user(String(m.auth || ''));
     if (!u || !this.accounts.admin.isAdmin(u)) return this.err(p, 'NOT_ADMIN', 'Admins only.');
     const want = String(m.name || '').trim().toLowerCase();
     const t = [...this.players.values()].find((x) => x.connected && x !== p && x.name.toLowerCase() === want);
-    if (!t) return this.err(p, 'NOT_FOUND', `${m.name} is not online on this server (they may be in another region).`);
-    if (!t.party) this.create(t);
-    this.join(p, t.party.code);
+    if (t) return this.joinRider(p, t);
+    const F = this.accounts.friends;
+    if (!this.accounts.db.users[want] || !(F && F.online(want))) return this.err(p, 'NOT_FOUND', `${m.name} is not online right now.`);
+    this.pending.set(want, { admin: p, at: Date.now() });
+    this.accounts.admin.pull(want, p.name);
+    if (p.conn) p.conn.send({ t: 'notice', msg: `Joining <b>${String(m.name).replace(/[<>&]/g, '')}</b>... their game connects in a few seconds` });
   }
 
-  join(p, codeIn) {
+  // a rider's game answered the admin's call (checked with their account login)
+  pulled(p, m) {
+    const u = this.accounts && this.accounts.user(String(m.auth || ''));
+    if (!u) return;
+    const w = this.pending.get(u.key);
+    this.pending.delete(u.key);
+    if (!w || Date.now() - w.at > 60_000 || !w.admin.connected) return;
+    this.joinRider(w.admin, p);
+  }
+
+  joinRider(admin, t) {
+    if (!t.party) this.create(t);
+    this.join(admin, t.party.code, true);
+    // their game puts the two of you in the same ride if they were riding alone
+    if (t.conn) t.conn.send({ t: 'adminjoined', from: admin.name, leader: t.party.leader === t.id });
+  }
+
+  // force: an admin - skips the full check and rides into a race already going
+  join(p, codeIn, force = false) {
     const code = String(codeIn || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!validCode(code)) return this.err(p, 'BAD_CODE', 'Party codes are 6 letters/numbers, like MX7K2P.');
     const party = this.parties.get(code);
     if (!party) return this.err(p, 'NO_PARTY', `No party with code ${code}. It may have expired - ask your friend for a new code.`);
     if (p.party === party) return this.broadcastParty(party);
     const connected = [...party.members.values()].filter((x) => x.connected || Date.now() - x.lastSeen < RECONNECT_GRACE);
-    if (connected.length >= GAME.maxPlayers) return this.err(p, 'FULL', `Party ${code} is full (${GAME.maxPlayers} riders).`);
+    if (connected.length >= GAME.maxPlayers && !force) return this.err(p, 'FULL', `Party ${code} is full (${GAME.maxPlayers} riders).`);
     if (p.party) this.leave(p, false);
     this.addMember(party, p);
     this.log(`[${code}] ${p.name} joined`);
     // ride straight in if a free ride / time trial is already going
     const S = party.session;
-    if (S && !S.over && S.mode !== 'race') {
+    if (S && !S.over && (S.mode !== 'race' || force)) {
       S.players.push(this.sessionPlayer(p, S.players.length));
       this.setupTracker(party, p);
       for (const m of party.members.values()) if (m.conn) m.conn.send(this.sessionMsg(party, m !== p));

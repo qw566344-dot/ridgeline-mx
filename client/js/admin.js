@@ -1,7 +1,7 @@
 // =====================================================================
 //  ADMIN PANEL - press "-" (only for admin accounts; the server checks
 //  every action too). Server stats, announcements to everyone online,
-//  coin gifts, give any item, find riders, give or set coins, unlock
+//  coin gifts, events for everyone, give any item, find riders, add coins, unlock
 //  everything, ban, reset or delete an account - plus your own cheats.
 // =====================================================================
 import { escapeHtml, ago } from './util.js';
@@ -37,6 +37,8 @@ export class AdminPanel {
     $('adm-ann-go').onclick = send;
     $('adm-ann').onkeydown = (e) => { if (e.key === 'Enter') send(); };
     $('adm-ann-clear').onclick = () => this.act('announce', { text: '' });
+    $('adm-ev-go').onclick = () => this.act('event', { kind: $('adm-ev-kind').value, minutes: Number($('adm-ev-min').value) });
+    $('adm-ev-stop').onclick = () => this.act('event', { kind: '' });
     $('adm-chat-clear').onclick = () => { const b = $('adm-chat-clear'); if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Sure?'; return; } delete b.dataset.sure; b.textContent = 'Clear chat for everyone'; this.act('chatclear', {}); };
     document.querySelectorAll('[data-gift]').forEach((b) => b.onclick = () => this.act('giftall', { add: Number(b.dataset.gift) }));
     const groups = { vehicle: 'Vehicles', color: 'Paint & skins', gear: 'Rider gear' };
@@ -45,9 +47,22 @@ export class AdminPanel {
 
     // cheats only change your own vehicle, in this browser
     this.cheats = {};
-    for (const [id, k] of [['adm-god', 'god'], ['adm-moon', 'moon'], ['adm-turbo', 'turbo']]) {
-      $(id).onchange = () => { this.cheats[k] = $(id).checked; this.applyCheats(); };
+    const CHEATS = [['adm-god', 'god'], ['adm-moon', 'moon'], ['adm-turbo', 'turbo'], ['adm-hyper', 'hyper'], ['adm-jump', 'jump'], ['adm-ghost', 'ghost'], ['adm-freeze', 'freezeAi'], ['adm-slowmo', 'slowmo'], ['adm-giant', 'giant'], ['adm-tiny', 'tiny']];
+    for (const [id, k] of CHEATS) {
+      $(id).onchange = () => {
+        this.cheats[k] = $(id).checked;
+        // giant and tiny can not both be on
+        if (k === 'giant' && this.cheats.giant) { this.cheats.tiny = false; $('adm-tiny').checked = false; }
+        if (k === 'tiny' && this.cheats.tiny) { this.cheats.giant = false; $('adm-giant').checked = false; }
+        this.applyCheats();
+      };
     }
+    $('adm-cheats-off').onclick = () => { for (const [id] of CHEATS) $(id).checked = false; this.cheats = {}; this.applyCheats(); };
+    document.querySelectorAll('[data-skip]').forEach((b) => b.onclick = () => {
+      const g = this.ui.game;
+      if (!g || !this.ui.inGame()) { this.say('Start riding first', true); return; }
+      g.skipAhead(Number(b.dataset.skip));
+    });
   }
 
   allowed() { return this.A.mode === 'online' && this.A.profile && this.A.profile.admin; }
@@ -64,6 +79,8 @@ export class AdminPanel {
     if (show) this.load();
   }
 
+  say(text, bad) { $('adm-msg').textContent = text; $('adm-msg').className = 'cmsg ' + (bad ? 'bad' : 'good'); }
+
   async act(route, body) {
     const r = await this.A.api('admin/' + route, body).catch(() => ({ error: 'Could not reach the server' }));
     $('adm-msg').textContent = r.error || r.ok || '';
@@ -71,6 +88,18 @@ export class AdminPanel {
     // my own coins changed? refresh
     if (!r.error) { const me = await this.A.api('me').catch(() => null); if (me && me.profile) { this.A.profile = me.profile; this.A.changed(); } }
     this.load();
+  }
+
+  // drop into a rider (no party needed): connect to the server first, then the
+  // server makes a party around them if needed and puts you in their ride
+  joinRider(name) {
+    const net = window.MX && window.MX.net;
+    if (!net) return;
+    this.toggle(false);
+    if (this.ui.game && this.ui.game.state === 'running' && this.ui.inGame()) this.ui.emit('mainMenu');
+    this.ui.show('home');
+    this.ui.popup(`Joining <b>${escapeHtml(name)}</b>...`);
+    net.whenOnline(() => { net.sendProfile(); net.send({ t: 'adminjoin', name, auth: this.A.token }); });
   }
 
   async loadStats() {
@@ -82,6 +111,7 @@ export class AdminPanel {
       ['Accounts saved', s.cloud ? 'cloud (safe)' : 'this server only'],
     ].map(([k, v]) => `<span>${k} <b>${escapeHtml(String(v))}</b></span>`).join('')
       + (s.announcement ? `<span>Showing: <b>${escapeHtml(s.announcement)}</b></span>` : '')
+      + (s.event ? `<span>Event: <b>${escapeHtml(s.event.name)}</b> ${Math.ceil(s.event.left / 60000)} min left</span>` : '')
       + (s.partyList || []).map((p) => `<span>Party <b>${escapeHtml(p.code)}</b> ${escapeHtml(p.members.join(', '))} <button class="small" data-join="${escapeHtml(p.code)}">Join</button></span>`).join('');
     $('adm-stats').querySelectorAll('[data-join]').forEach((b) => b.onclick = () => { this.toggle(false); this.ui.emit('joinParty', { code: b.dataset.join, region: null }); });
   }
@@ -100,9 +130,9 @@ export class AdminPanel {
       <td class="adm-acts">
         <button class="small" data-a="add" data-v="10000" data-n="${n}">+10K</button>
         <button class="small" data-a="add" data-v="1000000" data-n="${n}">+1M</button>
-        <input class="adm-set" placeholder="set coins" data-n="${n}">
+        <input class="adm-set" type="number" placeholder="add coins" title="Coins to add (a minus number takes coins away), Enter to add" data-n="${n}"><button class="small" data-a="addbox" data-n="${n}">Add</button>
         <button class="small" data-a="unlock" data-n="${n}">Unlock all</button>
-        ${u.online && !u.admin ? `<button class="small" data-a="join" data-n="${n}">Join</button>` : ''}
+        ${u.online && !u.admin ? `<button class="small" data-a="join" data-n="${n}" data-raw="${n}">Join</button>` : ''}
         <button class="small" data-a="give" data-n="${n}">Give item</button>
         ${u.admin ? '' : `<button class="small" data-a="ban" data-on="${u.banned ? 0 : 1}" data-n="${n}">${u.banned ? 'Unban' : 'Ban'}</button>`}
         <button class="small danger" data-a="reset" data-n="${n}">Reset</button>
@@ -114,13 +144,14 @@ export class AdminPanel {
       // the dangerous ones ask "Sure?" first
       const sure = () => { if (b.dataset.sure) return true; b.dataset.sure = 1; b.textContent = 'Sure?'; return false; };
       if (a === 'add') this.act('coins', { name: n, add: Number(b.dataset.v) });
+      if (a === 'addbox') { const inp = b.previousElementSibling; if (inp.value.trim() !== '') this.act('coins', { name: n, add: Number(inp.value) }); }
       if (a === 'unlock') this.act('unlock', { name: n });
-      if (a === 'join') { const net = window.MX && window.MX.net; if (net) { this.toggle(false); if (this.ui.game && this.ui.game.state === 'running' && this.ui.inGame()) this.ui.emit('mainMenu'); net.send({ t: 'adminjoin', name: n, auth: this.A.token }); this.ui.show('home'); } }
+      if (a === 'join') this.joinRider(b.dataset.raw);
       if (a === 'give') { $('adm-give-name').value = n; $('adm-give-item').focus(); }
       if (a === 'ban' && (b.dataset.on === '0' || sure())) this.act('ban', { name: n, on: b.dataset.on === '1' });
       if (a === 'reset' && sure()) this.act('reset', { name: n });
       if (a === 'delete' && sure()) this.act('delete', { name: n });
     });
-    $('adm-list').querySelectorAll('.adm-set').forEach((inp) => inp.onkeydown = (e) => { if (e.key === 'Enter' && inp.value.trim() !== '') this.act('coins', { name: inp.dataset.n, set: Number(inp.value) }); });
+    $('adm-list').querySelectorAll('.adm-set').forEach((inp) => inp.onkeydown = (e) => { if (e.key === 'Enter' && inp.value.trim() !== '') this.act('coins', { name: inp.dataset.n, add: Number(inp.value) }); });
   }
 }

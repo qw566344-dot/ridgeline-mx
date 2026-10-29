@@ -175,6 +175,8 @@ export class Net {
         if (this.game.state === 'running' && this.ui.screen === 'hud') this.game.toast(m.msg || m.code, 2.5, 'bad');
         if (this.waitParty) { this.waitParty(null); this.waitParty = null; }
         break;
+      case 'notice': this.ui.popup(m.msg); break;
+      case 'adminjoined': this.adminJoined(m); break;
       case 'session': this.onSession(m); break;
       case 'go': // everyone has loaded: start the 3-2-1
         if (this.session && this.session.id === m.id) {
@@ -254,6 +256,21 @@ export class Net {
     this.send({ t: 'leave' });
     this.party = null; this.code = null; ssSet('mx.code', '');
     this.refresh();
+  }
+
+  // the admin asked this game to connect (friends poll): answer with our login
+  answerPull(auth) { this.whenOnline(() => { this.sendProfile(); this.send({ t: 'pulled', auth }); }); }
+
+  // an admin dropped into you. Riding alone? Then the ride turns into a party
+  // ride on the same track so they appear next to you.
+  adminJoined(m) {
+    this.ui.popup(`<b>${escapeHtml(m.from)}</b> (admin) joined you`, 'good');
+    const g = this.game;
+    const solo = g.state === 'running' && g.mode !== 'menu' && g.mode !== 'none' && !(g.opts && g.opts.mp);
+    if (!solo || !this.isLeader()) return;
+    const mode = g.mode === 'practice' ? 'freeride' : g.mode;
+    this.sendSettings({ track: g.trackId, mode, laps: mode === 'freestyle' ? Math.max(1, this.settings.get('freestyleTime') || 2) : (g.laps || this.settings.get('laps')) });
+    this.start();
   }
 
   toggleReady() { const me = this.me(); this.send({ t: 'ready', ready: !(me && me.ready) }); }

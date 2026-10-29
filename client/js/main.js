@@ -67,6 +67,15 @@ social.onChange(() => {
   if (ui.screen === 'home') ui.renderFriendsMini();
 });
 social.onAnnounce((a) => ui.announce(a));
+social.onPull(() => net.answerPull(account.token));
+// admin events: effects in the game, a chip on screen, coins from Coin Rain
+social.onEvent((ev, how) => {
+  game.event = ev;
+  ui.setEvent(ev);
+  if (how.fresh) ui.popup(`<b>EVENT: ${escapeHtml(ev.name)}</b><br>${escapeHtml(ev.desc)}`, 'good', null, 8);
+  if (how.ended) ui.popup('The event has ended');
+  if (how.rain) { account.init(); if (game.state === 'running' && ui.screen === 'hud') game.toast(`+${how.rain} coins (Coin Rain)`, 1.6, 'coins'); else ui.popup(`+${how.rain} coins from the Coin Rain`, 'good'); }
+});
 window.addEventListener('mx-banned', () => {
   ui.popup('<b>You have been banned.</b><br>An admin banned this account, so you have been logged out. You can still play offline or as a guest.', 'bad', [['OK', () => { account.bannedShown = false; }, true]], 30);
 });

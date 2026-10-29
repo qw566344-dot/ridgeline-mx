@@ -204,15 +204,17 @@ export class Accounts {
     const recent = u.rewardLog.reduce((a, r) => a + r[1], 0);
     const allowed = Math.max(0, 6000 - recent);
     amount = Math.min(amount, allowed);
+    // Double Coins event: the bonus is on top of the normal cap
+    const bonus = amount * ((this.admin ? this.admin.coinFactor() : 1) - 1);
     if (amount > 0) {
-      u.coins += amount;
+      u.coins += amount + bonus;
       u.rewardLog.push([now, amount]);
       if (kind === 'lap') u.stats.laps++;
       if (kind === 'win') u.stats.wins++;
       if (kind === 'trick') u.stats.tricks++;
       this.save();
     }
-    return { profile: this.profile(u), added: amount };
+    return { profile: this.profile(u), added: amount + bonus };
   }
 
   logout(token) {

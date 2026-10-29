@@ -204,12 +204,24 @@
           <div id="adm-stats" class="adm-stats"></div>
           <div class="adm-row"><span class="lbl">Announce</span><input id="adm-ann" placeholder="Message that pops up for everyone online" maxlength="140" style="flex:1"><button id="adm-ann-go" class="small">Send</button><button id="adm-ann-clear" class="small">Clear</button></div>
           <div class="adm-row"><span class="lbl">Chat</span><button id="adm-chat-clear" class="small danger">Clear chat for everyone</button><span class="hint">(click a message in the chat to delete it)</span></div>
+          <div class="adm-row"><span class="lbl">Event</span><select id="adm-ev-kind">
+              <option value="double">Double Coins</option><option value="rain">Coin Rain (+500/min)</option><option value="moon">Moon Gravity</option><option value="turbo">Turbo Frenzy</option><option value="giant">Giant Riders</option></select>
+            <select id="adm-ev-min"><option value="5">5 min</option><option value="10" selected>10 min</option><option value="30">30 min</option><option value="60">1 hour</option></select>
+            <button id="adm-ev-go" class="small">Start for everyone</button><button id="adm-ev-stop" class="small">Stop event</button></div>
           <div class="adm-row"><span class="lbl">Gift online</span><button class="small" data-gift="1000">+1K each</button><button class="small" data-gift="10000">+10K each</button><button class="small" data-gift="100000">+100K each</button></div>
           <div class="adm-row"><span class="lbl">Give item</span><input id="adm-give-name" placeholder="Rider name" autocomplete="off" style="width:130px"><select id="adm-give-item"></select><button id="adm-give-go" class="small">Give</button></div>
           <div class="adm-row"><span class="lbl">My cheats</span>
             <label><input type="checkbox" id="adm-god"> No crashing</label>
             <label><input type="checkbox" id="adm-moon"> Moon gravity</label>
-            <label><input type="checkbox" id="adm-turbo"> Turbo</label></div>
+            <label><input type="checkbox" id="adm-turbo"> Turbo</label>
+            <label><input type="checkbox" id="adm-hyper"> Hyper speed</label>
+            <label><input type="checkbox" id="adm-jump"> Super jump (J)</label>
+            <label><input type="checkbox" id="adm-ghost"> Ghost (ride through riders)</label>
+            <label><input type="checkbox" id="adm-freeze"> Freeze AI</label>
+            <label><input type="checkbox" id="adm-slowmo"> Slow motion (solo)</label>
+            <label><input type="checkbox" id="adm-giant"> Giant</label>
+            <label><input type="checkbox" id="adm-tiny"> Tiny</label></div>
+          <div class="adm-row"><span class="lbl">Teleport</span><button class="small" data-skip="100">Skip 100 m ahead</button><button class="small" data-skip="400">Skip 400 m</button><button class="small" data-skip="-100">Back 100 m</button><button id="adm-cheats-off" class="small">All cheats off</button></div>
         </div>
         <div class="search-row"><input id="adm-search" placeholder="Find a rider" autocomplete="off"><button id="adm-close">Close (-)</button></div>
         <div id="adm-msg" class="cmsg"></div>

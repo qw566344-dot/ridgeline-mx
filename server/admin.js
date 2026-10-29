@@ -12,16 +12,59 @@
 //    POST /api/admin/giftall {add}       (coins for everyone online right now)
 //    POST /api/admin/announce {text}     (a message that pops up for everyone online)
 //    POST /api/admin/chatdelete {id} / chatclear  (moderate the chat)
+//    POST /api/admin/event {kind, minutes}  (start an event for everyone online; kind '' stops it)
 // =====================================================================
 import { SHOP, STARTER, shopItem } from '../shared/shop.js';
 import { cloudEnabled } from './store.js';
 
 export const ADMINS = ['lmkk'];
+
+// events an admin can start for everyone online (the game applies the effects)
+export const EVENTS = {
+  double: { name: 'Double Coins', desc: 'Every coin earned on track counts twice' },
+  rain: { name: 'Coin Rain', desc: '+500 coins every minute for everyone online' },
+  moon: { name: 'Moon Gravity', desc: 'Low gravity for every rider - huge air' },
+  turbo: { name: 'Turbo Frenzy', desc: 'Every bike gets a turbo' },
+  giant: { name: 'Giant Riders', desc: 'Everyone rides super-sized' },
+};
+const RAIN_COINS = 500;
 const ANNOUNCE_MS = 5 * 60_000; // how long a new rider coming online still sees it
 const started = Date.now();
 
 export class Admin {
-  constructor(accounts) { this.A = accounts; this.announcement = null; }
+  constructor(accounts) { this.A = accounts; this.announcement = null; this.pulls = new Map(); this.event = null; this.rain = new Map(); }
+
+  // ---- events
+  startEvent(u, m) {
+    const kind = String(m.kind || '');
+    if (!kind) { const was = this.event; this.event = null; return { ok: was ? `${was.name} stopped` : 'No event running' }; }
+    const E = EVENTS[kind];
+    if (!E) return { error: 'No such event' };
+    const minutes = Math.max(1, Math.min(120, Math.round(Number(m.minutes) || 10)));
+    this.event = { id: Date.now(), kind, name: E.name, desc: E.desc, from: u.name, endsAt: Date.now() + minutes * 60_000 };
+    return { ok: `${E.name} started for ${minutes} min` };
+  }
+  currentEvent() { const e = this.event; if (e && Date.now() > e.endsAt) this.event = null; return this.event; }
+  // what the friends poll hands each rider (time left, so their clock does not matter)
+  eventFor(u) {
+    const e = this.currentEvent();
+    if (!e) return null;
+    if (e.kind === 'rain') {
+      // one shower per minute per rider, while they are online
+      const now = Date.now();
+      const r = this.rain.get(u.key);
+      if (!r || r.id !== e.id) this.rain.set(u.key, { id: e.id, at: now });
+      else if (now - r.at >= 60_000) { r.at = now; u.coins = Math.min(1e12, u.coins + RAIN_COINS); this.A.save(); return { ...this.publicEvent(e), rain: RAIN_COINS }; }
+    }
+    return this.publicEvent(e);
+  }
+  publicEvent(e) { return { id: e.id, kind: e.kind, name: e.name, desc: e.desc, from: e.from, left: e.endsAt - Date.now() }; }
+  // coins earned on track during Double Coins
+  coinFactor() { const e = this.currentEvent(); return e && e.kind === 'double' ? 2 : 1; }
+
+  // "an admin wants to join you": handed to that rider's game with its next friends poll
+  pull(key, from) { this.pulls.set(key, { from, at: Date.now() }); }
+  takePull(key) { const x = this.pulls.get(key); this.pulls.delete(key); return x && Date.now() - x.at < 60_000 ? x : null; }
   isAdmin(u) { return !!u && ADMINS.includes(u.key); }
 
   users(q) {
@@ -48,6 +91,7 @@ export class Admin {
       uptime: Date.now() - started,
       cloud: cloudEnabled,
       announcement: this.current() ? this.announcement.text : null,
+      event: this.currentEvent() ? { ...this.publicEvent(this.event) } : null,
       partyList: parties.map((p) => ({ code: p.code, members: [...p.members.values()].map((m) => m.name) })),
     };
   }
@@ -151,6 +195,7 @@ export class Admin {
       case 'admin/announce': return this.announce(u, m);
       case 'admin/chatdelete': return this.A.chat.remove(m.id);
       case 'admin/chatclear': return this.A.chat.clear();
+      case 'admin/event': return this.startEvent(u, m);
       default: return { error: 'Unknown admin action' };
     }
   }
