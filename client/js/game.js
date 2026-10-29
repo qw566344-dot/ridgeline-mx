@@ -227,7 +227,7 @@ export class Game {
     for (const r of this.riders) r.lap.reset(lapMode, 0);
     this.cam.setMode(this.settings.get('camera') || 0);
     this.cam.snapNext = true;
-    if (opts.mode === 'race' || (opts.mp && opts.mode !== 'freeride')) {
+    if (opts.mode !== 'practice') { // every start gets the 3-2-1 gate (free ride too)
       this.phase = 'countdown';
       this.countdown = GAME.countdown + 0.99;
       this.lastBeep = 4;
