@@ -520,7 +520,7 @@ export class Game {
         const rec = this.settings.saveSection(this.trackId, this.player.vehicleId, P.sec.name, t);
         if (rec) P.best = t;
         this.award('section', REWARDS.section);
-        this.toast(`${P.sec.name}: ${fmt(t)}${rec ? '  NEW BEST!' : ''}   (T to retry)`, 3, rec ? 'good' : '');
+        this.toast(`${P.sec.name}: ${fmt(t)}${rec ? '  NEW BEST!' : ''}   (Y to retry)`, 3, rec ? 'good' : '');
       }
     }
     // menu background: pick a rider to watch now and then

@@ -14,10 +14,11 @@
   <div id="stage-tags"></div>
   <!-- CHAT (online accounts, lobby only): a small button bottom-left opens it -->
   <div id="chat" class="chat off">
-    <button id="chat-pill" class="chat-pill">Chat <b id="chat-unread" hidden></b></button>
+    <button id="chat-pill" class="chat-pill"><kbd>T</kbd>Chat <b id="chat-unread" hidden></b></button>
+    <div id="chat-feed" class="chat-feed"></div>
     <div class="chat-head"><span>Chat</span><button id="chat-close" class="small">Hide</button></div>
     <div id="chat-log" class="chat-log"></div>
-    <div class="chat-row"><input id="chat-input" maxlength="200" placeholder="Press Enter to chat" autocomplete="off"><button id="chat-send" class="small">Send</button></div>
+    <div class="chat-row"><input id="chat-input" maxlength="200" placeholder="Type a message, Enter sends" autocomplete="off"><button id="chat-send" class="small">Send</button></div>
   </div>
 
   <div id="ui">
@@ -269,7 +270,8 @@
           <tr><td><kbd>Shift</kbd></td><td>Clutch - hold, rev, release for a burst (wheelies)</td></tr>
           <tr><td><kbd>Space</kbd></td><td>Rear brake - locks the rear for slides</td></tr>
           <tr><td><kbd>R</kbd></td><td>Reset onto the track</td></tr>
-          <tr><td><kbd>T</kbd></td><td>Quick retry (Time Trial / Practice / Freestyle)</td></tr>
+          <tr><td><kbd>Y</kbd></td><td>Quick retry (Time Trial / Practice / Freestyle)</td></tr>
+          <tr><td><kbd>T</kbd></td><td>Chat (online accounts)</td></tr>
           <tr><td><kbd>C</kbd></td><td>Change camera</td></tr>
           <tr><td>Right mouse + drag</td><td>Look around</td></tr>
           <tr><td><kbd>Esc</kbd> / <kbd>P</kbd></td><td>Pause</td></tr>
@@ -292,29 +294,27 @@
 
     <!-- HUD -->
     <div id="hud" hidden>
-      <div class="hud-tl">
-        <div class="hud-lap"><span id="hud-lap">LAP 1/3</span></div>
-        <div class="hud-time" id="hud-time">0:00.000</div>
-        <div class="hud-sub" id="hud-sub"></div>
-      </div>
-      <div class="hud-tr">
-        <div class="hud-pos" id="hud-pos"></div>
-        <ol id="hud-standings" class="standings"></ol>
-      </div>
       <div id="name-tags"></div>
       <div id="hud-trick" class="hud-trick"></div>
       <div id="trick-pop" class="trick-pop"></div>
       <div id="hud-center" class="hud-center"></div>
       <div id="toasts" class="toasts"></div>
-      <canvas id="minimap" width="200" height="200"></canvas>
-      <div class="hud-speedo">
-        <svg viewBox="0 0 200 120" class="tach">
-          <path d="M 20 110 A 85 85 0 0 1 180 110" class="tach-bg"/>
-          <path d="M 20 110 A 85 85 0 0 1 180 110" class="tach-fg" id="tach-fg"/>
-          <path d="M 152 50 A 85 85 0 0 1 180 110" class="tach-red"/>
-        </svg>
-        <div class="speed"><span id="hud-speed">0</span><small>MPH</small></div>
-        <div class="gear">GEAR <b id="hud-gear">1</b></div>
+      <!-- bottom left: lap and time over the minimap -->
+      <div class="hud-left">
+        <div class="hud-tl">
+          <div class="hud-lap"><span id="hud-lap">LAP 1/3</span></div>
+          <div class="hud-time" id="hud-time">0:00.000</div>
+          <div class="hud-sub" id="hud-sub"></div>
+        </div>
+        <canvas id="minimap" width="400" height="400"></canvas>
+      </div>
+      <!-- bottom right: position and standings over the speedometer -->
+      <div class="hud-right">
+        <div class="hud-tr" id="hud-board">
+          <div class="hud-pos" id="hud-pos"></div>
+          <ol id="hud-standings" class="standings"></ol>
+        </div>
+        <canvas id="speedo" class="hud-speedo" width="480" height="480"></canvas>
       </div>
       <div class="hud-bl" id="hud-hint">R reset &nbsp; C camera &nbsp; Esc pause / controls</div>
       <div id="hud-fps" class="fps" hidden></div>

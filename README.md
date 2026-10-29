@@ -12,7 +12,7 @@ accounts, and online parties with 6-character codes.
 
 ## Controls
 W throttle · S brake (hold at a stop to reverse) · A/D steer · Space rear brake (slides) ·
-Shift clutch · **Q / E lean back / forward** · R reset · T quick retry · C camera · Esc pause
+Shift clutch · **Q / E lean back / forward** · R reset · Y quick retry · T chat · C camera · Esc pause
 
 - **Wheelie:** hold **Q** + throttle to lift the front. Keep holding Q / throttle to hold it up,
   **E** or **Space** to bring it down. Pull it too far and you loop out.

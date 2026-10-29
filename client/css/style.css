@@ -298,15 +298,23 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
 
 /* ---------- HUD ---------- */
 #hud { position: absolute; inset: 0; font-family: var(--font); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
-.hud-tl { position: absolute; left: 18px; top: 14px; }
-.hud-lap { font-family: var(--display); font-weight: 700; font-size: 28px; font-style: italic; letter-spacing: 0.04em; }
-.hud-time { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.hud-sub { font-size: 15px; color: #e5e7eb; line-height: 1.45; font-variant-numeric: tabular-nums; }
-.hud-tr { position: absolute; right: 18px; top: 14px; text-align: right; }
-.hud-pos { font-family: var(--display); font-weight: 700; font-size: 54px; font-style: italic; line-height: 1; }
-.hud-pos small { font-size: 26px; color: #d1d5db; }
-.standings { list-style: none; margin: 6px 0 0; padding: 0; font-size: 14px; line-height: 1.55; font-variant-numeric: tabular-nums; }
-.standings li.me { color: var(--gold); font-weight: 700; }
+/* two stacks in the bottom corners: lap + time over the minimap (left),
+   position + standings over the speedometer (right) */
+.hud-left, .hud-right { position: absolute; bottom: 14px; display: flex; flex-direction: column; gap: 8px; }
+.hud-left { left: 14px; align-items: flex-start; }
+.hud-right { right: 14px; align-items: flex-end; }
+.hud-tl, .hud-tr { background: linear-gradient(180deg, rgba(14, 17, 24, 0.72), rgba(14, 17, 24, 0.5)); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 9px; padding: 5px 10px 6px; backdrop-filter: blur(4px); }
+.hud-tl { min-width: 130px; border-left: 3px solid var(--accent); }
+.hud-tr { min-width: 110px; border-right: 3px solid var(--accent); text-align: right; }
+.hud-lap { font-family: var(--display); font-weight: 700; font-size: 15px; font-style: italic; letter-spacing: 0.06em; color: var(--accent-2); }
+.hud-time { font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.hud-sub { font-size: 12px; color: #cbd0d8; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.hud-sub:empty { display: none; }
+.hud-pos { font-family: var(--display); font-weight: 700; font-size: 34px; font-style: italic; line-height: 1; }
+.hud-pos small { font-size: 17px; color: #aeb4bf; }
+.standings { list-style: none; margin: 3px 0 0; padding: 0; font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.standings li { padding: 0 5px; border-radius: 4px; }
+.standings li.me { color: var(--gold); font-weight: 700; background: rgba(255, 210, 63, 0.12); }
 .hud-center.small { font-size: 44px; white-space: nowrap; }
 .hud-center { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); font-family: var(--display); font-weight: 700; font-size: 120px; font-style: italic; color: #fff; text-shadow: 0 6px 20px rgba(0, 0, 0, 0.6); }
 .toasts { position: absolute; left: 50%; top: 36%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -323,18 +331,11 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
 .trick-pop .Perfect { color: var(--good); } .trick-pop .Clean { color: #93c5fd; } .trick-pop .Sketchy { color: var(--warn); }
 .trick-pop .combo { font-size: 18px; color: var(--accent-2); font-weight: 700; }
 @keyframes trickin { 0% { opacity: 0; transform: scale(0.7); } 10% { opacity: 1; transform: scale(1.08); } 18% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
-#minimap { position: absolute; left: 16px; bottom: 16px; width: 170px; height: 170px; background: rgba(10, 12, 18, 0.45); border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.15); }
-.hud-speedo { position: absolute; right: 22px; bottom: 16px; width: 240px; height: 160px; }
-.tach { position: absolute; inset: 0 0 auto 0; width: 240px; }
-.tach-bg { fill: none; stroke: rgba(255, 255, 255, 0.15); stroke-width: 12; stroke-linecap: round; }
-.tach-fg { fill: none; stroke: var(--accent); stroke-width: 12; stroke-linecap: round; stroke-dasharray: 267; stroke-dashoffset: 267; transition: stroke-dashoffset 0.05s linear; }
-.tach-red { fill: none; stroke: rgba(239, 68, 68, 0.55); stroke-width: 4; }
-.speed { position: absolute; left: 0; right: 0; top: 58px; text-align: center; font-size: 62px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
-.speed small { font-size: 16px; margin-left: 6px; color: #d1d5db; letter-spacing: 0.1em; }
-.gear { position: absolute; left: 0; right: 0; top: 126px; text-align: center; font-size: 14px; letter-spacing: 0.2em; color: #d1d5db; }
-.gear b { font-size: 24px; color: var(--gold); margin-left: 4px; }
-.hud-bl { position: absolute; left: 200px; bottom: 20px; font-size: 13px; color: rgba(255, 255, 255, 0.65); letter-spacing: 0.08em; }
-.fps { position: absolute; right: 18px; top: 50%; font-size: 13px; background: rgba(0, 0, 0, 0.5); padding: 3px 8px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+/* both dials are canvases drawn every frame in ui.js (2x pixels for sharp edges) */
+#minimap { width: 150px; height: 150px; border-radius: 50%; filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5)); }
+.hud-speedo { width: 170px; height: 170px; filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5)); }
+.hud-bl { position: absolute; left: 180px; bottom: 18px; font-size: 13px; color: rgba(255, 255, 255, 0.65); letter-spacing: 0.08em; }
+.fps { position: absolute; right: 18px; top: 14px; font-size: 13px; background: rgba(0, 0, 0, 0.5); padding: 3px 8px; border-radius: 4px; font-variant-numeric: tabular-nums; }
 .netinfo { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); font-size: 13px; background: rgba(0, 0, 0, 0.45); padding: 4px 12px; border-radius: 12px; display: flex; gap: 8px; align-items: center; }
 
 /* name tags over the other riders while riding */
@@ -380,11 +381,18 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
   .shop-detail { width: auto; left: 12px; right: 12px; bottom: 12px; }
   .view-hint { display: none; }
   .logo { font-size: 46px; } .logo.big { font-size: 54px; }
-  .hud-speedo { transform: scale(0.75); transform-origin: right bottom; }
-  #minimap { width: 120px; height: 120px; }
+  .hud-speedo { width: 130px; height: 130px; }
+  #minimap { width: 110px; height: 110px; }
+  .hud-tl { min-width: 0; } .hud-time { font-size: 17px; } .hud-sub { font-size: 11px; }
+  .hud-pos { font-size: 26px; } .standings { font-size: 11px; }
   .hud-bl, .chip.profile small, #region-text { display: none; }
 }
 @media (max-height: 640px) { .party-card { max-height: 50vh; overflow: auto; } }
+@media (max-height: 720px) {
+  .hud-speedo { width: 140px; height: 140px; } #minimap { width: 125px; height: 125px; }
+  .hud-pos { font-size: 28px; } .standings { font-size: 11px; line-height: 1.45; } .hud-time { font-size: 18px; }
+  .hud-bl { left: 152px; }
+}
 
 /* ---------- item shop (battle-royale style) ---------- */
 .shop-panel { width: min(760px, 58vw); }
@@ -455,6 +463,16 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
 #admin { z-index: 30; }
 .chat { position: fixed; left: 14px; bottom: 14px; z-index: 25; }
 .chat.off { display: none; }
+.chat.riding { bottom: auto; top: 14px; }
+.chat.riding:not(.open) .chat-pill { opacity: 0.75; }
+.chat-feed { display: none; }
+.chat.riding:not(.open) .chat-feed { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; width: min(320px, calc(100vw - 28px)); }
+.chat-feed .cm { align-self: flex-start; background: rgba(8, 10, 14, 0.6); border-radius: 6px; padding: 3px 8px; font-size: 13px; line-height: 1.35; word-wrap: break-word; max-width: 100%; animation: feedout 8s forwards; }
+.chat-feed .cm b { color: var(--gold); margin-right: 5px; }
+.chat-feed .cm.me b { color: #60a5fa; }
+.chat-feed .cm.sys { color: #9ca3af; font-style: italic; }
+@keyframes feedout { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
+.chat-pill kbd { font: inherit; font-size: 11px; font-weight: 800; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 4px; padding: 0 5px; margin-right: 6px; }
 .chat-pill { padding: 6px 14px; font-size: 13px; border-radius: 16px; background: rgba(8, 10, 14, 0.7); }
 .chat-pill b { background: var(--accent); color: #fff; border-radius: 9px; padding: 0 6px; margin-left: 4px; font-size: 11px; }
 .chat-head, .chat-log, .chat-row { display: none; }

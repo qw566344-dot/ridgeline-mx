@@ -14,7 +14,7 @@ export const KEYS = {
   leanFwd: ['KeyE'],
   reset: ['KeyR'],
   camera: ['KeyC'],
-  retry: ['KeyT'],
+  retry: ['KeyY'],
   trick1: ['Digit1', 'Numpad1'],   // Superman
   trick2: ['Digit2', 'Numpad2'],   // Nac-Nac
   trick3: ['Digit3', 'Numpad3'],   // Heel Clicker

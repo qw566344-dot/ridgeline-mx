@@ -30,7 +30,7 @@ const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino
 
 export const MODES = [
   { id: 'freeride', name: 'Free Ride', desc: 'Ride at your own pace. No timer, no pressure.', party: true },
-  { id: 'timetrial', name: 'Time Trial', desc: 'Hot laps against the clock. T restarts the lap.', party: true },
+  { id: 'timetrial', name: 'Time Trial', desc: 'Hot laps against the clock. Y restarts the lap.', party: true },
   { id: 'race', name: 'Race', desc: 'Line up on the gate - against AI riders, or your party.', party: true },
   { id: 'practice', name: 'Practice', desc: 'Drill one section until it is perfect. T retries it.', party: false },
   { id: 'freestyle', name: 'Freestyle', desc: 'Flips, whips and spins for points. Chain combos!', party: true },
@@ -100,9 +100,7 @@ export class UI {
     // HUD
     this.minimap = $('minimap');
     this.mctx = this.minimap.getContext('2d');
-    const fg = $('tach-fg');
-    this.tachLen = 208.3; // arc length of the dial path (radius 85, 140 degrees); measuring it while the HUD is hidden gives 0
-    fg.style.strokeDasharray = this.tachLen;
+    this.sctx = $('speedo').getContext('2d');
   }
 
   on(name, f) { (this.handlers[name] = this.handlers[name] || []).push(f); }
@@ -735,11 +733,60 @@ export class UI {
     return { sc, ox, oz };
   }
 
+  // the minimap background: dark disc, the track as a dirt ribbon with
+  // direction chevrons and a chequered finish line. Drawn once per track at
+  // 2x pixels; drawMinimap() puts the riders on top every frame.
   buildMinimap(T) {
     this.mapT = T;
     const c = document.createElement('canvas');
-    c.width = c.height = 200;
-    this.mapXf = this.drawTrack(c.getContext('2d'), T, 200, null);
+    c.width = c.height = 400;
+    const ctx = c.getContext('2d');
+    ctx.scale(2, 2);
+    let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    for (let i = 0; i < T.n; i += 8) { x0 = Math.min(x0, T.xs[i]); x1 = Math.max(x1, T.xs[i]); z0 = Math.min(z0, T.zs[i]); z1 = Math.max(z1, T.zs[i]); }
+    const sc = 140 / Math.max(x1 - x0, z1 - z0); // 140 px square fits inside the 200 px disc
+    const ox = 100 - ((x0 + x1) / 2) * sc, oz = 100 - ((z0 + z1) / 2) * sc;
+    const px = (k) => T.xs[k] * sc + ox, py = (k) => T.zs[k] * sc + oz;
+    // disc
+    const bg = ctx.createRadialGradient(100, 90, 10, 100, 100, 100);
+    bg.addColorStop(0, 'rgba(32, 38, 50, 0.86)'); bg.addColorStop(1, 'rgba(8, 10, 15, 0.9)');
+    ctx.beginPath(); ctx.arc(100, 100, 99, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'; ctx.lineWidth = 1;
+    for (const r of [33, 66]) { ctx.beginPath(); ctx.arc(100, 100, r, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(100, 0); ctx.lineTo(100, 200); ctx.moveTo(0, 100); ctx.lineTo(200, 100); ctx.stroke();
+    // track ribbon: shadow, edge, surface, centre line
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let i = 0; i <= T.n; i += 2) { const k = i % T.n; i ? ctx.lineTo(px(k), py(k)) : ctx.moveTo(px(k), py(k)); }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)'; ctx.lineWidth = 13; ctx.stroke();
+    ctx.strokeStyle = '#7a5a34'; ctx.lineWidth = 10; ctx.stroke();
+    ctx.strokeStyle = '#d8ad74'; ctx.lineWidth = 6.5; ctx.stroke();
+    ctx.setLineDash([3, 5]); ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
+    // which way the track runs
+    const step = Math.max(8, Math.floor(T.n / 7));
+    const f = Math.floor(T.finishS / T.step) % T.n;
+    ctx.fillStyle = 'rgba(70, 45, 20, 0.85)';
+    for (let i = step; i < T.n - step / 2; i += step) {
+      const k = (f + i) % T.n, k2 = (k + 3) % T.n;
+      const a = Math.atan2(py(k2) - py(k), px(k2) - px(k));
+      ctx.save(); ctx.translate(px(k), py(k)); ctx.rotate(a);
+      ctx.beginPath(); ctx.moveTo(2.5, 0); ctx.lineTo(-2, -2.6); ctx.lineTo(-0.8, 0); ctx.lineTo(-2, 2.6); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    // chequered finish line across the track
+    const f2 = (f + 3) % T.n;
+    const fa = Math.atan2(py(f2) - py(f), px(f2) - px(f));
+    ctx.save(); ctx.translate(px(f), py(f)); ctx.rotate(fa);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; ctx.fillRect(-2.6, -6.6, 5.2, 13.2);
+    for (let r = 0; r < 2; r++) for (let q = 0; q < 6; q++) { ctx.fillStyle = (r + q) % 2 ? '#111' : '#fff'; ctx.fillRect(-2 + r * 2, -6 + q * 2, 2, 2); }
+    ctx.restore();
+    ctx.restore();
+    // rim
+    ctx.beginPath(); ctx.arc(100, 100, 98.5, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(100, 100, 95, -Math.PI * 0.75, -Math.PI * 0.25); ctx.strokeStyle = 'rgba(255, 90, 31, 0.7)'; ctx.lineWidth = 2; ctx.stroke();
+    this.mapXf = { sc, ox, oz };
     this.mapBg = c;
   }
 
@@ -838,12 +885,13 @@ export class UI {
     const ranked = game.mode === 'race' || (mp && game.mode !== 'freeride');
     $('hud-pos').hidden = !ranked;
     $('hud-standings').hidden = !ranked;
+    $('hud-board').hidden = !ranked;
     $('hud-center').textContent = '';
     $('hud-trick').textContent = '';
     $('trick-pop').innerHTML = '';
     $('name-tags').innerHTML = ''; this.nameTagEls = new Map();
     $('toasts').innerHTML = '';
-    $('hud-hint').innerHTML = game.mode === 'freestyle' ? 'Q/E flip &nbsp; A/D whip &nbsp; Shift+A/D spin &nbsp; T restart' : 'R reset &nbsp; C camera &nbsp; Esc pause';
+    $('hud-hint').innerHTML = game.mode === 'freestyle' ? 'Q/E flip &nbsp; A/D whip &nbsp; Shift+A/D spin &nbsp; Y restart' : 'R reset &nbsp; C camera &nbsp; Esc pause';
     if (this.stage) this.stage.hideTags();
   }
   hideHud() { $('hud').hidden = true; }
@@ -865,10 +913,8 @@ export class UI {
     // ground speed (not falling speed), smoothed so the number does not flicker
     const ground = Math.hypot(v.vel.x, v.vel.z) * 2.237;
     this.mphS = this.mphS === undefined ? ground : this.mphS + (ground - this.mphS) * 0.25;
-    $('hud-speed').textContent = Math.round(this.mphS < 0.5 ? 0 : this.mphS);
-    $('hud-gear').textContent = v.engine.reverse ? 'R' : v.engine.gear;
-    const rpmFrac = Math.min(1, v.engine.rpm / (v.cfg.engine.redline * 1.03));
-    $('tach-fg').style.strokeDashoffset = this.tachLen * (1 - rpmFrac);
+    this.rpmS = this.rpmS === undefined ? v.engine.rpm : this.rpmS + (v.engine.rpm - this.rpmS) * Math.min(1, dt * 18);
+    this.drawSpeedo(v, game.raceTime || 0);
     // what you are doing in the air right now
     const tr = v.controller && v.controller.trick;
     $('hud-trick').textContent = !v.grounded && tr ? liveTrick(tr) : '';
@@ -902,7 +948,7 @@ export class UI {
       const P = game.practice;
       $('hud-lap').textContent = 'PRACTICE: ' + P.sec.name.toUpperCase();
       $('hud-time').textContent = P.timing !== null ? fmtTime(now - P.timing) : P.last !== null ? fmtTime(P.last) : '0:00.000';
-      $('hud-sub').innerHTML = `Best ${fmtTime(P.best)} &bull; T retry`;
+      $('hud-sub').innerHTML = `Best ${fmtTime(P.best)} &bull; Y retry`;
     } else {
       const total = mode === 'race' ? game.laps : null;
       const cur = Math.min(L.laps + 1, total || 99);
@@ -961,17 +1007,122 @@ export class UI {
   drawMinimap(game) {
     const ctx = this.mctx, T = this.mapT;
     if (!T || !this.mapBg) return;
-    ctx.clearRect(0, 0, 200, 200);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, 400, 400);
     ctx.drawImage(this.mapBg, 0, 0);
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
     const { sc, ox, oz } = this.mapXf;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(100, 100, 97, 0, Math.PI * 2); ctx.clip();
+    let me = null;
     for (const r of game.riders) {
+      if (r.isPlayer) { me = r; continue; }
       const pos = r.vis.root.position;
       ctx.beginPath();
-      ctx.arc(pos.x * sc + ox, pos.z * sc + oz, r.isPlayer ? 5.5 : 4, 0, Math.PI * 2);
-      ctx.fillStyle = r.isPlayer ? '#ffd23f' : r.remote ? '#60a5fa' : '#f3f4f6';
+      ctx.arc(pos.x * sc + ox, pos.z * sc + oz, 3.6, 0, Math.PI * 2);
+      ctx.fillStyle = r.remote ? '#60a5fa' : '#e5e7eb';
       ctx.fill();
-      ctx.lineWidth = 1.5; ctx.strokeStyle = '#000'; ctx.stroke();
+      ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)'; ctx.stroke();
     }
+    // you: a gold arrow pointing the way you face, with a soft pulse
+    if (me) {
+      const pos = me.vis.root.position, x = pos.x * sc + ox, y = pos.z * sc + oz;
+      const fw = me.veh && me.veh.fwd;
+      const a = fw && (fw.x || fw.z) ? Math.atan2(fw.z, fw.x) : 0;
+      const pulse = (performance.now() % 1400) / 1400;
+      ctx.beginPath(); ctx.arc(x, y, 5 + pulse * 9, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 210, 63, ${0.35 * (1 - pulse)})`; ctx.fill();
+      ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+      ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-4.5, -5); ctx.lineTo(-2, 0); ctx.lineTo(-4.5, 5); ctx.closePath();
+      ctx.fillStyle = '#ffd23f'; ctx.fill();
+      ctx.lineWidth = 1.4; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)'; ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // speedometer: a 270 degree rev dial (ticks per 1000 rpm, red zone, floating
+  // needle), shift lights across the top, speed in the middle, gear box below
+  drawSpeedo(v, t) {
+    const ctx = this.sctx;
+    const ec = v.cfg.engine, e = v.engine;
+    const cx = 120, cy = 120;
+    const maxRpm = Math.ceil((ec.redline * 1.03) / 1000) * 1000;
+    const A0 = Math.PI * 0.75, SW = Math.PI * 1.5;
+    const ang = (rpm) => A0 + SW * Math.max(0, Math.min(1, rpm / maxRpm));
+    const rpm = this.rpmS || 0, frac = rpm / ec.redline;
+    const font = (w, px) => `${w} ${px}px Bahnschrift, 'DIN Alternate', 'Segoe UI', Roboto, Arial, sans-serif`;
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
+    ctx.clearRect(0, 0, 240, 240);
+    // face
+    const bg = ctx.createRadialGradient(cx, cy - 20, 10, cx, cy, 116);
+    bg.addColorStop(0, 'rgba(34, 40, 52, 0.88)'); bg.addColorStop(1, 'rgba(8, 10, 15, 0.92)');
+    ctx.beginPath(); ctx.arc(cx, cy, 116, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)'; ctx.stroke();
+    // red zone
+    ctx.lineCap = 'butt';
+    ctx.beginPath(); ctx.arc(cx, cy, 104, ang(ec.redline), ang(maxRpm)); ctx.lineWidth = 6; ctx.strokeStyle = '#ef4444'; ctx.stroke();
+    // rev bar
+    ctx.beginPath(); ctx.arc(cx, cy, 94, A0, A0 + SW); ctx.lineWidth = 9; ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)'; ctx.stroke();
+    if (rpm > 0) {
+      const hot = frac > 0.92;
+      let col = hot ? '#ef4444' : '#ff5a1f';
+      if (!hot && ctx.createConicGradient) {
+        col = ctx.createConicGradient(A0, cx, cy);
+        col.addColorStop(0, '#ff8a3d'); col.addColorStop(0.55, '#ff5a1f'); col.addColorStop(0.75, '#ef4444'); col.addColorStop(1, '#ef4444');
+      }
+      ctx.save(); ctx.shadowColor = hot ? 'rgba(239, 68, 68, 0.9)' : 'rgba(255, 90, 31, 0.7)'; ctx.shadowBlur = 10;
+      ctx.beginPath(); ctx.arc(cx, cy, 94, A0, ang(rpm)); ctx.lineWidth = 9; ctx.strokeStyle = col; ctx.stroke();
+      ctx.restore();
+    }
+    // ticks and numbers (x1000 rpm)
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let r = 0; r <= maxRpm; r += 500) {
+      const a = ang(r), major = r % 1000 === 0, red = r >= ec.redline;
+      const c = Math.cos(a), s = Math.sin(a);
+      const r0 = major ? 80 : 84;
+      ctx.beginPath(); ctx.moveTo(cx + c * r0, cy + s * r0); ctx.lineTo(cx + c * 88, cy + s * 88);
+      ctx.lineWidth = major ? 2.5 : 1.5; ctx.strokeStyle = red ? '#f87171' : major ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.35)'; ctx.stroke();
+      if (major && (maxRpm <= 10000 || (r / 1000) % 2 === 0 || r === maxRpm)) {
+        ctx.font = font(700, 14); ctx.fillStyle = red ? '#f87171' : 'rgba(255, 255, 255, 0.7)';
+        ctx.fillText(String(r / 1000), cx + c * 68, cy + s * 68);
+      }
+    }
+    // floating needle (stops short of the centre so the speed stays readable)
+    {
+      const a = ang(rpm), c = Math.cos(a), s = Math.sin(a);
+      ctx.save(); ctx.shadowColor = 'rgba(255, 255, 255, 0.8)'; ctx.shadowBlur = 6;
+      ctx.beginPath(); ctx.moveTo(cx + c * 56, cy + s * 56); ctx.lineTo(cx + c * 101, cy + s * 101);
+      ctx.lineCap = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+      ctx.restore();
+    }
+    // shift lights: green, yellow, red as the revs climb, all flash at the limiter
+    const leds = 7, flash = e.limiter && Math.floor(t * 12) % 2 === 0;
+    for (let i = 0; i < leds; i++) {
+      const on = flash || (!e.limiter && frac > 0.7 + (i / leds) * 0.28);
+      const col = i < 3 ? '74, 222, 128' : i < 5 ? '250, 204, 21' : '239, 68, 68';
+      ctx.beginPath(); ctx.arc(cx - 30 + i * 10, 60, 3.6, 0, Math.PI * 2);
+      ctx.fillStyle = on ? `rgb(${flash ? '96, 165, 250' : col})` : 'rgba(255, 255, 255, 0.1)';
+      if (on) { ctx.save(); ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 8; ctx.fill(); ctx.restore(); } else ctx.fill();
+    }
+    // speed
+    const mph = Math.round(this.mphS < 0.5 ? 0 : this.mphS);
+    ctx.save(); ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'; ctx.shadowBlur = 6;
+    ctx.font = font(700, 62); ctx.fillStyle = '#fff'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(String(mph), cx, cy + 22);
+    ctx.restore();
+    ctx.font = font(700, 13); ctx.fillStyle = '#aeb4bf'; ctx.textBaseline = 'middle';
+    ctx.fillText('M P H', cx, cy + 36);
+    // gear box in the gap at the bottom of the dial; lights up while shifting
+    const g = e.reverse ? 'R' : e.gear === 0 ? 'N' : String(e.gear);
+    const shifting = e.shift > 0;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(cx - 21, cy + 52, 42, 36, 8) : ctx.rect(cx - 21, cy + 52, 42, 36);
+    ctx.fillStyle = shifting ? 'rgba(255, 210, 63, 0.22)' : 'rgba(255, 255, 255, 0.06)'; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = frac > 0.92 && !e.reverse ? '#ef4444' : 'rgba(255, 210, 63, 0.7)'; ctx.stroke();
+    ctx.font = font(700, 26); ctx.fillStyle = e.reverse ? '#f87171' : '#ffd23f';
+    ctx.fillText(g, cx, cy + 71);
+    ctx.font = font(700, 10); ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fillText('x1000 RPM', cx, cy - 44);
   }
 
   // message from an admin, shown for 8 s over everything
