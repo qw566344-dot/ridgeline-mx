@@ -32,6 +32,7 @@ const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
 // Delete the line (or the name) when testing is over.
 const TEST_COINS = { nahh: 1_000_000 };
 const MAX_COINS = 5_000_000;
+const CLOUD_RETRY_MS = Number(process.env.CLOUD_RETRY_MS) || 30_000; // background cloud load retry (tests make it short)
 
 export class Accounts {
   constructor(dir) {
@@ -47,40 +48,81 @@ export class Accounts {
     this.casino = new Casino(this);
     this.admin = new Admin(this);
     this.chat = new Chat(this);
+    this.startedAt = Date.now();
+    // the cloud copy is never written until it has been read: a wiped local file
+    // must not overwrite everyone's accounts (see loadCloud)
+    this.cloudLoaded = !cloudEnabled;
+    this.cloudBusy = false; this.cloudDirty = false; this.cloudRetry = null;
     this.ready = this.loadCloud();
   }
 
-  // with a cloud save set up, the accounts there win over the (wiped) local file
-  async loadCloud() {
+  // with a cloud save set up, the accounts there win over the (wiped) local file.
+  // A failed load is tried again (3 times before the server opens, then every
+  // 30 s in the background); until it works nothing is written to the cloud.
+  async loadCloud(attempt = 1) {
     if (!cloudEnabled) { console.log('Accounts: saved on this server only (no cloud save set up)'); return; }
     try {
       const db = await cloudLoad();
-      if (db && db.users) {
-        // keep anyone who registered in the moments before the load finished
-        for (const [k, u] of Object.entries(this.db.users)) if (!db.users[k]) db.users[k] = u;
-        this.db = db;
-        this.tokens = new Map();
-        for (const u of Object.values(this.db.users)) for (const t of u.tokens || []) this.tokens.set(t, u.key);
-      }
+      this.mergeCloud(db);
+      this.cloudLoaded = true;
       console.log('Accounts: loaded', Object.keys(this.db.users).length, 'from the cloud save');
-    } catch (e) { console.log('Accounts: cloud load failed -', e.message); }
+      if (this.cloudDirty || attempt > 1) this.cloudPush();
+    } catch (e) {
+      console.log(`Accounts: cloud load failed (try ${attempt}) -`, e.message);
+      if (attempt < 3) { await new Promise((r) => setTimeout(r, (CLOUD_RETRY_MS / 15) * attempt)); return this.loadCloud(attempt + 1); }
+      setTimeout(() => this.loadCloud(attempt + 1), CLOUD_RETRY_MS);
+    }
+  }
+
+  // cloud accounts come in; anyone made or restored here since the server started keeps their local copy
+  mergeCloud(db) {
+    if (!db || !db.users) return;
+    for (const [k, u] of Object.entries(this.db.users)) {
+      const cu = db.users[k];
+      if (!cu || (u.created || 0) >= this.startedAt || (u.restored || 0) >= this.startedAt) db.users[k] = u;
+    }
+    for (const key of ['admins', 'adminLog', 'chat']) if (!db[key] && this.db[key]) db[key] = this.db[key];
+    this.db = db;
+    this.tokens = new Map();
+    for (const u of Object.values(this.db.users)) for (const t of u.tokens || []) this.tokens.set(t, u.key);
+  }
+
+  // one cloud write at a time, always the latest data; a failed write is retried
+  async cloudPush() {
+    if (!cloudEnabled) return;
+    if (!this.cloudLoaded || this.cloudBusy) { this.cloudDirty = true; return; }
+    this.cloudBusy = true; this.cloudDirty = false;
+    try { await cloudSave(this.db); }
+    catch (e) {
+      console.log('Accounts: cloud save failed, trying again soon -', e.message);
+      this.cloudDirty = true;
+      clearTimeout(this.cloudRetry);
+      this.cloudRetry = setTimeout(() => { this.cloudRetry = null; this.cloudPush(); }, CLOUD_RETRY_MS / 6);
+    } finally { this.cloudBusy = false; }
+    if (this.cloudDirty && !this.cloudRetry) this.cloudPush();
+    else if (!this.cloudDirty) { clearTimeout(this.cloudRetry); this.cloudRetry = null; }
+  }
+
+  writeLocal() {
+    try {
+      const tmp = this.file + '.tmp';
+      fs.writeFileSync(tmp, JSON.stringify(this.db));
+      fs.renameSync(tmp, this.file); // a crash mid-write never leaves a half file
+    } catch (e) { console.log('Accounts: could not write', this.file, '-', e.message); }
   }
 
   // write everything to disk (and the cloud save) right now - used when the server is shutting down
   async flush() {
     clearTimeout(this.saveTimer);
-    try { fs.writeFileSync(this.file, JSON.stringify(this.db)); } catch { /* ignore */ }
+    this.writeLocal();
+    if (!cloudEnabled || !this.cloudLoaded) return;
+    for (let i = 0; i < 50 && this.cloudBusy; i++) await new Promise((r) => setTimeout(r, 100));
     try { await cloudSave(this.db); } catch (e) { console.log('Accounts: cloud save failed -', e.message); }
   }
 
   save() {
     clearTimeout(this.saveTimer);
-    this.saveTimer = setTimeout(() => {
-      const tmp = this.file + '.tmp';
-      fs.writeFileSync(tmp, JSON.stringify(this.db));
-      fs.renameSync(tmp, this.file);
-      cloudSave(this.db).catch((e) => console.log('Accounts: cloud save failed -', e.message));
-    }, 300);
+    this.saveTimer = setTimeout(() => { this.writeLocal(); this.cloudPush(); }, 300);
   }
 
   // new password (admin tool): every login token stops working

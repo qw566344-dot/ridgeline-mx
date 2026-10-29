@@ -68,6 +68,7 @@ social.onChange(() => {
 });
 social.onAnnounce((a) => ui.announce(a));
 social.onPull(() => net.answerPull(account.token));
+account.onOutbox = (n) => ui.popup(`+${n.toLocaleString()} coins you earned while the server was away are saved now`, 'good');
 // admin tools: a private message, or a kick back to the menu
 social.onAdmin(async (list) => {
   for (const a of list) {

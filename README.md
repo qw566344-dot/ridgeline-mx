@@ -61,6 +61,17 @@ can keep them in a free Upstash Redis database instead (`server/store.js`):
 Only the main (North America) server needs this - it is the one that keeps accounts.
 Test it locally with `node tools/store-test.js`.
 
+### How saving keeps your stuff safe
+- **Server:** every change is written to `accounts.json` straight away (a crash mid-write never leaves a
+  half file) and, with the cloud save set up, to Upstash one write at a time; a failed cloud write is
+  tried again. If the cloud can not be read when the server starts, it is tried again and is **never
+  overwritten** until it has been read, so a wiped server can not wipe everyone's accounts
+  (`node tools/cloudsave-test.js`).
+- **Your browser:** every online account is also copied into the browser. If a free server forgot it,
+  logging in brings it back. Coins earned and items equipped while the server can not be reached wait
+  in the browser and are sent when it answers again.
+- Guest and offline accounts live in that browser only.
+
 ## Models
 - Dirt bikes: `client/models/kx_dirt_bike.glb`, made from the Tinkercad bike by `tools/bake-kx-bike.py`
   (Blender), which splits it into wheels, fork, swingarm and body.

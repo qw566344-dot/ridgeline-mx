@@ -43,6 +43,40 @@ export class Account {
     this.name = saved ? saved.name : null;
     this.profile = saved ? saved.profile : null;
     this.listeners = [];
+    // anything that could not reach the server (coins earned, what you equipped)
+    // waits in this browser and is sent as soon as the server answers again
+    setInterval(() => this.flushOutbox(), 20_000);
+    window.addEventListener('online', () => this.flushOutbox());
+  }
+
+  // ---- outbox: rewards / equips made while the server was unreachable
+  outbox() { return LS.get('mx.outbox', []); }
+  queue(item) {
+    if (!this.profile) return;
+    const list = this.outbox().filter((x) => !(item.t === 'equip' && x.t === 'equip' && x.slot === item.slot)); // only the last equip per slot
+    list.push({ ...item, who: this.profile.name.toLowerCase(), at: Date.now() });
+    LS.set('mx.outbox', list.slice(-60));
+  }
+  async flushOutbox() {
+    if (this.flushing || this.mode !== 'online' || !this.token || !this.profile) return;
+    const list = this.outbox();
+    if (!list.length) return;
+    this.flushing = true;
+    const me = this.profile.name.toLowerCase(), keep = [];
+    let added = 0, down = false;
+    for (const x of list) {
+      if (x.who !== me) { keep.push(x); continue; }              // another account on this browser
+      if (Date.now() - x.at > 24 * 3600_000) continue;            // too old
+      if (down) { keep.push(x); continue; }
+      try {
+        const r = x.t === 'reward' ? await this.api('reward', { kind: x.kind, amount: x.amount }) : await this.api('equip', { slot: x.slot, id: x.id });
+        if (r && r.profile) { this.profile = r.profile; added += r.added || 0; }
+      } catch { down = true; keep.push(x); }
+    }
+    LS.set('mx.outbox', keep);
+    this.flushing = false;
+    if (added || list.length !== keep.length) this.changed();
+    if (added && this.onOutbox) this.onOutbox(added);
   }
 
   get loggedIn() { return !!this.profile; }
@@ -121,7 +155,7 @@ export class Account {
     if (this.mode !== 'online' || !this.token) return;
     try {
       const r = await this.api('me');
-      if (r.profile) { this.profile = r.profile; this.changed(); }
+      if (r.profile) { this.profile = r.profile; this.changed(); this.flushOutbox(); }
       else if (r.error) { this.expiredName = this.name; this.logout(); } // server restarted: log in again (progress comes back)
     } catch { /* server not reachable: keep the cached profile for now */ this.stale = true; }
   }
@@ -166,6 +200,7 @@ export class Account {
       }
       this.set('online', r.token, r.profile);
       await this.rememberPassword(password);
+      this.flushOutbox();
       return null;
     } catch {
       return this.localLogin(name, password);
@@ -256,7 +291,7 @@ export class Account {
     if (!this.owns(slot, id)) return 'You do not own that yet';
     if (this.mode === 'online') {
       try { const r = await this.api('equip', { slot, id }); if (r.error) return r.error; this.profile = r.profile; this.changed(); return null; }
-      catch { this.profile.equipped[slot] = id; this.changed(); return null; }
+      catch { this.profile.equipped[slot] = id; this.queue({ t: 'equip', slot, id }); this.changed(); return null; }
     }
     this.profile.equipped[slot] = id;
     this.persistLocal();
@@ -269,7 +304,7 @@ export class Account {
     amount = Math.min(MAX_REWARD, Math.round(amount));
     if (this.mode === 'online') {
       try { const r = await this.api('reward', { kind, amount }); if (r.profile) { this.profile = r.profile; this.changed(); } return r.added || 0; }
-      catch { return 0; }
+      catch { this.queue({ t: 'reward', kind, amount }); return 0; } // sent later, see flushOutbox
     }
     this.profile.coins += amount;
     if (kind === 'lap') this.profile.stats.laps++;
