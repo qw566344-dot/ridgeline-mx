@@ -101,7 +101,7 @@ export class UI {
     this.minimap = $('minimap');
     this.mctx = this.minimap.getContext('2d');
     const fg = $('tach-fg');
-    this.tachLen = fg.getTotalLength ? fg.getTotalLength() : 209;
+    this.tachLen = 208.3; // arc length of the dial path (radius 85, 140 degrees); measuring it while the HUD is hidden gives 0
     fg.style.strokeDasharray = this.tachLen;
   }
 
@@ -862,8 +862,10 @@ export class UI {
     const p = game.player;
     if (!p || !p.veh) return;
     const v = p.veh;
-    const mph = Math.round(v.speed * 2.237);
-    $('hud-speed').textContent = mph;
+    // ground speed (not falling speed), smoothed so the number does not flicker
+    const ground = Math.hypot(v.vel.x, v.vel.z) * 2.237;
+    this.mphS = this.mphS === undefined ? ground : this.mphS + (ground - this.mphS) * 0.25;
+    $('hud-speed').textContent = Math.round(this.mphS < 0.5 ? 0 : this.mphS);
     $('hud-gear').textContent = v.engine.reverse ? 'R' : v.engine.gear;
     const rpmFrac = Math.min(1, v.engine.rpm / (v.cfg.engine.redline * 1.03));
     $('tach-fg').style.strokeDashoffset = this.tachLen * (1 - rpmFrac);
