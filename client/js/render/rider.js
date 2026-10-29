@@ -41,22 +41,30 @@ function partGeo(scheme) {
   add(sphere(0.2, jersey, [0, 0.33, 0], [0.92, 1.3, 0.62], 18, 14), B.torso);
   add(sphere(0.155, jersey, [0, 0.12, 0], [1.0, 0.9, 0.78], 16, 10), B.torso);
   add(sphere(0.19, accent, [0, 0.37, 0.035], [0.98, 0.78, 0.6], 16, 12), B.torso);            // chest protector
+  add(sphere(0.12, dark, [0, 0.36, 0.06], [0.55, 0.42, 0.62], 12, 8), B.torso);               // protector centre plate
+  add(sphere(0.188, accent, [0, 0.455, -0.012], [0.98, 0.3, 0.66], 18, 8), B.torso);          // shoulder yoke
+  add(sphere(0.158, accent, [0, 0.035, 0], [1.03, 0.16, 0.8], 16, 6), B.torso);               // jersey hem
   for (const s of [1, -1]) {
-    add(sphere(0.088, accent, [s * 0.2, 0.47, -0.005], [1, 0.82, 1.05], 14, 10), B.torso);      // shoulder cups
-    add(sphere(0.07, jersey, [s * 0.19, 0.44, -0.01], [1, 0.9, 1], 10, 8), B.torso);
+    add(sphere(0.085, jersey, [s * 0.2, 0.46, -0.005], [1.08, 0.55, 1.12], 14, 8), B.torso);    // shoulder pads: low and wide
+    add(sphere(0.07, accent, [s * 0.205, 0.468, -0.005], [1.05, 0.38, 1.05], 12, 6), B.torso);
+    add(sphere(0.13, accent, [s * 0.16, 0.24, -0.005], [0.22, 1.4, 0.72], 10, 10), B.torso); // side panels
   }
   add(torus(0.088, 0.034, dark, [0, 0.53, -0.01], [Math.PI / 2, 0, 0], 8, 18), B.torso);        // neck brace
   add(cyl(0.07, 0.08, 0.05, jersey, [0, 0.555, -0.005], [0, 0, 0], 14), B.torso);               // collar
-  add(box(0.22, 0.2, 0.012, 0xffffff, [0, 0.31, -0.122]), B.torso);                             // back number plate
-  add(box(0.08, 0.12, 0.014, dark, [-0.03, 0.31, -0.128]), B.torso);
-  add(box(0.08, 0.12, 0.014, dark, [0.05, 0.31, -0.128]), B.torso);
+  // (the race number on the back is a decal mesh, see Rider.setNumber)
   // head: the helmet model is its own mesh on the head bone (see Rider); this is the face
   // inside it, plus a plain shell in case the helmet model could not be loaded
   add(sphere(0.1, 0xd9a07a, [0, 0.1, 0.03], [1, 1.1, 1], 12, 10), B.head);
+  // goggles over the eyes: frame, tinted lens, strap round the back
+  add(roundBoxC(0.165, 0.068, 0.04, 0.018, accent, [0, 0.125, 0.112]), B.head);
+  add(roundBoxC(0.142, 0.05, 0.02, 0.012, 0x24324a, [0, 0.126, 0.13]), B.head);
+  add(box(0.03, 0.012, 0.004, 0xbfd4ff, [-0.035, 0.138, 0.1405]), B.head);                       // glint
+  add(torus(0.118, 0.011, dark, [0, 0.125, 0.0], [Math.PI / 2, 0, 0], 6, 20), B.head);
   if (!helmetModel()) add(sphere(0.155, jersey, [0, 0.13, 0.0], [1.0, 1.04, 1.13], 16, 12), B.head);
   // arms: smooth sleeves, elbow guards, cuffs, shaped gloves with a knuckle guard
   for (const [ua, fa, h] of [[B.uaL, B.faL, B.hL], [B.uaR, B.faR, B.hR]]) {
     add(capsule(0.062, LEN.ua, jersey), ua);
+    for (const y of [0.5, 0.62]) add(cyl(0.0655, 0.0655, 0.028, accent, [0, LEN.ua * y, 0], [0, 0, 0], 14), ua); // sleeve stripes
     add(capsule(0.052, LEN.fa, jersey), fa);
     add(sphere(0.06, dark, [0, 0.02, -0.012], [1, 0.95, 0.8], 12, 8), fa);                       // elbow guard
     add(cyl(0.056, 0.05, 0.07, accent, [0, LEN.fa - 0.035, 0], [0, 0, 0], 14), fa);             // cuff
@@ -67,6 +75,8 @@ function partGeo(scheme) {
   // legs: smooth pants, knee braces with hinges, tall boots with shin plates, buckles, toe caps
   for (const [th, sh, ft] of [[B.thL, B.shL, B.ftL], [B.thR, B.shR, B.ftR]]) {
     add(capsule(0.082, LEN.th, pants), th);
+    for (const s of [1, -1]) add(sphere(0.07, accent, [s * 0.062, LEN.th * 0.5, 0], [0.32, 2.6, 0.7], 8, 10), th); // pant side panels
+    add(sphere(0.078, dark, [0, LEN.th * 0.62, -0.035], [0.9, 1.6, 0.55], 10, 8), th);          // seat / rear panel
     add(sphere(0.07, pants, [0, LEN.th - 0.03, 0.01], [1, 0.9, 1], 12, 8), th);                  // knee
     add(roundBoxC(0.12, 0.2, 0.12, 0.045, dark, [0, 0.04, 0.012]), sh);                           // knee brace
     for (const s of [1, -1]) add(cyl(0.022, 0.022, 0.03, silver, [s * 0.068, 0.04, 0.01], [0, 0, Math.PI / 2], 10), sh); // hinges
@@ -301,6 +311,37 @@ export class Rider {
     setBone(b[B.ftR], J.anR, J.toeR, t.a.set(0, 1, 0));
   }
 
+  // race number printed on the back of the jersey (a small curved decal on the torso bone)
+  setNumber(n, scheme) {
+    if (this.numberMesh) { this.numberMesh.removeFromParent(); this.numberMesh.geometry.dispose(); this.numberMesh.material.map.dispose(); this.numberMesh.material.dispose(); }
+    const num = String(n == null ? '' : n).slice(0, 3);
+    if (!num) return;
+    const [jersey, , accent] = scheme.gear;
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 128;
+    const x = c.getContext('2d');
+    const hex = (v) => '#' + v.toString(16).padStart(6, '0');
+    // light jerseys get dark numbers and the other way round
+    const lum = (v) => (((v >> 16) & 255) * 0.3 + ((v >> 8) & 255) * 0.59 + (v & 255) * 0.11) / 255;
+    const ink = lum(jersey) > 0.6 ? '#111111' : '#ffffff';
+    const edge = lum(accent) > 0.6 === lum(jersey) > 0.6 ? (ink === '#ffffff' ? '#111111' : '#ffffff') : hex(accent);
+    x.font = `italic 900 ${num.length > 2 ? 70 : 92}px Bahnschrift, 'Arial Black', Impact, sans-serif`;
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.lineJoin = 'round'; x.lineWidth = 12; x.strokeStyle = edge; x.strokeText(num, 64, 70);
+    x.fillStyle = ink; x.fillText(num, 64, 70);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    // bend the plane around the back of the jersey
+    const g = new THREE.PlaneGeometry(0.19, 0.19, 8, 1);
+    g.rotateY(Math.PI); // face backwards (and read the right way round from behind)
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setZ(i, -0.128 * Math.sqrt(Math.max(0, 1 - (p.getX(i) / 0.19) ** 2)) - 0.004);
+    g.translate(0, 0.3, 0);
+    g.computeVertexNormals();
+    this.numberMesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.05, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 }));
+    this.bones[B.torso].add(this.numberMesh);
+  }
+
   // --- crash: come off the vehicle and tumble -----------------------------
   detach(scene, vel) {
     if (!this.attached) return;
@@ -380,6 +421,7 @@ export class Rider {
   dispose() {
     this.group.removeFromParent();
     this.mesh.skeleton.dispose();
+    if (this.numberMesh) { this.numberMesh.geometry.dispose(); this.numberMesh.material.map.dispose(); this.numberMesh.material.dispose(); }
   }
 }
 

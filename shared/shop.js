@@ -14,6 +14,12 @@ export const GEAR_SETS = [
   { id: 'camo', name: 'Woodland Camo', colors: [0x4d5d2a, 0x3b3424, 0xc2b280] },
   { id: 'ice', name: 'Ice Cold', colors: [0x7dd3fc, 0xf8fafc, 0x0c4a6e] },
   { id: 'gold', name: 'Champion Gold', colors: [0xd4a017, 0x111111, 0xfff4cc] },
+  { id: 'sunset', name: 'Sunset', colors: [0xf97316, 0x7c2d12, 0xfde68a] },
+  { id: 'galaxy', name: 'Galaxy', colors: [0x312e81, 0x0f0a1f, 0xc084fc] },
+  { id: 'toxic', name: 'Toxic', colors: [0x84cc16, 0x111111, 0xfacc15] },
+  { id: 'royal', name: 'Royal', colors: [0x581c87, 0xd4a017, 0xfff4cc] },
+  { id: 'rosegold', name: 'Rose Gold', colors: [0xd4917f, 0x2a1d1d, 0xfde2d8] },
+  { id: 'arctic', name: 'Arctic', colors: [0xf8fafc, 0x94a3b8, 0x38bdf8] },
 ];
 
 export const SHOP = [
@@ -73,6 +79,21 @@ export const SHOP = [
   { id: 'arctic', slot: 'color', price: 2800, rarity: 'Rare' },
   { id: 'neontiger', slot: 'color', price: 4800, rarity: 'Epic' },
   { id: 'prism', slot: 'color', price: 15000, rarity: 'Legendary' },
+  { id: 'zebra', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'desertcamo', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'bumblebee', slot: 'color', price: 2400, rarity: 'Rare' },
+  { id: 'polka', slot: 'color', price: 2900, rarity: 'Rare' },
+  { id: 'sakura', slot: 'color', price: 3200, rarity: 'Rare' },
+  { id: 'candyzebra', slot: 'color', price: 3900, rarity: 'Epic' },
+  { id: 'mintchip', slot: 'color', price: 3900, rarity: 'Epic' },
+  { id: 'iceflame', slot: 'color', price: 4600, rarity: 'Epic' },
+  { id: 'argyle', slot: 'color', price: 4800, rarity: 'Epic' },
+  { id: 'zombie', slot: 'color', price: 5000, rarity: 'Epic' },
+  { id: 'emerald', slot: 'color', price: 9500, rarity: 'Legendary' },
+  { id: 'rosegold', slot: 'color', price: 10500, rarity: 'Legendary' },
+  { id: 'royal', slot: 'color', price: 12500, rarity: 'Legendary' },
+  { id: 'hologram', slot: 'color', price: 16000, rarity: 'Legendary' },
+  { id: 'rainbow', slot: 'color', price: 18000, rarity: 'Legendary' },
   // rider gear
   { id: 'match', slot: 'gear', price: 0 },
   { id: 'black', slot: 'gear', price: 700 },
@@ -82,6 +103,12 @@ export const SHOP = [
   { id: 'ice', slot: 'gear', price: 1200 },
   { id: 'neon', slot: 'gear', price: 1500 },
   { id: 'gold', slot: 'gear', price: 5000 },
+  { id: 'sunset', slot: 'gear', price: 1300 },
+  { id: 'arctic', slot: 'gear', price: 1300 },
+  { id: 'toxic', slot: 'gear', price: 1600 },
+  { id: 'galaxy', slot: 'gear', price: 2500 },
+  { id: 'rosegold', slot: 'gear', price: 3500 },
+  { id: 'royal', slot: 'gear', price: 4000 },
 ];
 
 // performance upgrades: 3 levels of engine / suspension / tyres for every vehicle

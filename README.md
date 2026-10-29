@@ -19,6 +19,14 @@ Shift clutch · **Q / E lean back / forward** · R reset · Y quick retry · T c
 - **Flips:** in the air hold **Q** (backflip) or **E** (front flip). Let go in time to land on two wheels.
 - **Whips:** in the air hold **A** or **D** to throw the bike sideways. Let go before you land.
 - Tricks, laps, race finishes, records and big air earn **coins** for the Shop.
+- **Chat:** press **T** (lobby or while riding). Global talks to everyone online; the Party tab
+  (only while you are in a party) talks to your party only.
+
+## Admin panel (press -, admin accounts only)
+Add coins, give items, ban / reset riders, announcements, **Join** any online rider (no party needed:
+their game connects and you appear in their ride), **events** for everyone online (Double Coins,
+Coin Rain, Moon Gravity, Turbo Frenzy, Giant Riders) and your own cheats (no crashing, moon gravity,
+turbo, hyper speed, super jump on J, ghost, freeze AI, slow motion, giant / tiny, skip ahead).
 
 ## Play with friends
 

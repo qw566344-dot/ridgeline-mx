@@ -109,7 +109,9 @@ export class Game {
     const vis = new VehicleVisual(def, scheme, number);
     vis.tryLoadModel();
     this.scene.add(vis.root);
-    const rider = new Rider(riderScheme(scheme, gearId, GEAR_SETS));
+    const rs = riderScheme(scheme, gearId, GEAR_SETS);
+    const rider = new Rider(rs);
+    rider.setNumber(number, rs);
     rider.attachTo(vis.model);
     const r = { id, name, number, isPlayer, vis, rider, vehicleId, colorId, lap: new LapTracker(this.world.T), finished: false, best: null, key: String(id) };
     if (!remote) {

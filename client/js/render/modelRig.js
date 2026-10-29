@@ -320,13 +320,32 @@ function buildTemplate(key, scene) {
 
 // ---------------------------------------------------------------- instances
 // paint: a plain colour, or a skin pattern drawn in the model's own space
-const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17 };
+const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17, zebra: 18, dots: 19, rainbow: 20, argyle: 21, holo: 22 };
 // animated skins (aurora, lava) read this clock; main.js moves it every frame
 export const skinTime = { value: 0 };
 const SKIN_GLSL = `
 uniform vec3 uA; uniform vec3 uB; uniform vec3 uC; uniform float uPat; uniform float uTime;
 varying vec3 vPat;
 float skinHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+vec3 skinHue(float h) { return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
+// zebra, polka dots, rainbow (moves), argyle, hologram (shimmers)
+vec3 skinExtra(vec3 p) {
+  if (uPat < 18.5) { float v = sin(p.x * 18.0 + sin(p.y * 7.0) * 2.4 + sin(p.z * 5.0) * 1.2); return mix(uA, uB, smoothstep(0.25, 0.4, v)); }
+  if (uPat < 19.5) {
+    vec2 q = vec2(p.x + p.z * 0.5, p.y) * 9.0; vec2 c = fract(q) - 0.5;
+    float big = step(length(c), 0.28), small = step(length(fract(q + 0.5) - 0.5), 0.12);
+    return mix(mix(uA, uB, big), uC, small * (1.0 - big));
+  }
+  if (uPat < 20.5) return mix(skinHue(fract(p.x * 0.7 + p.y * 0.4 - uTime * 0.12)), uA, 0.12);
+  if (uPat < 21.5) {
+    vec2 q = vec2(p.x + p.z * 0.3, p.y) * 6.0; vec2 d = abs(fract(vec2(q.x + q.y, q.x - q.y) * 0.5) - 0.5);
+    float tile = mod(floor((q.x + q.y) * 0.5) + floor((q.x - q.y) * 0.5), 2.0);
+    float line = step(min(d.x, d.y), 0.025);
+    return mix(mix(uA, uB, tile), uC, line);
+  }
+  float s = fract(p.y * 1.6 + p.x * 0.9 + p.z * 0.6 + uTime * 0.08);
+  return mix(uA, skinHue(s) * 0.6 + uB * 0.4, 0.5 + 0.25 * sin(p.x * 20.0 + uTime));
+}
 vec3 skinColor(vec3 p) {
   if (uPat < 0.5 || (uPat > 5.5 && uPat < 6.5)) return uA;
   if (uPat < 1.5) return mix(uA, uB, step(0.62, fract((p.x * 1.6 + p.y * 0.9) * 2.2)));
@@ -367,6 +386,7 @@ vec3 skinColor(vec3 p) {
     return mix(uC, mix(uA, uB, 0.5 + 0.5 * sin(uTime * 2.0 + p.x * 3.0)) * 1.4, crack);
   }
   if (uPat < 16.5) { float v = sin(p.x * 6.0 + 3.0 * sin(p.y * 4.0 + 2.0 * sin(p.z * 5.0 + p.x * 3.0))); return mix(uA, uB, smoothstep(0.86, 1.0, abs(v))); }
+  if (uPat > 17.5) return skinExtra(p);
   // race livery: twin stripes down the middle and a band near the front
   float st = step(abs(p.z + 0.05), 0.03) + step(abs(p.z - 0.05), 0.03);
   vec3 c = mix(uA, uB, clamp(st, 0.0, 1.0));
@@ -376,12 +396,13 @@ vec3 skinColor(vec3 p) {
 function paintMaterial(base, scheme, which, key) {
   const pat = which === 'body' ? scheme.pattern || 'solid' : 'solid';
   const color = which === 'body' ? scheme.body : scheme.accent;
-  const k = base.uuid + ':' + color + ':' + pat + ':' + (scheme.accent || 0);
+  const k = base.uuid + ':' + color + ':' + pat + ':' + (scheme.accent || 0) + ':' + (scheme.third || 0);
   if (!paintCache.has(k)) {
     const m = base.clone();
     m.color = new THREE.Color(color);
     if (pat === 'chrome') { m.metalness = 1; m.roughness = 0.12; m.envMapIntensity = 1.4; }
     if (pat === 'carbon') { m.roughness = 0.3; }
+    if (pat === 'holo') { m.metalness = 0.7; m.roughness = 0.2; }
     if (pat !== 'solid' && pat !== 'chrome') {
       const u = { uA: { value: new THREE.Color(scheme.body) }, uB: { value: new THREE.Color(scheme.accent) }, uC: { value: new THREE.Color(scheme.third || 0x111111) }, uPat: { value: PATTERN_ID[pat] || 0 }, uTime: skinTime };
       m.onBeforeCompile = (sh) => {

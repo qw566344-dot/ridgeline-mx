@@ -153,7 +153,9 @@ export class Stage {
     holder.add(vis.root);
     vis.root.position.y = vis.cfg.rideHeight;
     this.scene.add(holder);
-    const rider = new Rider(riderScheme(scheme, d.gearId || 'match', GEAR_SETS));
+    const rs = riderScheme(scheme, d.gearId || 'match', GEAR_SETS);
+    const rider = new Rider(rs);
+    if (d.number) rider.setNumber(d.number, rs);
     rider.attachTo(vis.model);
     const wheels = vis.cfg.wheels.map((w) => ({ comp: w.sag * w.travel, spin: 0, steer: 0 }));
     const fake = { input: { throttle: 0, brake: 0, lean: 0 }, speed: 0, grounded: true, airTime: 0, lean: 0, wheels: vis.cfg.wheels.map((w) => ({ comp: w.sag * w.travel, cfg: w })), controller: { steer: 0 } };
