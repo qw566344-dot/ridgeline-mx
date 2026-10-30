@@ -471,19 +471,20 @@ export class UI {
     const kitCols = (g) => { const k = BIKE_COLORS.find((c) => c.id === g.skin); return k ? [k.body, k.accent] : [paint.gear[0], paint.gear[2]]; };
     const gearItems = GEAR_SETS.filter((g) => !g.skin || (A && A.owns('gear', g.id)));
     sw($('g-gear'), gearItems, 'gear', (g) => (g.skin ? kitCols(g) : g.colors ? [g.colors[0], g.colors[2]] : [paint.gear[0], paint.gear[2]]), (g) => g.name, S.get('gear') || 'match');
-    // combos: a bundle you own puts the skin and its rider kit on together
-    const combos = BUNDLES.filter((b) => owns('color', b.color) && owns('gear', b.gear));
+    // combos: every bike skin you own with the rider matching it (Team Kit copies the
+    // skin's colours and pattern) - one click puts both on
     const ce = $('g-combo');
-    ce.innerHTML = combos.length ? '' : '<span class="hint">Bundles in the Shop give you matching combos. You can still mix any bike skin with any rider skin below.</span>';
-    for (const b of combos) {
-      const k = BIKE_COLORS.find((c) => c.id === b.color);
+    ce.innerHTML = '';
+    for (const c of paintItems) {
+      if (!owns('color', c.id)) continue;
+      const p = paintFor(view, c.id);
       const btn = document.createElement('button');
-      btn.className = 'swatch combo' + (S.get('color') === b.color && S.get('gear') === b.gear ? ' sel' : '');
-      btn.title = b.name.replace(/ Bundle$/, '') + ' combo';
-      btn.style.background = `linear-gradient(135deg, ${hex(k.body)} 40%, ${hex(k.accent)} 40%, ${hex(k.accent)} 60%, ${hex(k.gear[0])} 60%)`;
+      btn.className = 'swatch combo' + (S.get('color') === c.id && (S.get('gear') || 'match') === 'match' ? ' sel' : '');
+      btn.title = c.name + ' - bike and rider matching';
+      btn.style.background = `linear-gradient(135deg, ${hex(p.body)} 40%, ${hex(p.accent)} 40%, ${hex(p.accent)} 60%, ${hex(p.gear[0])} 60%)`;
       btn.onclick = async () => {
-        if (A) { await A.equip('color', b.color); await A.equip('gear', b.gear); }
-        S.set('color', b.color); S.set('gear', b.gear);
+        if (A) { await A.equip('color', c.id); await A.equip('gear', 'match'); }
+        S.set('color', c.id); S.set('gear', 'match');
         this.renderGarage(); this.syncStage(); this.renderTop();
         this.emit('garageChange');
       };
