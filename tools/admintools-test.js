@@ -76,10 +76,32 @@ const old = await get('me', R.token);
 const relog = await post('login', { name: 'Rider1', password: 'newpass9' });
 check('new password logs them out and works', !!old.error && !!relog.token);
 
+// blow up: everyone in the rider's party gets the boom; not connected -> through the poll
+const A2 = client('lmkk'), T2 = client('Rider1'), W2 = client('Watcher');
+await Promise.all([A2.open, T2.open, W2.open]); await wait(300);
+T2.send({ t: 'create' }); await wait(300);
+const pc = [...T2.msgs].reverse().find((m) => m.t === 'party').code;
+W2.send({ t: 'join', code: pc }); await wait(300);
+await post('admin/blow', { name: 'Rider1' }, owner.token); await wait(300);
+const tId = [...T2.msgs].find((m) => m.t === 'welcome').id;
+check('blow up: the rider and their party get the boom', T2.msgs.some((m) => m.t === 'boom' && m.id === tId) && W2.msgs.some((m) => m.t === 'boom' && m.id === tId));
+await post('friends', { status: 'menu' }, H.token);
+await post('admin/blow', { name: 'Helper' }, owner.token);
+const hp = await post('friends', { status: 'menu' }, H.token);
+check('blow up a rider not on the game server: through the poll', hp.admin && hp.admin.some((x) => x.kind === 'boom'));
+
+// dev tag: shows in /api/tags, no admin powers
+await post('admin/dev', { name: 'Helper', on: true }, owner.token);
+const tags = await (await fetch(B + '/api/tags')).json();
+const hNoPanel = (await get('admin/stats', H.token)).error === 'Admins only';
+check('dev tag: in /api/tags, no panel', tags.tags.Helper && tags.tags.Helper[0] === 'DEV' && hNoPanel);
+await post('admin/dev', { name: 'Helper', on: false }, owner.token);
+check('dev tag removed', !(await (await fetch(B + '/api/tags')).json()).tags.Helper);
+
 // log
 const log = await get('admin/log', owner.token);
 const acts = new Set(log.log.map((x) => x.action));
-check('admin log has every action', ['warn', 'mute', 'unmute', 'give', 'take', 'kick', 'closeparty', 'makeadmin', 'removeadmin', 'password'].every((a) => acts.has(a)));
+check('admin log has every action', ['warn', 'mute', 'unmute', 'give', 'take', 'kick', 'closeparty', 'makeadmin', 'removeadmin', 'password', 'blowup', 'dev', 'undev'].every((a) => acts.has(a)));
 
 const ok = results.every(Boolean);
 console.log(ok ? 'all passed' : 'FAILED');

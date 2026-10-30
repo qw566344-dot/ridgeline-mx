@@ -2,6 +2,15 @@
 export function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 // special tags shown above a rider's name tag (in the lobby and on the track)
 export const STAFF_TAGS = { lmkk: [['DEV', 'dev'], ['CREATOR', 'creator']] };
+const BASE_TAGS = { ...STAFF_TAGS };
+// riders an admin gave the DEV tag (from the server's /api/tags); the built-in ones stay
+export function setStaffTags(map) {
+  for (const k of Object.keys(STAFF_TAGS)) if (!BASE_TAGS[k]) delete STAFF_TAGS[k];
+  for (const [name, list] of Object.entries(map || {})) {
+    const k = name.toLowerCase();
+    if (!BASE_TAGS[k]) STAFF_TAGS[k] = list.map((l) => [l, l.toLowerCase()]);
+  }
+}
 export function staffTags(name) {
   const t = STAFF_TAGS[String(name || '').trim().toLowerCase()];
   return t ? `<div class="staff-tags">${t.map(([label, cls]) => `<b class="stag ${cls}">${label}</b>`).join('')}</div>` : '';

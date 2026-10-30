@@ -160,6 +160,24 @@ export class Effects {
     }
   }
 
+  // admin troll: a fireball, sparks and a column of smoke
+  explosion(pos) {
+    const n = Math.max(20, 70 * this.budget);
+    for (let i = 0; i < n; i++) { // fire
+      const a = Math.random() * Math.PI * 2, s = 4 + Math.random() * 9, up = 2 + Math.random() * 8;
+      const hot = Math.random();
+      this.spawn(pos.x, pos.y + 0.5, pos.z, Math.cos(a) * s, up, Math.sin(a) * s, 1.1 + Math.random() * 0.8, 3.5, 0.5 + Math.random() * 0.5, 0.95, 1, 0.55 + hot * 0.4, 0.1 + hot * 0.25, 0.5, 2.2);
+    }
+    for (let i = 0; i < n * 0.4; i++) { // sparks
+      const a = Math.random() * Math.PI * 2, s = 10 + Math.random() * 14;
+      this.spawn(pos.x, pos.y + 0.5, pos.z, Math.cos(a) * s, 6 + Math.random() * 10, Math.sin(a) * s, 0.25, 0, 0.8 + Math.random() * 0.6, 1, 1, 0.85, 0.3, 9.8, 0.6);
+    }
+    for (let i = 0; i < n * 0.6; i++) { // smoke
+      const sh = 0.12 + Math.random() * 0.12;
+      this.spawn(pos.x + (Math.random() - 0.5) * 2, pos.y + 1, pos.z + (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 2 + Math.random() * 3, (Math.random() - 0.5) * 2, 1.6, 2.2, 2.5 + Math.random() * 1.5, 0.6, sh, sh, sh, -0.4, 0.8);
+    }
+  }
+
   update(dt, camera, renderer) {
     const n = this.alive;
     for (let i = 0; i < n; i++) {

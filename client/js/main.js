@@ -18,7 +18,8 @@ import { Net } from './net.js';
 import { Account } from './account.js';
 import { Social } from './social.js';
 import { preloadModels, skinTime } from './render/modelRig.js';
-import { escapeHtml } from './util.js';
+import { escapeHtml, setStaffTags } from './util.js';
+import { serverBase } from './config.js';
 
 const settings = new Settings();
 const R = new Renderer(document.getElementById('game'));
@@ -68,10 +69,16 @@ social.onChange(() => {
 });
 social.onAnnounce((a) => ui.announce(a));
 social.onPull(() => net.answerPull(account.token));
+// DEV tags an admin handed out: fetched now and every minute (name tags, chat, lobby)
+async function loadTags() {
+  try { const r = await (await fetch(serverBase() + '/api/tags')).json(); if (r && r.tags) setStaffTags(r.tags); } catch { /* offline */ }
+}
+loadTags(); setInterval(loadTags, 60_000);
 account.onOutbox = (n) => ui.popup(`+${n.toLocaleString()} coins you earned while the server was away are saved now`, 'good');
 // admin tools: a private message, or a kick back to the menu
 social.onAdmin(async (list) => {
   for (const a of list) {
+    if (a.kind === 'boom') { if (game.state === 'running' && ui.inGame() && game.player) game.blowUp(game.player); continue; }
     if (a.kind === 'kick') {
       if (game.state === 'running' && ui.inGame()) await backToLobby();
       if (net.code) net.leave();
@@ -110,7 +117,7 @@ ui.on('joinParty', async (inv) => {
 });
 
 // expose for debugging / automated tests in the console
-window.MX = { game, ui, settings, R, net, stage, input, account, social };
+window.MX = { game, ui, settings, R, net, stage, input, account, social, loadTags };
 
 // ---- menu wiring
 ui.on('screen', (name) => { if (name !== 'loading') audio.unlock(); });

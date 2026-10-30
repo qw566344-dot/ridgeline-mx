@@ -248,6 +248,18 @@ export class Lobby {
     if (admin.conn) admin.conn.send({ t: 'notice', msg: `<b>${t.name.replace(/[<>&]/g, '')}</b> is in your party now` });
   }
 
+  // admin troll: the rider blows up - everyone in their party sees the fireball, and
+  // the rider's own game throws them off. Returns false if they are not connected here
+  blowUp(name, from) {
+    const want = String(name || '').trim().toLowerCase();
+    const ts = [...this.players.values()].filter((x) => x.connected && x.name.toLowerCase() === want);
+    for (const t of ts) { // every tab they have open
+      const msg = JSON.stringify({ t: 'boom', id: t.id, from });
+      for (const m of t.party ? t.party.members.values() : [t]) if (m.conn) m.conn.send(msg);
+    }
+    return ts.length > 0;
+  }
+
   // admin tools: kick a rider out of their party (their game also goes back to
   // the menu through the friends poll); close a whole party
   kick(name) {

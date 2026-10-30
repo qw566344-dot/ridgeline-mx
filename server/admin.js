@@ -18,12 +18,15 @@
 //    GET  /api/admin/user?name=          -> one rider in detail (stats, items, equipped, mute...)
 //    POST /api/admin/warn {name, text}   (a private message that pops up for that rider)
 //    POST /api/admin/kick {name}         (back to the menu and out of their party)
+//    POST /api/admin/blow {name}         (troll: they blow up - in a race their party sees it)
 //    POST /api/admin/mute {name, minutes} (no chat; minutes 0 unmutes)
 //    POST /api/admin/take {name, item}   (remove one item)
 //    POST /api/admin/password {name, password}  (new password; logs them out everywhere)
 //    POST /api/admin/closeparty {code}   (ends a party for everyone in it)
 //    POST /api/admin/makeadmin {name, on}  (owners only)
 //    GET  /api/admin/log                 -> the last 100 admin actions
+//    POST /api/admin/dev {name, on}      (the DEV name tag - just the tag, no admin panel)
+//    GET  /api/tags (anyone)             -> {tags: {name: ['DEV']}} for name tags / chat
 // =====================================================================
 import { SHOP, STARTER, shopItem } from '../shared/shop.js';
 import { cloudEnabled } from './store.js';
@@ -68,7 +71,7 @@ export class Admin {
     const F = this.A.friends, p = F && F.online(u.key);
     return { user: {
       name: u.name, coins: u.coins, created: u.created, lastSeen: u.lastSeen || null, online: !!p, status: p ? p.status : 'offline', mode: p ? p.mode : null, track: p ? p.track : null, party: p ? p.code : null,
-      stats: u.stats || {}, equipped: u.equipped, owned: u.owned, friends: (u.friends || []).length, banned: !!u.banned, admin: this.isAdmin(u), owner: this.isOwner(u), mutedUntil: this.muted(u),
+      stats: u.stats || {}, equipped: u.equipped, owned: u.owned, friends: (u.friends || []).length, banned: !!u.banned, admin: this.isAdmin(u), owner: this.isOwner(u), mutedUntil: this.muted(u), dev: (this.A.db.devs || []).includes(u.key),
     } };
   }
 
@@ -90,6 +93,18 @@ export class Admin {
     const n = this.A.lobby ? this.A.lobby.kick(t.name) : 0;
     this.record(u, 'kick', t.name);
     return { ok: `Kicked ${t.name}${n ? ' out of their party' : ''}` };
+  }
+
+  // troll: blow a rider up (their party sees it; not connected to the game server -> their
+  // game does it through the friends poll)
+  blow(u, m) {
+    const t = this.find(m.name);
+    if (!t) return { error: 'No such rider' };
+    if (this.isOwner(t) && !this.isOwner(u)) return { error: 'Owners can not be blown up' };
+    const live = this.A.lobby ? this.A.lobby.blowUp(t.name, u.name) : false;
+    if (!live) this.tell(t.key, { kind: 'boom', text: '', from: u.name });
+    this.record(u, 'blowup', t.name);
+    return { ok: `BOOM - ${t.name} blew up` };
   }
 
   mute(u, m) {
@@ -136,6 +151,23 @@ export class Admin {
     if (n < 0) return { error: 'No such party' };
     this.record(u, 'closeparty', code, n + ' riders');
     return { ok: `Closed party ${code} (${n} rider${n === 1 ? '' : 's'})` };
+  }
+
+  // the DEV tag: shows over their rider, in chat and in the lobby - nothing else
+  dev(u, m) {
+    const t = this.find(m.name);
+    if (!t) return { error: 'No such rider' };
+    const list = this.A.db.devs || (this.A.db.devs = []);
+    const on = m.on !== false;
+    this.A.db.devs = on ? [...new Set([...list, t.key])] : list.filter((k) => k !== t.key);
+    this.A.save();
+    this.record(u, on ? 'dev' : 'undev', t.name);
+    return { ok: on ? `${t.name} has the DEV tag now` : `${t.name} no longer has the DEV tag` };
+  }
+  tags() {
+    const out = {};
+    for (const k of this.A.db.devs || []) { const t = this.A.db.users[k]; if (t) out[t.name] = ['DEV']; }
+    return out;
   }
 
   makeAdmin(u, m) {
@@ -316,11 +348,13 @@ export class Admin {
       case 'admin/log': return { log: [...this.log].reverse() };
       case 'admin/warn': return this.warn(u, m);
       case 'admin/kick': return this.kick(u, m);
+      case 'admin/blow': return this.blow(u, m);
       case 'admin/mute': return this.mute(u, m);
       case 'admin/take': return this.take(u, m);
       case 'admin/password': return this.password(u, m);
       case 'admin/closeparty': return this.closeParty(u, m);
       case 'admin/makeadmin': return this.makeAdmin(u, m);
+      case 'admin/dev': return this.dev(u, m);
       case 'admin/users': return this.users(url.searchParams.get('q'));
       case 'admin/stats': return this.stats();
       case 'admin/coins': return this.coins(m);

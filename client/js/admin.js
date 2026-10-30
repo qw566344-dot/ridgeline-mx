@@ -77,7 +77,7 @@ export class AdminPanel {
     const el = $('admin');
     const show = on === undefined ? el.hidden : on;
     el.hidden = !show;
-    if (show) this.load();
+    if (show) { this.load(); this.renderRace(); }
   }
 
   say(text, bad) { $('adm-msg').textContent = text; $('adm-msg').className = 'cmsg ' + (bad ? 'bad' : 'good'); }
@@ -102,6 +102,20 @@ export class AdminPanel {
     this.ui.show('home');
     this.ui.popup(`Joining <b>${escapeHtml(name)}</b>...`);
     net.whenOnline(() => { net.sendProfile(); net.send({ t: 'adminjoin', name, auth: this.A.token }); });
+  }
+
+  // everyone in the race you are riding, each with a Blow up button (troll)
+  renderRace() {
+    const g = this.ui.game, row = $('adm-race-row');
+    const others = g && this.ui.inGame() ? g.riders.filter((r) => !r.isPlayer) : [];
+    row.hidden = !others.length;
+    if (!others.length) return;
+    $('adm-race').innerHTML = others.map((r, i) => `<button class="small danger" data-boom="${i}">${escapeHtml(r.name)}${r.remote ? '' : ' (AI)'} 💥</button>`).join('');
+    $('adm-race').querySelectorAll('[data-boom]').forEach((b) => b.onclick = () => {
+      const r = others[Number(b.dataset.boom)];
+      if (r.remote) this.act('blow', { name: r.name }); // their game throws them, everyone sees it
+      else { g.blowUp(r); this.say(`BOOM - ${r.name} blew up`); }
+    });
   }
 
   async loadStats() {
@@ -140,6 +154,7 @@ export class AdminPanel {
         ${u.online && !u.owner ? `<button class="small" data-a="join" data-n="${n}">Join</button><button class="small" data-a="summon" data-n="${n}" title="Bring them into your party">Summon</button>` : ''}
         <button class="small" data-a="give" data-n="${n}">Give item</button>
         ${u.owner ? '' : `<button class="small" data-a="kick" data-n="${n}">Kick</button>`}
+        ${u.online && !u.owner ? `<button class="small danger" data-a="blow" data-n="${n}" title="Troll: they blow up (works best when you are in a race with them)">Blow up</button>` : ''}
         ${u.admin ? '' : `<button class="small" data-a="ban" data-on="${u.banned ? 0 : 1}" data-n="${n}">${u.banned ? 'Unban' : 'Ban'}</button>`}
         <button class="small danger" data-a="reset" data-n="${n}">Reset</button>
         ${u.admin ? '' : `<button class="small danger" data-a="delete" data-n="${n}">Delete</button>`}
@@ -157,6 +172,7 @@ export class AdminPanel {
       if (a === 'summon') this.summonRider(n);
       if (a === 'give') { $('adm-give-name').value = n; $('adm-give-item').focus(); }
       if (a === 'kick' && sure()) this.act('kick', { name: n });
+      if (a === 'blow') this.act('blow', { name: n });
       if (a === 'ban' && (b.dataset.on === '0' || sure())) this.act('ban', { name: n, on: b.dataset.on === '1' });
       if (a === 'reset' && sure()) this.act('reset', { name: n });
       if (a === 'delete' && sure()) this.act('delete', { name: n });
@@ -193,7 +209,8 @@ export class AdminPanel {
       <div class="adm-row"><span class="lbl">Chat</span>${[[10, '10 min'], [60, '1 hour'], [1440, '1 day']].map(([m2, t]) => `<button class="small" data-mute="${m2}">Mute ${t}</button>`).join('')}<button class="small" data-mute="0">Unmute</button></div>
       <div class="adm-row"><span class="lbl">Take item</span><select id="adm-i-take">${paid.length ? paid.map((k) => `<option value="${escapeHtml(k)}">${escapeHtml(nm(k))}</option>`).join('') : '<option value="">(nothing bought)</option>'}</select><button class="small danger" id="adm-i-take-go">Take</button></div>
       <div class="adm-row"><span class="lbl">Password</span><input id="adm-i-pw" type="text" placeholder="New password (4+ characters)" autocomplete="off" style="width:200px"><button class="small" id="adm-i-pw-go">Set</button><span class="hint">logs them out everywhere</span></div>
-      ${u.owner ? '' : `<div class="adm-row"><span class="lbl">Admin</span><button class="small" id="adm-i-admin">${u.admin ? 'Remove admin' : 'Make admin'}</button><span class="hint">(owners only)</span></div>`}`;
+      ${u.owner ? '' : `<div class="adm-row"><span class="lbl">Admin</span><button class="small" id="adm-i-admin">${u.admin ? 'Remove admin' : 'Make admin'}</button><span class="hint">(owners only)</span></div>`}
+      ${u.owner ? '' : `<div class="adm-row"><span class="lbl">Dev tag</span><button class="small" id="adm-i-dev">${u.dev ? 'Remove DEV tag' : 'Make dev'}</button><span class="hint">just the DEV name tag - no admin panel</span></div>`}`;
     const warn = () => { const t = $('adm-i-warn').value.trim(); if (t) this.act('warn', { name: u.name, text: t }); };
     $('adm-i-warn-go').onclick = warn;
     $('adm-i-warn').onkeydown = (e) => { if (e.key === 'Enter') warn(); };
@@ -201,6 +218,7 @@ export class AdminPanel {
     $('adm-i-take-go').onclick = () => { const k = $('adm-i-take').value; if (k) this.act('take', { name: u.name, item: k }); };
     $('adm-i-pw-go').onclick = () => { const pw = $('adm-i-pw').value; if (pw) this.act('password', { name: u.name, password: pw }); };
     if ($('adm-i-admin')) $('adm-i-admin').onclick = () => this.act('makeadmin', { name: u.name, on: !u.admin });
+    if ($('adm-i-dev')) $('adm-i-dev').onclick = async () => { await this.act('dev', { name: u.name, on: !u.dev }); const T = window.MX && window.MX.loadTags; if (T) T(); };
   }
 
   async loadLog() {

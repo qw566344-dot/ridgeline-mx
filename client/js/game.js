@@ -336,6 +336,24 @@ export class Game {
   // admin cheats (set from the admin panel; only admins can open it)
   adminCheats() { return (this.account && this.account.profile && this.account.profile.admin && this.cheats) || {}; }
 
+  // admin troll: a rider blows up (your own bike gets thrown; others just show the fireball -
+  // their own game throws them and the snapshots show it)
+  blowUp(r) {
+    if (!r || !r.vis) return;
+    const pos = r.vis.root.position;
+    this.effects.explosion(pos);
+    if (r.veh && !r.veh.crashed) { // you, or an AI rider in a solo race
+      const v = r.veh, a = Math.random() * Math.PI * 2;
+      v.vel.x += Math.cos(a) * 6; v.vel.z += Math.sin(a) * 6; v.vel.y = Math.max(v.vel.y, 0) + 13;
+      v.angVel.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 14);
+      v.crash('Blown up!');
+      if (r.isPlayer) this.toast('BOOM! You got blown up', 2.2, 'bad');
+    }
+    if (this.player && this.player.vis && this.player.vis.root.position.distanceTo(pos) < 60) {
+      this.audio.crash(); this.cam.addShake(r.isPlayer ? 1.6 : 0.8);
+    }
+  }
+
   // admin cheat: jump ahead along the track
   skipAhead(m) {
     const p = this.player;

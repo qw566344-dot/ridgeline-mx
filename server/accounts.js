@@ -81,7 +81,7 @@ export class Accounts {
       const cu = db.users[k];
       if (!cu || (u.created || 0) >= this.startedAt || (u.restored || 0) >= this.startedAt) db.users[k] = u;
     }
-    for (const key of ['admins', 'adminLog', 'chat']) if (!db[key] && this.db[key]) db[key] = this.db[key];
+    for (const key of ['admins', 'devs', 'adminLog', 'chat']) if (!db[key] && this.db[key]) db[key] = this.db[key];
     this.db = db;
     this.tokens = new Map();
     for (const u of Object.values(this.db.users)) for (const t of u.tokens || []) this.tokens.set(t, u.key);
@@ -307,6 +307,7 @@ export class Accounts {
       if (r === 'register') return send(200, this.register(m.name, m.password, ip, m.restore));
       if (r === 'login') return send(200, this.login(m.name, m.password, ip));
       if (r === 'info') return send(200, { ok: true, accounts: Object.keys(this.db.users).length });
+      if (r === 'tags') return send(200, { tags: this.admin.tags() }); // name tags anyone can see (DEV)
       const u = this.user(token);
       if (!u || u.banned) return send(401, { error: u ? 'This account has been banned' : 'Please log in again' });
       if (r === 'me') { this.grant(u); return send(200, { profile: this.profile(u) }); }
