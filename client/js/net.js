@@ -332,7 +332,7 @@ export class Net {
     this.ui.hideResults(); this.ui.hidePause();
     await g.startSession({
       mode: m.mode, trackId: m.track, vehicleId: mine.vehicle, colorId: mine.color, gearId: mine.gear, laps: m.laps, number: mine.number,
-      mp: { myId: this.id, slot: mine.slot, players: m.players, minutes: m.laps, startAt: m.mode === 'freeride' ? null : m.goAt + 1000, waiting: !!m.waiting, serverNow: () => this.serverNow() },
+      mp: { myId: this.id, slot: mine.slot, players: m.players, minutes: m.laps, spectator: !!mine.spectator, startAt: m.mode === 'freeride' ? null : m.goAt + 1000, waiting: !!m.waiting, serverNow: () => this.serverNow() },
     });
     // track loaded: the server starts the 3-2-1 once everyone is here
     // (if it already started while we were loading, take the real start time)
@@ -352,8 +352,9 @@ export class Net {
     for (const p of list) {
       if (p.id === this.id || !inParty.has(p.id)) continue;
       if (!g.riders.some((r) => r.id === p.id)) {
-        g.addRider({ id: p.id, name: p.name, vehicleId: p.vehicle, colorId: p.color, gearId: p.gear, number: p.number, remote: true });
-        g.toast(`${p.name} joined`, 1.5);
+        const r = g.addRider({ id: p.id, name: p.name, vehicleId: p.vehicle, colorId: p.color, gearId: p.gear, number: p.number, remote: true });
+        if (p.spectator) g.makeSpectator(r);
+        g.toast(`${p.name} joined${p.spectator ? ' to watch' : ''}`, 1.5);
       }
     }
     for (const r of [...g.riders]) if (r.remote && !inParty.has(r.id)) { g.toast(`${r.name} left`, 1.5); g.removeRider(r); }

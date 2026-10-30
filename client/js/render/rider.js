@@ -392,6 +392,9 @@ export class Rider {
     parent.add(this.group);
     this.group.position.set(0, 0, 0);
     this.group.quaternion.identity();
+    // a giant / tiny crash leaves the bike's scale on the rider (scene.attach keeps the
+    // world size) - back on the bike it would stack and grow every crash
+    this.group.scale.set(1, 1, 1);
   }
 
   updateRagdoll(dt, world) {

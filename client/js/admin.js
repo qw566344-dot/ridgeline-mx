@@ -129,7 +129,8 @@ export class AdminPanel {
       + (s.announcement ? `<span>Showing: <b>${escapeHtml(s.announcement)}</b></span>` : '')
       + (s.event ? `<span>Event: <b>${escapeHtml(s.event.name)}</b> ${Math.ceil(s.event.left / 60000)} min left</span>` : '')
       + (s.partyList || []).map((p) => `<span>Party <b>${escapeHtml(p.code)}</b> ${escapeHtml(p.members.join(', '))} <button class="small" data-join="${escapeHtml(p.code)}">Join</button><button class="small danger" data-close="${escapeHtml(p.code)}">Close</button></span>`).join('');
-    $('adm-stats').querySelectorAll('[data-join]').forEach((b) => b.onclick = () => { this.toggle(false); this.ui.emit('joinParty', { code: b.dataset.join, region: null }); });
+    // admins get in even mid-race (as a spectator: flying around as your rider, no bike)
+    $('adm-stats').querySelectorAll('[data-join]').forEach((b) => b.onclick = () => this.joinParty(b.dataset.join));
     $('adm-stats').querySelectorAll('[data-close]').forEach((b) => b.onclick = () => { if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Sure?'; return; } this.act('closeparty', { code: b.dataset.close }); });
   }
 
@@ -179,6 +180,15 @@ export class AdminPanel {
     });
     $('adm-list').querySelectorAll('.adm-set').forEach((inp) => inp.onkeydown = (e) => { if (e.key === 'Enter' && inp.value.trim() !== '') this.act('coins', { name: inp.dataset.n, add: Number(inp.value) }); });
     if (this.infoFor && $('adm-info-box')) this.loadInfo(this.infoFor);
+  }
+
+  joinParty(code) {
+    const net = window.MX && window.MX.net;
+    if (!net) return;
+    this.toggle(false);
+    if (this.ui.game && this.ui.game.state === 'running' && this.ui.inGame()) this.ui.emit('mainMenu');
+    this.ui.show('home');
+    net.whenOnline(() => { net.sendProfile(); net.send({ t: 'adminjoin', code, auth: this.A.token }); });
   }
 
   // bring a rider into your party (they ride in if your party is riding)

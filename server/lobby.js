@@ -191,6 +191,7 @@ export class Lobby {
   adminJoin(p, m) {
     const u = this.accounts && this.accounts.user(String(m.auth || ''));
     if (!u || !this.accounts.admin.isAdmin(u)) return this.err(p, 'NOT_ADMIN', 'Admins only.');
+    if (m.code) return this.join(p, m.code, true); // a party from the admin panel's list: in, even mid-race (as a spectator)
     const want = String(m.name || '').trim().toLowerCase();
     const t = [...this.players.values()].find((x) => x.connected && x !== p && x.name.toLowerCase() === want);
     if (t) return this.joinRider(p, t);
@@ -304,7 +305,7 @@ export class Lobby {
     // ride straight in if a free ride / time trial is already going
     const S = party.session;
     if (S && !S.over && (S.mode !== 'race' || force)) {
-      S.players.push(this.sessionPlayer(p, S.players.length));
+      S.players.push(this.sessionPlayer(p, S.players.length, S.mode === 'race')); // an admin into a race: spectate
       this.setupTracker(party, p);
       for (const m of party.members.values()) if (m.conn) m.conn.send(this.sessionMsg(party, m !== p));
     }
@@ -346,7 +347,8 @@ export class Lobby {
     this.broadcastParty(party);
   }
 
-  sessionPlayer(p, slot) { return { id: p.id, name: p.name, vehicle: p.vehicle, color: p.color, gear: p.gear || 'match', number: p.number, slot }; }
+  // spectator: an admin who dropped into a race already going - flies around as their rider, no bike, not in the standings
+  sessionPlayer(p, slot, spectator = false) { p.spectator = spectator; return { id: p.id, name: p.name, vehicle: p.vehicle, color: p.color, gear: p.gear || 'match', number: p.number, slot, ...(spectator ? { spectator: true } : {}) }; }
 
   setupTracker(party, p) {
     const S = party.session;
@@ -431,6 +433,7 @@ export class Lobby {
     const now = Date.now();
     const [x, y, z] = d;
     if (Math.abs(x) > info.half + 30 || Math.abs(z) > info.half + 30 || Math.abs(y) > 500) return;
+    if (p.spectator) { p.state = d; p.stateTime = now; p.lastPos = [x, y, z]; return; } // flying around: no speed or lap rules
     const spd = Math.hypot(d[7], d[8], d[9]);
     if (spd > GAME.maxSpeed * 1.25) return;
     // movement check: big jumps in position only allowed right after a reset
@@ -459,7 +462,7 @@ export class Lobby {
 
   standings(party) {
     const S = party.session;
-    const list = S.players.map((sp) => this.players.get(sp.id)).filter((p) => p && p.lap && p.party === party);
+    const list = S.players.filter((sp) => !sp.spectator).map((sp) => this.players.get(sp.id)).filter((p) => p && p.lap && p.party === party);
     if (S.mode === 'freestyle') return list.sort((a, b) => (b.score || 0) - (a.score || 0));
     if (S.mode === 'timetrial') return list.sort((a, b) => (a.lap.bestLap ?? 1e9) - (b.lap.bestLap ?? 1e9));
     return list.sort((a, b) => {

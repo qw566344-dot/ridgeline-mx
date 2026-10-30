@@ -947,7 +947,8 @@ export class UI {
     this.screen = 'hud';
     $('hud').hidden = false;
     const mp = !!(game.opts && game.opts.mp);
-    const ranked = game.mode === 'race' || (mp && game.mode !== 'freeride');
+    const spec = !!(game.player && game.player.spectator);
+    const ranked = !spec && (game.mode === 'race' || (mp && game.mode !== 'freeride'));
     $('hud-pos').hidden = !ranked;
     $('hud-standings').hidden = !ranked;
     $('hud-board').hidden = !ranked;
@@ -956,7 +957,7 @@ export class UI {
     $('trick-pop').innerHTML = '';
     $('name-tags').innerHTML = ''; this.nameTagEls = new Map();
     $('toasts').innerHTML = '';
-    $('hud-hint').innerHTML = game.mode === 'freestyle' ? 'Q/E flip &nbsp; A/D whip &nbsp; Shift+A/D spin &nbsp; Y restart' : 'R reset &nbsp; C camera &nbsp; Esc pause';
+    $('hud-hint').innerHTML = spec ? 'SPECTATING &nbsp; W/S fly &nbsp; A/D turn &nbsp; Space up &nbsp; Shift down &nbsp; C camera' : game.mode === 'freestyle' ? 'Q/E flip &nbsp; A/D whip &nbsp; Shift+A/D spin &nbsp; Y restart' : 'R reset &nbsp; C camera &nbsp; Esc pause';
     if (this.stage) this.stage.hideTags();
   }
   hideHud() { $('hud').hidden = true; }

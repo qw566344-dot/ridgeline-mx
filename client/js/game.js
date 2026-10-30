@@ -190,6 +190,7 @@ export class Game {
     const grid = this.scenery.gridSlots(Math.max(1, (opts.aiCount || 0) + 1 + (opts.mp ? opts.mp.players.length : 0)));
     const me = this.addRider({ id: opts.mp ? opts.mp.myId : 1, name, vehicleId: opts.vehicleId, colorId: opts.colorId, gearId: opts.gearId, number: opts.number || 1, isPlayer: true });
     let slot = opts.mp ? opts.mp.slot : 0;
+    if (opts.mp && opts.mp.spectator) this.makeSpectator(me);
     if (opts.mode !== 'practice') {
       const g = grid[slot] || grid[0];
       this.placeRider(me, g.s, g.u);
@@ -220,7 +221,8 @@ export class Game {
     if (opts.mp) {
       for (const p of opts.mp.players) {
         if (p.id === opts.mp.myId) continue;
-        this.addRider({ id: p.id, name: p.name, vehicleId: p.vehicle, colorId: p.color, gearId: p.gear, number: p.number, remote: true });
+        const r = this.addRider({ id: p.id, name: p.name, vehicleId: p.vehicle, colorId: p.color, gearId: p.gear, number: p.number, remote: true });
+        if (p.spectator) this.makeSpectator(r);
       }
     }
     // freestyle: score as many trick points as you can before the clock runs out
@@ -296,6 +298,7 @@ export class Game {
     for (const r of this.riders) {
       const v = r.veh;
       if (!v) continue;
+      if (r.spectator) { if (r.isPlayer) this.fly(r, dt); continue; }
       if (r.isPlayer && this.mode !== 'menu') {
         const c = r.finished && this.mode === 'race' ? { throttle: 0.2, brake: 0, steer: 0, rearBrake: 0, clutch: false, lean: 0 } : ctl;
         if (this.autopilot && !holding) this.autopilot.update(dt); // testing / demo: the AI rides your bike
@@ -323,11 +326,37 @@ export class Game {
     this.collide(dt);
     // lap tracking (local riders)
     for (const r of this.riders) {
-      if (!r.veh || holding) continue;
+      if (!r.veh || holding || r.spectator) continue;
       const ev = r.lap.update(r.veh.trackS, this.raceTime);
       if (ev) this.onLapEvent(r, ev);
     }
     this.processEvents();
+  }
+
+  // an admin watching a race already going: just the rider, flying, no bike
+  makeSpectator(r) {
+    r.spectator = true;
+    if (r.vis.container) r.vis.container.visible = false;
+    if (r.vis.placeholder) r.vis.placeholder.visible = false;
+    if (r.veh) { r.veh.grounded = false; r.flyYaw = Math.atan2(r.veh.fwd.x || 0, r.veh.fwd.z || 1); r.veh.pos.y += 3; }
+  }
+
+  // spectator flying: W / S forward and back, A / D turn, Space up, Shift down
+  fly(r, dt) {
+    const v = r.veh, c = this.input.controls;
+    v.prevPos.copy(v.pos); v.prevQuat.copy(v.quat);
+    r.flyYaw = (r.flyYaw || 0) - c.steer * 2.2 * dt;
+    const fx = Math.sin(r.flyYaw), fz = Math.cos(r.flyYaw), sp = 24 * (c.throttle - c.brake);
+    const vy = (c.rearBrake > 0.1 ? 10 : 0) - (c.clutch ? 10 : 0);
+    v.vel.set(fx * sp, vy, fz * sp);
+    v.pos.addScaledVector(v.vel, dt);
+    const gy = heightAt(this.world, v.pos.x, v.pos.z) + 1.2;
+    if (v.pos.y < gy) v.pos.y = gy;
+    v.pos.y = Math.min(v.pos.y, gy + 120);
+    v.quat.setFromAxisAngle(_up.set(0, 1, 0), r.flyYaw);
+    v.fwd.set(fx, 0, fz);
+    v.grounded = false; v.crashed = false; v.speed = Math.abs(sp);
+    v.input.throttle = c.throttle; v.input.lean = 0;
   }
 
   // how big a rider is drawn (1 = normal)
@@ -374,7 +403,7 @@ export class Game {
   // simple rider-to-rider bumping (spheres at the centre of mass)
   collide(dt) {
     const ghost = this.adminCheats().ghost;
-    const list = this.riders.filter((r) => (r.veh || (r.remote && r.remote.state)) && !(ghost && r.isPlayer));
+    const list = this.riders.filter((r) => (r.veh || (r.remote && r.remote.state)) && !(ghost && r.isPlayer) && !r.spectator);
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
       const a = list[i], b = list[j];
       if (!a.veh && !b.veh) continue;
