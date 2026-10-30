@@ -380,7 +380,7 @@ vec3 skinExtra(vec3 p) {
   if (uPat < 23.5) { float d = p.y * 1.1 - p.x * 0.55 - 0.35; return abs(d) < 0.022 ? uC : (d > 0.0 ? uA : uB); }
   // scales: overlapping rows of dragon / mermaid scales, rimmed in the second colour
   if (uPat < 24.5) {
-    vec2 q = vec2(p.x + p.z * 0.35, p.y) * vec2(9.0, 12.0);
+    vec2 q = vec2(p.x + p.z * 0.35, p.y) * vec2(4.5, 6.0);
     float row = floor(q.y); q.x += mod(row, 2.0) * 0.5;
     vec2 c = vec2(fract(q.x) - 0.5, fract(q.y));
     float r = length(c * vec2(1.0, 1.1));
@@ -388,10 +388,10 @@ vec3 skinExtra(vec3 p) {
     return r > 0.46 ? uB : mix(uA * shade, uC, smoothstep(0.38, 0.46, r) * 0.6);
   }
   // pinstripe: thin lines along the bike with a double accent line low down
-  float y = p.y * 26.0;
-  float line = step(0.9, fract(y));
-  float band = step(abs(p.y - 0.42), 0.012) + step(abs(p.y - 0.46), 0.008);
-  return mix(mix(uA, uB, line * 0.85), uC, clamp(band, 0.0, 1.0));
+  float y = p.y * 7.0 + p.x * 0.25;
+  float line = step(0.94, fract(y));
+  float band = step(abs(p.y - 0.42), 0.02) + step(abs(p.y - 0.48), 0.012);
+  return mix(mix(uA, uB, line), uC, clamp(band, 0.0, 1.0));
 }
 vec3 skinColor(vec3 p) {
   if (uPat < 0.5 || (uPat > 5.5 && uPat < 6.5)) return uA;
