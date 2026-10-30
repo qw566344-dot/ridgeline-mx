@@ -71,3 +71,38 @@ export function scoreTricks(tr, landPitchErr, landRollErr, canWhip) {
   const base = parts.reduce((a, p) => a + p.points, 0);
   return { type: 'trick', name: parts.map((p) => p.name).join(' + '), parts, landing, score: Math.round(base * mult) };
 }
+
+// ---------------------------------------------------------------------
+//  WHEELIES (bikes and quads)
+//  With "Wheelie / stoppie control" on: hold Q and the front rides up to a
+//  balance angle and stays there. Throttle lifts it a little more, E or the
+//  rear brake lower it, a slow wobble keeps you busy. Let go of Q and the
+//  front is set down gently. Returns the nose-up angular acceleration
+//  wanted (rad/s^2). pitchW is + while the nose drops.
+// ---------------------------------------------------------------------
+export function wheelieAssist(ctl, p, pitchW, pull, push, inp, dt, maxDeg) {
+  ctl.wheelieClock = (ctl.wheelieClock || 0) + dt;
+  if (pull > 0.2) {
+    const deg = 14 + 16 * pull + 9 * inp.throttle - 16 * push - 22 * inp.rearBrake + 1.6 * Math.sin(ctl.wheelieClock * 2.3);
+    const err = Math.min(maxDeg, deg) * DEG - p;
+    ctl.wheelieInt = Math.max(-0.6, Math.min(0.6, (ctl.wheelieInt || 0) + err * dt)); // settles on the angle (gravity, slopes)
+    return err * 22 + ctl.wheelieInt * 40 + 6.5 * pitchW;
+  }
+  ctl.wheelieInt = 0;
+  return (-0.08 - p) * 6 + 7.5 * pitchW; // setting it down, softly
+}
+
+// a held wheelie: time on the back wheel(s) -> a trick when the front comes down
+// (front: front wheel(s) touching, rear: back wheel(s) touching)
+export function trackWheelie(ctl, v, front, rear, pull, dt) {
+  if (v.crashed || !v.grounded) { ctl.wheelieRun = 0; ctl.wheelieUp = false; ctl.wheelieInt = 0; return; }
+  if (rear && !front && v.groundPitch() > 4 && (pull > 0.2 || ctl.wheelieUp)) { ctl.wheelieUp = true; ctl.wheelieRun = (ctl.wheelieRun || 0) + dt; return; }
+  if (front && ctl.wheelieUp) {
+    const t = ctl.wheelieRun || 0;
+    if (t >= 1.5) {
+      const score = Math.min(2500, Math.round(60 * t ** 1.25));
+      v.events.push({ type: 'trick', wheelie: true, name: (t >= 8 ? 'Endless Wheelie ' : t >= 4 ? 'Long Wheelie ' : 'Wheelie ') + t.toFixed(1) + ' s', parts: [{ name: 'Wheelie', points: score }], landing: t >= 4 ? 'Perfect' : 'Clean', score });
+    }
+    ctl.wheelieUp = false; ctl.wheelieRun = 0; ctl.wheelieInt = 0;
+  }
+}

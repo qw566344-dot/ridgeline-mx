@@ -12,7 +12,7 @@
 import * as THREE from '../../vendor/three.module.js';
 import { groundAt } from '../../../shared/terrain.js';
 import { bankBoost } from './bike.js';
-import { newTrick, scoreTricks, trackPose } from './tricks.js';
+import { newTrick, scoreTricks, trackPose, wheelieAssist, trackWheelie } from './tricks.js';
 
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
@@ -77,6 +77,7 @@ export class AtvController {
     rl.noLock = rr.noLock = inp.rearBrake < 0.1;
     // solid axle: the drive goes to both rear wheels equally when both touch
     if (rl.contact && rr.contact) { const tot = rl.drive + rr.drive; rl.drive = rr.drive = tot / 2; }
+    if (v.assist.wheelie && this.wheelieUp) { rl.drive *= 0.8; rr.drive *= 0.8; } // see bike.js
   }
 
   // anti-roll bars, applied once all four springs are known
@@ -134,14 +135,19 @@ export class AtvController {
       if (c.type !== 'atv') a = 0; // cars: Q / E only shift weight in the air
       else if (frontDown && rearDown) a = pull * (3 + 6 * inp.throttle) - push * 1.5;
       else if (rearDown && !frontDown && p > 0.03) {
-        a = pull * 8 + inp.throttle * 2.5 - push * 7 - inp.rearBrake * 10 - 3.5 + 2 * pitchW;
-        if (pull < 0.2 && v.assist.wheelie) a -= (p - 0.05) * 25;
+        if (v.assist.wheelie && (pull > 0.2 || this.wheelieUp)) a = wheelieAssist(this, p, pitchW, pull, push, inp, dt, 40);
+        else {
+          a = pull * 8 + inp.throttle * 2.5 - push * 7 - inp.rearBrake * 10 - 3.5 + 2 * pitchW;
+          if (pull < 0.2 && v.assist.wheelie) a -= (p - 0.05) * 25;
+        }
         if (p > 1.0) a -= (p - 1.0) * 50;
       }
+      if (c.type === 'atv') trackWheelie(this, v, frontDown, rearDown, pull, dt);
+      this.pitchCentre = v.assist.wheelie && this.wheelieUp ? 1 : 0.25; // see bike.js
       // when you are lifting the front on purpose, most of the bike's weight is
       // balanced out for you so a wheelie is something you can actually hold
       let lift = a * I[0];
-      if (c.type === 'atv' && (inp.lean < -0.2 || (this.wheelieTime > 0 && p > 0.03))) {
+      if (c.type === 'atv' && (inp.lean < -0.2 || ((this.wheelieTime > 0 || this.wheelieUp) && p > 0.03))) {
         const rw = v.wheels[2].cfg;
         const d = -rw.z * Math.cos(p) - c.rideHeight * Math.sin(p); // CoM ahead of the rear tyre
         lift += 0.8 * c.mass * 9.81 * Math.max(0, d);

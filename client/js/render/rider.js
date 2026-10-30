@@ -79,7 +79,7 @@ function partGeo(scheme) {
   // (the race number on the back is a decal mesh, see Rider.setNumber)
   // head: the helmet model is its own mesh on the head bone (see Rider); this is the face
   // inside it, plus a plain shell in case the helmet model could not be loaded
-  add(sphere(0.1, 0xd9a07a, [0, 0.1, 0.03], [1, 1.1, 1], 12, 10), B.head);
+  add(sphere(0.085, 0x2a1f1a, [0, 0.09, -0.02], [1, 1.1, 0.9], 12, 10), B.head); // head inside the helmet (dark, behind the goggle lens)
   if (!helmetModel()) add(sphere(0.155, jersey, [0, 0.13, 0.0], [1.0, 1.04, 1.13], 16, 12), B.head);
   // arms: smooth sleeves, elbow guards, cuffs, shaped gloves with a knuckle guard
   for (const [ua, fa, h] of [[B.uaL, B.faL, B.hL], [B.uaR, B.faR, B.hR]]) {

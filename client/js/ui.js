@@ -945,7 +945,7 @@ export class UI {
   // a landed trick: name, landing grade, points and combo
   trickPopup(e, pts, combo, mult) {
     const el = $('trick-pop');
-    el.innerHTML = `<div class="tp"><div class="tp-name">${escapeHtml(e.name)}</div><div class="tp-land ${e.landing}">${e.landing.toUpperCase()} LANDING</div><div class="tp-pts">+${pts.toLocaleString()}</div>${combo > 1 ? `<div class="combo">COMBO x${combo} &bull; ${mult.toFixed(1)}x points</div>` : ''}</div>`;
+    el.innerHTML = `<div class="tp"><div class="tp-name">${escapeHtml(e.name)}</div><div class="tp-land ${e.landing}">${e.wheelie ? 'ON ONE WHEEL' : e.landing.toUpperCase() + ' LANDING'}</div><div class="tp-pts">+${pts.toLocaleString()}</div>${combo > 1 ? `<div class="combo">COMBO x${combo} &bull; ${mult.toFixed(1)}x points</div>` : ''}</div>`;
   }
 
   updateHud(game, dt) {
@@ -963,7 +963,8 @@ export class UI {
     this.drawSpeedo(v, game.raceTime || 0);
     // what you are doing in the air right now
     const tr = v.controller && v.controller.trick;
-    $('hud-trick').textContent = !v.grounded && tr ? liveTrick(tr) : '';
+    const wr = v.controller && v.controller.wheelieUp ? v.controller.wheelieRun || 0 : 0;
+    $('hud-trick').textContent = !v.grounded && tr ? liveTrick(tr) : wr > 0.6 ? `WHEELIE ${wr.toFixed(1)} s` : '';
     const c = $('hud-center');
     if (game.phase === 'countdown') {
       const n = Math.ceil(game.countdown - 1);

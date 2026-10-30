@@ -17,7 +17,7 @@
 // =====================================================================
 import * as THREE from '../../vendor/three.module.js';
 import { groundAt } from '../../../shared/terrain.js';
-import { newTrick, scoreTricks, trackPose } from './tricks.js';
+import { newTrick, scoreTricks, trackPose, wheelieAssist, trackWheelie } from './tricks.js';
 
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
@@ -99,6 +99,8 @@ export class BikeController {
       if (p < -3) front.brake *= clamp(1 - (-p - 3) / 7, 0.1, 1);
       if (!rear.contact) front.brake *= 0.5;
     }
+    // a held wheelie is for show: it costs a little drive, so it is never the fast way round
+    if (v.assist.wheelie && this.wheelieUp) rear.drive *= 0.8;
   }
 
   afterWheels() {}
@@ -159,20 +161,26 @@ export class BikeController {
         this.wheelie = false;
       } else if (rear.contact && !front.contact && p > 0.03) {
         // balancing a wheelie: Q / throttle raise it, E / rear brake drop it, gravity always pulls it down
-        this.wheelie = pull > 0.2 || this.wheelieTime > 0;
-        a += pull * 11 + inp.throttle * 3.5 - push * 9 - inp.rearBrake * 14 - 4.5;
-        a -= 4.2 * -pitchW;               // damping (pitchW is + when the nose drops)
-        if (!this.wheelie && v.assist.wheelie) a -= (p - 0.05) * 40; // accidental wheelie: bring it down
+        this.wheelie = pull > 0.2 || this.wheelieTime > 0 || this.wheelieUp;
+        if (v.assist.wheelie && (pull > 0.2 || this.wheelieUp)) a = wheelieAssist(this, p, pitchW, pull, push, inp, dt, 44);
+        else {
+          a += pull * 11 + inp.throttle * 3.5 - push * 9 - inp.rearBrake * 14 - 4.5;
+          a -= 4.2 * -pitchW;               // damping (pitchW is + when the nose drops)
+          if (!this.wheelie && v.assist.wheelie) a -= (p - 0.05) * 40; // accidental wheelie: bring it down
+        }
         if (p > 1.05) a -= (p - 1.05) * 60; // past the balance point: hard to save
       } else if (front.contact && !rear.contact) {
         // stoppie: the rider leans back to put the rear down
         if (v.assist.wheelie) a += (-p - 0.05) * 30 + 3 * pitchW;
       }
       if (rear.contact && !front.contact && pull > 0.2) this.wheelieTime += dt; else this.wheelieTime = Math.max(0, this.wheelieTime - dt * 3);
+      trackWheelie(this, v, front.contact, rear.contact, pull, dt);
+      // holding a wheelie with the assist: the drive force no longer tips the bike, the assist sets the angle
+      this.pitchCentre = v.assist.wheelie && this.wheelieUp ? 1 : 0.5;
       // when you are lifting the front on purpose, most of the bike's weight is
       // balanced out for you so a wheelie is something you can actually hold
       let lift = a * I[0];
-      if (inp.lean < -0.2 || (this.wheelieTime > 0 && p > 0.03)) {
+      if (inp.lean < -0.2 || ((this.wheelieTime > 0 || this.wheelieUp) && p > 0.03)) {
         const rw = v.wheels[1].cfg;
         const d = -rw.z * Math.cos(p) - c.rideHeight * Math.sin(p); // CoM ahead of the rear tyre
         lift += 0.85 * c.mass * 9.81 * Math.max(0, d);

@@ -426,7 +426,8 @@ export class Vehicle {
     // drive / brake force: raised part-way toward the CoM by pitchCentre
     // (the rider shifting their weight keeps the bike from wheelie-ing / stoppie-ing at every touch of the controls)
     const below = r.dot(up); // negative: contact is below the CoM
-    const longPt = _t[0].copy(cp).addScaledVector(up, -below * this.controller.pitchCentre);
+    // pitchCentre 1 (a wheelie the assist is holding): straight through the CoM, no pitching at all
+    const longPt = this.controller.pitchCentre >= 1 ? _t[0].copy(this.pos) : _t[0].copy(cp).addScaledVector(up, -below * this.controller.pitchCentre);
     this.addForceAt(_t[2].copy(fw).multiplyScalar(Fl), longPt);
     const rc = this.controller.rollCentre;
     const lift = below * -rc;
