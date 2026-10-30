@@ -349,7 +349,7 @@ export function skinUniforms(cols, pat) {
   return { uA: { value: new THREE.Color(cols[0]) }, uB: { value: new THREE.Color(cols[1]) }, uC: { value: new THREE.Color(cols[2] || 0x111111) }, uPat: { value: PATTERN_ID[pat] || 0 }, uTime: skinTime };
 }
 export const patterned = (pat) => !!pat && pat !== 'solid' && pat !== 'chrome';
-export const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17, zebra: 18, dots: 19, rainbow: 20, argyle: 21, holo: 22 };
+export const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17, zebra: 18, dots: 19, rainbow: 20, argyle: 21, holo: 22, split: 23, scales: 24, pinstripe: 25 };
 // animated skins (aurora, lava) read this clock; main.js moves it every frame
 export const skinTime = { value: 0 };
 export const SKIN_GLSL = `
@@ -372,8 +372,26 @@ vec3 skinExtra(vec3 p) {
     float line = step(min(d.x, d.y), 0.025);
     return mix(mix(uA, uB, tile), uC, line);
   }
-  float s = fract(p.y * 1.6 + p.x * 0.9 + p.z * 0.6 + uTime * 0.08);
-  return mix(uA, skinHue(s) * 0.6 + uB * 0.4, 0.5 + 0.25 * sin(p.x * 20.0 + uTime));
+  if (uPat < 22.5) {
+    float s = fract(p.y * 1.6 + p.x * 0.9 + p.z * 0.6 + uTime * 0.08);
+    return mix(uA, skinHue(s) * 0.6 + uB * 0.4, 0.5 + 0.25 * sin(p.x * 20.0 + uTime));
+  }
+  // split: two colours on a clean diagonal, a thin third-colour line where they meet
+  if (uPat < 23.5) { float d = p.y * 1.1 - p.x * 0.55 - 0.35; return abs(d) < 0.022 ? uC : (d > 0.0 ? uA : uB); }
+  // scales: overlapping rows of dragon / mermaid scales, rimmed in the second colour
+  if (uPat < 24.5) {
+    vec2 q = vec2(p.x + p.z * 0.35, p.y) * vec2(9.0, 12.0);
+    float row = floor(q.y); q.x += mod(row, 2.0) * 0.5;
+    vec2 c = vec2(fract(q.x) - 0.5, fract(q.y));
+    float r = length(c * vec2(1.0, 1.1));
+    float shade = 0.75 + 0.35 * c.y;
+    return r > 0.46 ? uB : mix(uA * shade, uC, smoothstep(0.38, 0.46, r) * 0.6);
+  }
+  // pinstripe: thin lines along the bike with a double accent line low down
+  float y = p.y * 26.0;
+  float line = step(0.9, fract(y));
+  float band = step(abs(p.y - 0.42), 0.012) + step(abs(p.y - 0.46), 0.008);
+  return mix(mix(uA, uB, line * 0.85), uC, clamp(band, 0.0, 1.0));
 }
 vec3 skinColor(vec3 p) {
   if (uPat < 0.5 || (uPat > 5.5 && uPat < 6.5)) return uA;

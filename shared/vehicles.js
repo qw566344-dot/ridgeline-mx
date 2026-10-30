@@ -83,6 +83,18 @@ export const BIKE_COLORS = [
   { id: 'patriot', name: 'Patriot', pattern: 'race', body: 0x1e3a8a, accent: 0xffffff, third: 0xdc2626, gear: [0x1e3a8a, 0xffffff, 0xdc2626] },
   { id: 'woodland', name: 'Woodland', pattern: 'camo', body: 0x3f4f2a, accent: 0x6b5d3a, third: 0x1f2a16, gear: [0x3f4f2a, 0x1f2a16, 0xc2b280] },
   { id: 'unicorn', name: 'Unicorn', pattern: 'aurora', body: 0xf0abfc, accent: 0x93c5fd, third: 0xfde68a, gear: [0xf0abfc, 0x6b21a8, 0xfde68a] },
+  { id: 'twoface', name: 'Two Face', pattern: 'split', body: 0x111111, accent: 0xf5f5f5, third: 0xdc2626, gear: [0x111111, 0xf5f5f5, 0xdc2626] },
+  { id: 'sunsetsplit', name: 'Sunset Split', pattern: 'split', body: 0xf97316, accent: 0x6d28d9, third: 0xfde047, gear: [0x6d28d9, 0xf97316, 0xfde047] },
+  { id: 'icefire', name: 'Ice & Fire', pattern: 'split', body: 0x2563eb, accent: 0xea580c, third: 0xffffff, gear: [0x2563eb, 0xea580c, 0xffffff] },
+  { id: 'dragon', name: 'Dragon', pattern: 'scales', body: 0x15803d, accent: 0x052e16, third: 0xfacc15, gear: [0x15803d, 0x052e16, 0xfacc15] },
+  { id: 'mermaid', name: 'Mermaid', pattern: 'scales', body: 0x14b8a6, accent: 0x5b21b6, third: 0xa5f3fc, gear: [0x14b8a6, 0x5b21b6, 0xa5f3fc] },
+  { id: 'cobra', name: 'Cobra', pattern: 'scales', body: 0x1c1917, accent: 0xb45309, third: 0xfbbf24, gear: [0x1c1917, 0xb45309, 0xfbbf24] },
+  { id: 'gentleman', name: 'Gentleman', pattern: 'pinstripe', body: 0x1e293b, accent: 0xcbd5e1, third: 0xd4a017, gear: [0x1e293b, 0xd4a017, 0xcbd5e1] },
+  { id: 'racinggreen', name: 'Racing Green', pattern: 'pinstripe', body: 0x14532d, accent: 0xf8fafc, third: 0xfacc15, gear: [0x14532d, 0xf8fafc, 0xfacc15] },
+  { id: 'bubblepop', name: 'Bubble Pop', pattern: 'pinstripe', body: 0xf472b6, accent: 0xffffff, third: 0x7c3aed, gear: [0xf472b6, 0xffffff, 0x7c3aed] },
+  { id: 'storm', name: 'Lightning Storm', pattern: 'bolt', body: 0x3b0764, accent: 0xfde047, gear: [0x3b0764, 0xfde047, 0xffffff] },
+  { id: 'limehex', name: 'Lime Hex', pattern: 'hex', body: 0x84cc16, accent: 0x111111, gear: [0x84cc16, 0x111111, 0xffffff] },
+  { id: 'goldcheck', name: 'Gold Checker', pattern: 'checker', body: 0xd4a017, accent: 0x111111, gear: [0x111111, 0xd4a017, 0xfff4cc] },
 ];
 export const PATTERNS = ['solid', 'stripes', 'flames', 'camo', 'galaxy', 'carbon', 'chrome', 'tiger', 'gradient', 'checker', 'hex', 'bolt', 'splatter', 'pixel', 'aurora', 'lava', 'marble', 'race'];
 
