@@ -12,14 +12,14 @@ export const CODE_LENGTH = 6;
 export const MODES = ['freeride', 'race', 'timetrial', 'freestyle'];
 
 // flags bitfield
-export const F_CRASHED = 1, F_AIR = 2, F_REVERSE = 4;
+export const F_CRASHED = 1, F_AIR = 2, F_REVERSE = 4, F_GIANT = 8, F_TINY = 16; // giant / tiny: admin cheat, so others see it too
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const r2 = (x) => Math.round(x * 100) / 100;
 
 // [x, y, z, qx, qy, qz, qw, vx, vy, vz, lean, steer, s, rpm, thr, flags, susp0..3, spinF, spinR]
 export function packState(v) {
-  const flags = (v.crashed ? F_CRASHED : 0) | (!v.grounded ? F_AIR : 0) | (v.engine.reverse ? F_REVERSE : 0);
+  const flags = (v.crashed ? F_CRASHED : 0) | (!v.grounded ? F_AIR : 0) | (v.engine.reverse ? F_REVERSE : 0) | (v.sizeScale > 1 ? F_GIANT : 0) | (v.sizeScale < 1 ? F_TINY : 0);
   const w = v.wheels;
   return [
     r3(v.pos.x), r3(v.pos.y), r3(v.pos.z),

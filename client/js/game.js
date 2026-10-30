@@ -23,7 +23,7 @@ import { CameraRig, CAMERA_MODES } from './camera.js';
 
 const AI_NAMES = ['Tanner', 'Kade', 'Brody', 'Jett', 'Ryder', 'Colt', 'Maverick', 'Dax', 'Wyatt', 'Blaze', 'Cruz', 'Ace'];
 const MAX_STEPS = 8;
-const _v = new THREE.Vector3(), _q = new THREE.Quaternion();
+const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _up = new THREE.Vector3();
 
 export class Game {
   constructor({ renderer, settings, audio, input, ui }) {
@@ -266,10 +266,10 @@ export class Game {
       const v = this.player.veh;
       if (C.jump && inp.pressed('jump') && !v.crashed) { v.vel.y = Math.max(v.vel.y, 0) + 11; this.toast('Super jump!', 0.8); }
     }
-    // giant / tiny: the admin cheat for you, the Giant Riders event for everyone
-    const big = this.liveEvent() === 'giant' ? 1.8 : 1;
+    // giant / tiny: the admin cheat (yours, or another rider's from their state), the Giant Riders event for everyone
     for (const r of this.riders) {
-      const sc = r.isPlayer && C.giant ? 1.8 : r.isPlayer && C.tiny ? 0.55 : big;
+      const sc = this.sizeOf(r);
+      if (r.veh) r.veh.sizeScale = sc; // sent to the others with your state
       if (r.vis && r.vis.root.scale.x !== sc) r.vis.root.scale.setScalar(sc);
     }
     if (inp.mouse.dx || inp.mouse.dy) this.cam.mouseLook(inp.mouse.dx, inp.mouse.dy);
@@ -330,6 +330,15 @@ export class Game {
     this.processEvents();
   }
 
+  // how big a rider is drawn (1 = normal)
+  sizeOf(r) {
+    const C = this.adminCheats();
+    if (r.isPlayer && C.giant) return 1.8;
+    if (r.isPlayer && C.tiny) return 0.55;
+    if (r.remote && r.sizeScale && r.sizeScale !== 1) return r.sizeScale;
+    return this.liveEvent() === 'giant' ? 1.8 : 1;
+  }
+
   // the admin event running for everyone online (kind), if any
   liveEvent() { const e = this.event; return e && Date.now() < e.endsAt && this.mode !== 'menu' ? e.kind : null; }
 
@@ -370,7 +379,7 @@ export class Game {
       const a = list[i], b = list[j];
       if (!a.veh && !b.veh) continue;
       const pa = a.veh ? a.veh.pos : a.remote.pos, pb = b.veh ? b.veh.pos : b.remote.pos;
-      const ra = a.veh ? a.veh.cfg.radius : 0.7, rb = b.veh ? b.veh.cfg.radius : 0.7;
+      const ra = (a.veh ? a.veh.cfg.radius : 0.7) * this.sizeOf(a), rb = (b.veh ? b.veh.cfg.radius : 0.7) * this.sizeOf(b); // giant / tiny bump at their size
       _v.subVectors(pb, pa);
       const d = _v.length();
       const min = ra + rb;
@@ -599,6 +608,14 @@ export class Game {
     this.account.reward(kind, amount).then((added) => { if (added > 0) this.toast('+' + added + ' coins', 1.4, 'coins'); });
   }
 
+  // a giant / tiny rider is drawn scaled about the centre of mass: move it along its
+  // own up so the wheels still sit on the ground where the physics has them
+  groundScaled(r, quat, rideHeight) {
+    const s = r.vis.root.scale.x;
+    if (s === 1) return;
+    r.vis.root.position.addScaledVector(_up.set(0, 1, 0).applyQuaternion(quat), (s - 1) * rideHeight);
+  }
+
   // ------------------------------------------------------------------ draw
   render(dt, alpha) {
     const others = [];
@@ -610,6 +627,7 @@ export class Game {
         quat = _q.copy(v.prevQuat).slerp(v.quat, alpha);
         r.vis.root.position.copy(pos);
         r.vis.root.quaternion.copy(quat);
+        this.groundScaled(r, quat, v.cfg.rideHeight);
         r.vis.camDist = this.R.camera.position.distanceTo(pos);
         r.vis.update({ lean: v.lean, steer: v.steerAngle, wheels: v.wheels });
         crashed = v.crashed;
@@ -619,6 +637,7 @@ export class Game {
         const st = r.remote.state;
         r.vis.root.position.copy(st.pos);
         r.vis.root.quaternion.copy(st.quat);
+        this.groundScaled(r, st.quat, getVehicle(r.vehicleId).rideHeight);
         r.vis.camDist = this.R.camera.position.distanceTo(st.pos);
         r.vis.update(st.visual);
         crashed = st.crashed;

@@ -17,7 +17,7 @@
 //    session; your seat is kept for 60 s.
 // =====================================================================
 import * as THREE from 'three';
-import { PROTOCOL_VERSION, SEND_RATE, INTERP_DELAY, packState, cleanName, validCode, F_CRASHED, F_AIR } from '/shared/protocol.js';
+import { PROTOCOL_VERSION, SEND_RATE, INTERP_DELAY, packState, cleanName, validCode, F_CRASHED, F_AIR, F_GIANT, F_TINY } from '/shared/protocol.js';
 import { getVehicle } from '/shared/vehicles.js';
 import { regionList, wsUrlFor, measurePing } from './config.js';
 import { escapeHtml, ordinal } from './util.js';
@@ -424,6 +424,7 @@ export class Net {
     const spd = st.vel.length();
     const flags = db[15];
     st.crashed = !!(flags & F_CRASHED);
+    r.sizeScale = flags & F_GIANT ? 1.8 : flags & F_TINY ? 0.55 : 1; // their giant / tiny cheat
     st.rpm = L(13); st.thr = L(14);
     const steer = L(11);
     const wheels = def.wheels.map((w, i) => {

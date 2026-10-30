@@ -1050,7 +1050,7 @@ export class UI {
       const p = r.vis.root.position;
       const d = cam.position.distanceTo(p);
       if (d > 160) continue;
-      _tv.set(p.x, p.y + (r.vis.cfg.type === 'car' ? 2.0 : 1.75), p.z).project(cam);
+      _tv.set(p.x, p.y + (r.vis.cfg.type === 'car' ? 2.0 : 1.75) * r.vis.root.scale.x, p.z).project(cam); // giant / tiny: tag over their head
       if (_tv.z > 1 || Math.abs(_tv.x) > 1.2 || Math.abs(_tv.y) > 1.2) continue;
       let el = tags.get(r.key);
       if (!el) {
