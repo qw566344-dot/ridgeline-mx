@@ -237,6 +237,7 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
 .ups span b { color: var(--good); }
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 .swatch { width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 3px solid transparent; position: relative; }
+.swatch.combo { width: 46px; border-radius: 12px; }
 .swatch.sel { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
 .swatch.locked { opacity: 0.45; }
 .swatch.locked::after { content: '🔒'; position: absolute; right: -6px; top: -8px; font-size: 12px; }
@@ -466,26 +467,21 @@ h4 { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: 
 .adm-acts { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
 .adm-set { width: 110px; padding: 5px 8px; font-size: 13px; }
 #admin { z-index: 30; }
-.chat { position: fixed; left: 14px; bottom: 14px; z-index: 25; }
+.chat { position: fixed; left: 14px; bottom: 14px; z-index: 25; width: min(340px, calc(100vw - 28px)); background: rgba(8, 10, 14, 0.62); border-radius: 12px; padding: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.35); transition: background 0.15s; }
 .chat.off { display: none; }
-.chat.riding { bottom: auto; top: 14px; }
-.chat.riding:not(.open) .chat-pill { opacity: 0.75; }
-.chat-feed { display: none; }
-.chat.riding:not(.open) .chat-feed { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; width: min(320px, calc(100vw - 28px)); }
-.chat-feed .cm { align-self: flex-start; background: rgba(8, 10, 14, 0.6); border-radius: 6px; padding: 3px 8px; font-size: 13px; line-height: 1.35; word-wrap: break-word; max-width: 100%; animation: feedout 8s forwards; }
-.chat-feed .cm b { color: var(--gold); margin-right: 5px; }
-.chat-feed .cm.me b { color: #60a5fa; }
-.chat-feed .cm.sys { color: #9ca3af; font-style: italic; }
-@keyframes feedout { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
-.chat-pill kbd { font: inherit; font-size: 11px; font-weight: 800; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 4px; padding: 0 5px; margin-right: 6px; }
-.chat-pill { padding: 6px 14px; font-size: 13px; border-radius: 16px; background: rgba(8, 10, 14, 0.7); }
-.chat-pill b { background: var(--accent); color: #fff; border-radius: 9px; padding: 0 6px; margin-left: 4px; font-size: 11px; }
-.chat-head, .chat-log, .chat-row { display: none; }
-.chat.open { width: min(340px, calc(100vw - 28px)); background: rgba(8, 10, 14, 0.85); border-radius: 12px; padding: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
-.chat.open .chat-pill { display: none; }
-.chat.open .chat-head { display: flex; justify-content: space-between; align-items: center; font-weight: 800; font-size: 13px; letter-spacing: 0.08em; margin-bottom: 6px; }
-.chat.open .chat-log { display: flex; flex-direction: column; gap: 3px; height: 180px; overflow-y: auto; scrollbar-width: thin; }
-.chat.open .chat-row { display: flex; gap: 6px; margin-top: 6px; }
+.chat.typing { background: rgba(8, 10, 14, 0.88); }
+.chat-head { display: flex; justify-content: space-between; align-items: center; font-weight: 800; font-size: 13px; letter-spacing: 0.08em; margin-bottom: 6px; }
+.chat-key { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); }
+.chat-key kbd { font: inherit; font-weight: 800; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 4px; padding: 0 5px; margin-right: 3px; color: #fff; }
+.chat.typing .chat-key { visibility: hidden; }
+.chat-log { display: flex; flex-direction: column; gap: 3px; height: 160px; overflow-y: auto; scrollbar-width: thin; }
+.chat-row { display: flex; gap: 6px; margin-top: 6px; }
+/* while riding: top-left, smaller and see-through until you type */
+.chat.riding { bottom: auto; top: 14px; width: min(300px, calc(100vw - 28px)); background: rgba(8, 10, 14, 0.3); box-shadow: none; }
+.chat.riding.typing { background: rgba(8, 10, 14, 0.82); }
+.chat.riding .chat-log { height: 118px; }
+.chat.riding:not(.typing) .chat-row { display: none; }
+.chat.riding .cm { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
 .chat-tabs { display: flex; gap: 4px; }
 .chat-tabs button { position: relative; padding: 3px 12px; font-size: 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.06); }
 .chat-tabs button.sel { background: var(--accent); color: #fff; }

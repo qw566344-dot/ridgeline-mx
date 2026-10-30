@@ -12,11 +12,9 @@
 <body>
   <canvas id="game"></canvas>
   <div id="stage-tags"></div>
-  <!-- CHAT (online accounts, lobby only): a small button bottom-left opens it -->
+  <!-- CHAT: always open (online accounts, or anyone in a party) - bottom-left in the lobby, top-left while riding -->
   <div id="chat" class="chat off">
-    <button id="chat-pill" class="chat-pill"><kbd>T</kbd>Chat <b id="chat-unread" hidden></b></button>
-    <div id="chat-feed" class="chat-feed"></div>
-    <div class="chat-head"><div id="chat-tabs" class="chat-tabs" hidden><button data-chat-tab="global" class="sel">Global<i id="chat-dot-global" hidden></i></button><button data-chat-tab="party">Party<i id="chat-dot-party" hidden></i></button></div><span class="chat-title">Chat</span><button id="chat-close" class="small">Hide</button></div>
+    <div class="chat-head"><div id="chat-tabs" class="chat-tabs" hidden><button data-chat-tab="global" class="sel">Global<i id="chat-dot-global" hidden></i></button><button data-chat-tab="party">Party<i id="chat-dot-party" hidden></i></button></div><span class="chat-title">Chat</span><span class="chat-key"><kbd>T</kbd> to type</span></div>
     <div id="chat-log" class="chat-log"></div>
     <div class="chat-row"><input id="chat-input" maxlength="200" placeholder="Type a message, Enter sends" autocomplete="off"><button id="chat-send" class="small">Send</button></div>
   </div>
@@ -142,9 +140,11 @@
         <p id="g-desc" class="desc"></p>
         <div id="g-stats" class="stats"></div>
         <div id="g-ups" class="ups"></div>
-        <h4>Paint</h4>
+        <h4 title="A bike skin and its matching rider skin, together">Combos</h4>
+        <div id="g-combo" class="swatches"></div>
+        <h4>Bike skin</h4>
         <div id="g-paint" class="swatches"></div>
-        <h4>Rider gear</h4>
+        <h4>Rider skin</h4>
         <div id="g-gear" class="swatches"></div>
         <div id="g-action" class="g-action"></div>
       </aside>

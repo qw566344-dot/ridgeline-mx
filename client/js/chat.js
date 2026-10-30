@@ -1,7 +1,8 @@
 // =====================================================================
-//  CHAT BOX - a small "Chat" button (with a count of new messages),
-//  bottom-left in the lobby and top-left while riding. Click it or press T
-//  (or Enter) to open and type, Enter sends, Esc or Hide closes.
+//  CHAT BOX - always open: bottom-left in the lobby, top-left (smaller,
+//  see-through) while riding. Press T or Enter (or click it) to type,
+//  Enter sends and - while riding - hands the keys back to the bike,
+//  Esc stops typing.
 //  Two tabs: Global (everyone with an online account, over HTTP) and
 //  Party (only your party, over the game connection) - the Party tab only
 //  shows while you are in a party.
@@ -34,8 +35,8 @@ export class ChatBox {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.open(false); }
       if (e.key === 'Tab') { e.preventDefault(); this.setTab(this.tab === 'global' && this.inParty() ? 'party' : 'global'); }
     };
-    $('chat-pill').onclick = () => this.open(true);
-    $('chat-close').onclick = () => this.open(false);
+    this.input.onfocus = () => this.open(true);
+    this.input.onblur = () => this.el.classList.remove('typing');
     $('chat-send').onclick = () => this.send();
     this.el.querySelectorAll('[data-chat-tab]').forEach((b) => b.onclick = () => { this.setTab(b.dataset.chatTab); this.input.focus(); });
     this.log.onclick = (e) => {
@@ -55,12 +56,13 @@ export class ChatBox {
   // in the lobby, and while riding (not on the pause or results screens)
   riding() { return this.ui.screen === 'hud' && !!(this.ui.inGame && this.ui.inGame()); }
   visible() { return (this.available() || this.inParty()) && (this.riding() || (this.ui.screen === 'home' && !(this.ui.inGame && this.ui.inGame()))); }
-  isOpen() { return this.el.classList.contains('open'); }
+  // the box is always shown; "open" means you are typing in it
+  isOpen() { return this.el.classList.contains('typing'); }
 
   open(on) {
-    this.el.classList.toggle('open', on);
+    this.el.classList.toggle('typing', on);
     this.el.classList.toggle('admin', !!this.isAdmin());
-    if (on) { this.unread[this.tab] = 0; this.badge(); this.input.focus(); this.render(); this.poll(); }
+    if (on) { this.unread[this.tab] = 0; this.badge(); if (document.activeElement !== this.input) this.input.focus(); this.render(); this.poll(); }
     else { this.input.blur(); this.input.value = ''; }
   }
 
@@ -75,11 +77,9 @@ export class ChatBox {
     this.render();
   }
 
+  // a dot on the other tab when it has something new
   badge() {
-    const n = this.unread.global + this.unread.party;
-    const b = $('chat-unread'); b.hidden = !n; b.textContent = n > 9 ? '9+' : String(n);
-    // a dot on the other tab when it has something new
-    for (const t of ['global', 'party']) { const d = $('chat-dot-' + t); if (d) d.hidden = !this.unread[t] || (this.isOpen() && this.tab === t); }
+    for (const t of ['global', 'party']) { const d = $('chat-dot-' + t); if (d) d.hidden = !this.unread[t] || this.tab === t; }
   }
 
   async send() {
@@ -99,7 +99,6 @@ export class ChatBox {
   system(text, tab) {
     const m = { id: 0, name: '', text, system: true };
     (tab === 'party' ? this.pmsgs : this.msgs).push(m);
-    this.feed([m]);
     this.render();
   }
 
@@ -107,10 +106,9 @@ export class ChatBox {
   partyMessage(m) {
     const msg = { id: 0, name: String(m.name || ''), text: String(m.text || ''), party: true, system: !!m.system };
     this.pmsgs = this.pmsgs.concat(msg).slice(-60);
-    if (msg.name.toLowerCase() !== this.myName() && !(this.isOpen() && this.tab === 'party')) this.unread.party++;
-    if (this.riding()) this.feed([msg]);
+    if (msg.name.toLowerCase() !== this.myName() && this.tab !== 'party') this.unread.party++;
     this.badge();
-    if (this.isOpen()) this.render();
+    this.render();
   }
 
   async poll() {
@@ -124,12 +122,11 @@ export class ChatBox {
     if (!fresh.length) return;
     // count new messages from other riders
     const me = this.myName();
-    if (!old && !(this.isOpen() && this.tab === 'global')) this.unread.global += fresh.filter((m) => m.name.toLowerCase() !== me).length;
+    if (!old && this.tab !== 'global') this.unread.global += fresh.filter((m) => m.name.toLowerCase() !== me).length;
     this.after = fresh[fresh.length - 1].id;
     this.msgs = this.msgs.concat(fresh).slice(-60);
-    if (!old && this.riding()) this.feed(fresh.slice(-4));
     this.badge();
-    if (this.isOpen()) this.render();
+    this.render();
   }
 
   // show / hide straight away when you leave or come back to the lobby,
@@ -143,36 +140,26 @@ export class ChatBox {
     $('chat-tabs').hidden = !party;
     if (party && this.partyCode !== this.net.code) { this.partyCode = this.net.code; this.pmsgs = []; this.unread.party = 0; this.badge(); }
     if (!party && this.partyCode) { this.partyCode = null; this.pmsgs = []; this.unread.party = 0; this.badge(); }
+    if (show && !this.drawn) { this.drawn = true; this.render(); } // first time on screen: the empty-chat hint
     if (show && ((this.tab === 'party' && !party) || (this.tab === 'global' && !this.available()))) this.setTab(this.tab === 'party' ? 'global' : 'party');
   }
 
   loop() {
     clearTimeout(this.timer);
     if (!this.syncT) this.syncT = setInterval(() => this.sync(), 250);
-    this.poll().finally(() => { this.timer = setTimeout(() => this.loop(), this.isOpen() ? 2000 : 5000); });
+    this.poll().finally(() => { this.timer = setTimeout(() => this.loop(), this.isOpen() ? 2000 : this.visible() ? 3000 : 6000); });
   }
 
-  html(m, tag = false) {
+  html(m) {
     const me = this.myName();
     if (m.system) return `<div class="cm sys" data-id="${m.id || ''}">${escapeHtml(m.text)}</div>`;
     const tags = (STAFF_TAGS[m.name.toLowerCase()] || []).map(([label, cls]) => `<span class="stag ${cls}">${label}</span>`).join('');
-    return `<div class="cm${m.name.toLowerCase() === me ? ' me' : ''}${m.party ? ' pt' : ''}" data-id="${m.id}">${tag && m.party ? '<i>PARTY</i>' : ''}${tags}<b>${escapeHtml(m.name)}</b>${escapeHtml(m.text)}</div>`;
+    return `<div class="cm${m.name.toLowerCase() === me ? ' me' : ''}${m.party ? ' pt' : ''}" data-id="${m.id}">${tags}<b>${escapeHtml(m.name)}</b>${escapeHtml(m.text)}</div>`;
   }
 
   render() {
     const list = this.tab === 'party' ? this.pmsgs : this.msgs;
     this.log.innerHTML = list.length ? list.map((m) => this.html(m)).join('') : `<div class="cm sys">${this.tab === 'party' ? 'Only your party sees these messages.' : 'Say hi to everyone online.'}</div>`;
     this.log.scrollTop = this.log.scrollHeight;
-  }
-
-  // while riding: new messages show under the Chat button for 8 s, newest 4
-  feed(list) {
-    const box = $('chat-feed');
-    for (const m of list) {
-      box.insertAdjacentHTML('beforeend', this.html(m, true));
-      const el = box.lastElementChild;
-      setTimeout(() => el.remove(), 8000);
-    }
-    while (box.children.length > 4) box.removeChild(box.firstChild);
   }
 }

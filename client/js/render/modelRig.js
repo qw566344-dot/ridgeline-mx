@@ -105,7 +105,6 @@ vec3 helmetPaint(vec3 p) {
 }
 `;
 const helmetMats = new Map();
-let lensMat = null;
 // scheme: a rider scheme (riderScheme in rider.js): gear = [main, second, accent]
 // colours, plus gearPattern / gearCols when the kit wears the bike's skin
 export function helmetMaterial(scheme) {
@@ -126,8 +125,19 @@ export function helmetMaterial(scheme) {
     m.customProgramCacheKey = () => 'helmet-shell';
     helmetMats.set(key, m);
   }
-  if (!lensMat) lensMat = new THREE.MeshStandardMaterial({ color: 0xffc21a, metalness: 0.85, roughness: 0.12, envMapIntensity: 1.6 }); // mirrored, so solid
-  return helmet.hasLens ? [helmetMats.get(key), lensMat] : helmetMats.get(key);
+  return helmet.hasLens ? [helmetMats.get(key), lensMaterial(scheme)] : helmetMats.get(key);
+}
+
+// the goggle lens: a mirrored tint in the combo's colours - the accent, or the
+// main colour when the accent is plain white / black / grey
+const lensMats = new Map();
+function lensMaterial(scheme) {
+  const cols = scheme.gearCols || scheme.gear;
+  const vivid = (c) => { const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255; return Math.max(r, g, b) - Math.min(r, g, b) > 60; };
+  const pick = [scheme.gear[2], cols[1], scheme.gear[0], cols[0]].find(vivid);
+  const tint = pick === undefined ? 0xffc21a : pick; // nothing colourful: classic gold
+  if (!lensMats.has(tint)) lensMats.set(tint, new THREE.MeshStandardMaterial({ color: tint, metalness: 0.85, roughness: 0.12, envMapIntensity: 1.6, emissive: tint, emissiveIntensity: 0.12 })); // mirrored, so solid
+  return lensMats.get(tint);
 }
 
 export function hasModel(key) { return templates.has(key); }

@@ -471,8 +471,26 @@ export class UI {
     const kitCols = (g) => { const k = BIKE_COLORS.find((c) => c.id === g.skin); return k ? [k.body, k.accent] : [paint.gear[0], paint.gear[2]]; };
     const gearItems = GEAR_SETS.filter((g) => !g.skin || (A && A.owns('gear', g.id)));
     sw($('g-gear'), gearItems, 'gear', (g) => (g.skin ? kitCols(g) : g.colors ? [g.colors[0], g.colors[2]] : [paint.gear[0], paint.gear[2]]), (g) => g.name, S.get('gear') || 'match');
-    $('g-paint').style.opacity = view === cur ? '' : '0.45';
-    $('g-paint').style.pointerEvents = view === cur ? '' : 'none';
+    // combos: a bundle you own puts the skin and its rider kit on together
+    const combos = BUNDLES.filter((b) => owns('color', b.color) && owns('gear', b.gear));
+    const ce = $('g-combo');
+    ce.innerHTML = combos.length ? '' : '<span class="hint">Bundles in the Shop give you matching combos. You can still mix any bike skin with any rider skin below.</span>';
+    for (const b of combos) {
+      const k = BIKE_COLORS.find((c) => c.id === b.color);
+      const btn = document.createElement('button');
+      btn.className = 'swatch combo' + (S.get('color') === b.color && S.get('gear') === b.gear ? ' sel' : '');
+      btn.title = b.name.replace(/ Bundle$/, '') + ' combo';
+      btn.style.background = `linear-gradient(135deg, ${hex(k.body)} 40%, ${hex(k.accent)} 40%, ${hex(k.accent)} 60%, ${hex(k.gear[0])} 60%)`;
+      btn.onclick = async () => {
+        if (A) { await A.equip('color', b.color); await A.equip('gear', b.gear); }
+        S.set('color', b.color); S.set('gear', b.gear);
+        this.renderGarage(); this.syncStage(); this.renderTop();
+        this.emit('garageChange');
+      };
+      ce.appendChild(btn);
+    }
+    ce.style.opacity = $('g-paint').style.opacity = view === cur ? '' : '0.45';
+    ce.style.pointerEvents = $('g-paint').style.pointerEvents = view === cur ? '' : 'none';
     const act = $('g-action');
     if (view === cur) act.innerHTML = '<button disabled class="wide">Riding this one</button>';
     else if (ownV) act.innerHTML = `<button id="g-choose" class="primary wide">Ride the ${escapeHtml(vv.name)}</button>`;
