@@ -1,6 +1,7 @@
 // =====================================================================
-//  CHAT BOX - always open: bottom-left in the lobby, top-left (smaller,
-//  see-through) while riding. Press T or Enter (or click it) to type,
+//  CHAT BOX - in the lobby a small Chat button bottom-left (with a count of
+//  new messages) that opens when you press T / click it; top-left (smaller,
+//  see-through) while riding. Bad words are blurred (shared/badwords.js). Press T or Enter (or click it) to type,
 //  Enter sends and - while riding - hands the keys back to the bike,
 //  Esc stops typing.
 //  Two tabs: Global (everyone with an online account, over HTTP) and
@@ -9,6 +10,10 @@
 //  Admins can click a global message to delete it.
 // =====================================================================
 import { escapeHtml, STAFF_TAGS } from './util.js';
+import { censor } from '/shared/badwords.js';
+
+// a message with its bad words blurred (hover does not reveal them)
+const clean = (text) => censor(text).map((p) => (p.bad ? `<span class="blur">${escapeHtml(p.t)}</span>` : escapeHtml(p.t))).join('');
 
 const $ = (id) => document.getElementById(id);
 
@@ -37,6 +42,8 @@ export class ChatBox {
     };
     this.input.onfocus = () => this.open(true);
     this.input.onblur = () => this.el.classList.remove('typing');
+    this.lobbyNew = 0;
+    $('chat-head').onclick = () => { if (this.el.classList.contains('mini')) this.open(true); };
     $('chat-send').onclick = () => this.send();
     this.el.querySelectorAll('[data-chat-tab]').forEach((b) => b.onclick = () => { this.setTab(b.dataset.chatTab); this.input.focus(); });
     this.log.onclick = (e) => {
@@ -62,7 +69,7 @@ export class ChatBox {
   open(on) {
     this.el.classList.toggle('typing', on);
     this.el.classList.toggle('admin', !!this.isAdmin());
-    if (on) { this.unread[this.tab] = 0; this.badge(); if (document.activeElement !== this.input) this.input.focus(); this.render(); this.poll(); }
+    if (on) { this.unread[this.tab] = 0; this.lobbyNew = 0; this.badge(); if (document.activeElement !== this.input) this.input.focus(); this.render(); this.poll(); }
     else { this.input.blur(); this.input.value = ''; }
   }
 
@@ -79,6 +86,7 @@ export class ChatBox {
 
   // a dot on the other tab when it has something new
   badge() {
+    const n = $('chat-new'); if (n) { n.hidden = !this.lobbyNew; n.textContent = this.lobbyNew > 9 ? '9+ new' : this.lobbyNew + ' new'; }
     for (const t of ['global', 'party']) { const d = $('chat-dot-' + t); if (d) d.hidden = !this.unread[t] || this.tab === t; }
   }
 
@@ -107,6 +115,7 @@ export class ChatBox {
     const msg = { id: 0, name: String(m.name || ''), text: String(m.text || ''), party: true, system: !!m.system };
     this.pmsgs = this.pmsgs.concat(msg).slice(-60);
     if (msg.name.toLowerCase() !== this.myName() && this.tab !== 'party') this.unread.party++;
+    if (msg.name.toLowerCase() !== this.myName() && !this.isOpen()) this.lobbyNew++;
     this.badge();
     this.render();
   }
@@ -123,6 +132,7 @@ export class ChatBox {
     // count new messages from other riders
     const me = this.myName();
     if (!old && this.tab !== 'global') this.unread.global += fresh.filter((m) => m.name.toLowerCase() !== me).length;
+    if (!old && !this.isOpen()) this.lobbyNew += fresh.filter((m) => m.name.toLowerCase() !== me).length;
     this.after = fresh[fresh.length - 1].id;
     this.msgs = this.msgs.concat(fresh).slice(-60);
     this.badge();
@@ -135,6 +145,8 @@ export class ChatBox {
     const show = this.visible();
     this.el.classList.toggle('off', !show);
     this.el.classList.toggle('riding', show && this.riding());
+    // lobby: folded down to a small button unless you are typing in it
+    this.el.classList.toggle('mini', show && !this.riding() && !this.isOpen());
     if (!show && this.isOpen()) this.open(false);
     const party = this.inParty();
     $('chat-tabs').hidden = !party;
@@ -152,9 +164,9 @@ export class ChatBox {
 
   html(m) {
     const me = this.myName();
-    if (m.system) return `<div class="cm sys" data-id="${m.id || ''}">${escapeHtml(m.text)}</div>`;
+    if (m.system) return `<div class="cm sys" data-id="${m.id || ''}">${clean(m.text)}</div>`;
     const tags = (STAFF_TAGS[m.name.toLowerCase()] || []).map(([label, cls]) => `<span class="stag ${cls}">${label}</span>`).join('');
-    return `<div class="cm${m.name.toLowerCase() === me ? ' me' : ''}${m.party ? ' pt' : ''}" data-id="${m.id}">${tags}<b>${escapeHtml(m.name)}</b>${escapeHtml(m.text)}</div>`;
+    return `<div class="cm${m.name.toLowerCase() === me ? ' me' : ''}${m.party ? ' pt' : ''}" data-id="${m.id}">${tags}<b>${clean(m.name)}</b>${clean(m.text)}</div>`;
   }
 
   render() {

@@ -251,8 +251,9 @@ export class Rider {
     s.fore += (Math.max(-1, Math.min(1, fore)) - s.fore) * k;
     // on the ground lean with the vehicle; in the air counter the whip and tuck for flips
     const airRoll = air && veh.controller ? veh.controller.airRoll || 0 : 0;
-    // in the air the rider goes with the bike (a little extra into a whip), not against it
-    const leanT = air ? airRoll * 0.18 : (isBike ? -0.25 : 0.9) * (veh.lean || 0);
+    // whip: the bike lays flat UNDER the rider - hips and legs go with it, the upper body stays
+    // up over it (that is what makes a whip look like a whip, not a bike tipping over)
+    const leanT = air ? airRoll * (isBike ? 0.62 : 0.3) : (isBike ? -0.25 : 0.9) * (veh.lean || 0);
     s.leanBody += (leanT - s.leanBody) * k;
     const flipping = air && veh.angVel ? Math.min(1, Math.abs(veh.angVel.dot(veh.left)) / 3) : 0;
     s.crouch = Math.max(s.crouch, flipping * 0.45);
@@ -273,7 +274,7 @@ export class Rider {
     J.pelvis.lerp(t.a, s.stand);
     J.pelvis.z += s.fore * 0.14 * (0.5 + s.stand);
     J.pelvis.y -= s.crouch * 0.22 * (0.4 + s.stand);
-    J.pelvis.x += Math.sin(s.leanBody) * 0.1;
+    J.pelvis.x += Math.sin(s.leanBody) * (air ? 0.16 : 0.1); // hips shift to the high side in a whip
     // rider tricks (keys 1-4 in the air): blend into the pose
     const curPose = veh.controller && veh.controller.trick && !veh.grounded ? veh.controller.trick.cur : null;
     if (curPose) s.poseId = curPose;

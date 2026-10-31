@@ -17,7 +17,7 @@
 //    session; your seat is kept for 60 s.
 // =====================================================================
 import * as THREE from 'three';
-import { PROTOCOL_VERSION, SEND_RATE, INTERP_DELAY, packState, cleanName, validCode, F_CRASHED, F_AIR, F_GIANT, F_TINY } from '/shared/protocol.js';
+import { PROTOCOL_VERSION, SEND_RATE, SNAPSHOT_RATE, INTERP_DELAY, packState, cleanName, validCode, F_CRASHED, F_AIR, F_GIANT, F_TINY } from '/shared/protocol.js';
 import { getVehicle } from '/shared/vehicles.js';
 import { regionList, wsUrlFor, measurePing } from './config.js';
 import { escapeHtml, ordinal } from './util.js';
@@ -397,7 +397,7 @@ export class Net {
     const R = r.remote, buf = R.buf;
     if (!buf.length) return;
     // draw them far enough in the past to always have two states to blend
-    const want = Math.max(70, Math.min(260, 1000 / SEND_RATE + 1000 / 20 + (R.jitter || 0) * 3));
+    const want = Math.max(55, Math.min(260, 1000 / SEND_RATE + 1000 / SNAPSHOT_RATE + (R.jitter || 0) * 3));
     R.delay = R.delay == null ? INTERP_DELAY : R.delay + (want - R.delay) * 0.02;
     const rt = this.serverNow() - R.delay - Math.max(0, (R.age || 0) - 40) * 0.5;
     let a = buf[0], b = buf[0], k = 0;

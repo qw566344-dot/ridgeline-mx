@@ -203,7 +203,34 @@ export class Accounts {
     if (restore) this.restoreInto(u, restore);
     this.db.users[key] = u;
     this.grant(u);
-    return { token: this.issue(u), profile: this.profile(u), restored: !!restore };
+    return { token: this.issue(u), profile: this.profile(u), restored: !!restore, seal: this.seal(u) };
+  }
+
+  // the account's password check, handed to its owner's browser after a real login. If the
+  // free server is wiped, that browser sends it back (revive) and the account - coins, items,
+  // friends - comes back by itself, with the same password, without anyone logging in again.
+  seal(u) { return { salt: u.salt, hash: u.hash }; }
+
+  revive(m, ip) {
+    if (this.throttle(ip)) return { error: 'Too many tries - wait a minute' };
+    const name = String(m.name || '').trim(), key = name.toLowerCase();
+    const token = String(m.token || ''), s = m.seal || {};
+    if (!NAME_RE.test(name) || !/^[0-9a-f]{48}$/.test(token) || !/^[0-9a-f]{32}$/.test(String(s.salt)) || !/^[0-9a-f]{64}$/.test(String(s.hash))) return { error: 'Please log in again' };
+    let u = this.db.users[key];
+    if (u) {
+      // the account is here already (someone revived or re-made it): only its owner gets in
+      if (u.salt !== s.salt || u.hash !== s.hash) return { error: 'Please log in again' };
+      if (u.banned) return { error: 'This account has been banned' };
+    } else {
+      u = { key, name, salt: s.salt, hash: s.hash, created: Date.now(), coins: STARTER.coins, owned: [...STARTER.owned], equipped: { ...STARTER.equipped }, stats: { laps: 0, wins: 0, tricks: 0 }, rewardLog: [] };
+      this.restoreInto(u, m.restore);
+      this.db.users[key] = u;
+    }
+    // keep the browser's own login token working
+    if (!(u.tokens || []).includes(token)) { u.tokens = [...(u.tokens || []).slice(-4), token]; this.tokens.set(token, u.key); }
+    this.grant(u);
+    this.save();
+    return { token, profile: this.profile(u), revived: true, seal: this.seal(u) };
   }
 
   login(name, password, ip) {
@@ -214,7 +241,7 @@ export class Accounts {
     if (!crypto.timingSafeEqual(Buffer.from(h, 'hex'), Buffer.from(u.hash, 'hex'))) return { error: 'Wrong password' };
     if (u.banned) return { error: 'This account has been banned' };
     this.grant(u);
-    return { token: this.issue(u), profile: this.profile(u) };
+    return { token: this.issue(u), profile: this.profile(u), seal: this.seal(u) };
   }
 
   user(token) { const k = this.tokens.get(token); return k ? this.db.users[k] : null; }
@@ -306,11 +333,12 @@ export class Accounts {
       const r = url.pathname.replace('/api/', '');
       if (r === 'register') return send(200, this.register(m.name, m.password, ip, m.restore));
       if (r === 'login') return send(200, this.login(m.name, m.password, ip));
+      if (r === 'revive') return send(200, this.revive(m, ip));
       if (r === 'info') return send(200, { ok: true, accounts: Object.keys(this.db.users).length });
       if (r === 'tags') return send(200, { tags: this.admin.tags() }); // name tags anyone can see (DEV)
       const u = this.user(token);
       if (!u || u.banned) return send(401, { error: u ? 'This account has been banned' : 'Please log in again' });
-      if (r === 'me') { this.grant(u); return send(200, { profile: this.profile(u) }); }
+      if (r === 'me') { this.grant(u); return send(200, { profile: this.profile(u), seal: this.seal(u) }); }
       if (r === 'buy') return send(200, this.buy(u, m.slot, m.id));
       if (r === 'equip') return send(200, this.equip(u, m.slot, m.id));
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));

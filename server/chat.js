@@ -7,7 +7,7 @@
 // =====================================================================
 const KEEP = 100;
 const MAX_LEN = 200;
-const GAP_MS = 1200; // one message per 1.2 s per rider
+const GAP_MS = 100; // spam away - this only stops a stuck key flooding the server
 
 export class Chat {
   constructor(accounts) { this.A = accounts; this.last = new Map(); }

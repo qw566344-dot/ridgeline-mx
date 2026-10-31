@@ -48,8 +48,9 @@ function walk(def, lens) {
 // (least squares with the closure as a constraint - closed form)
 function solveClosure(def) {
   const totalTurn = def.segments.reduce((a, s) => a + (s.turn || 0), 0);
-  if (Math.abs(Math.abs(totalTurn) - 360) > 0.01) {
-    throw new Error(def.id + ': turns add up to ' + totalTurn.toFixed(1) + ' deg, need 360');
+  // a loop turns 360 degrees in total; a figure 8 turns one way then back the other (0)
+  if (Math.abs(Math.abs(totalTurn) - 360) > 0.01 && Math.abs(totalTurn) > 0.01) {
+    throw new Error(def.id + ': turns add up to ' + totalTurn.toFixed(1) + ' deg, need 360 (or 0 for a figure 8)');
   }
   const straights = def.segments.filter((s) => s.turn === undefined);
   const zero = walk(def, straights.map(() => 0), true);

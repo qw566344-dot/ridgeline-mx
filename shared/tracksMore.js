@@ -1931,5 +1931,1304 @@ export const MORE_TRACKS = [
   },
   gateAt: 14,
   finishAt: 100
+ },
+ {
+  id: "crossover",
+  name: "Crossover 8",
+  difficulty: "Medium",
+  recommend: [
+   "Dirt Bikes",
+   "Quads",
+   "Side-by-Sides"
+  ],
+  seed: 9201,
+  defaultWidth: 14,
+  desc: "A giant figure 8. Where the lanes cross, one lane jumps clean over the other - look up as riders fly over your head.",
+  look: {
+   dirt: [
+    1.02,
+    0.84,
+    0.68
+   ],
+   grass: [
+    0.85,
+    1.05,
+    0.75
+   ],
+   trees: 0.8,
+   pines: 0.3,
+   rocks: 0.4
+  },
+  terrain: {
+   hills: 1.2,
+   hillScale: 220,
+   rim: 30,
+   bumps: [],
+   rimStart: 180
+  },
+  cross: {
+   under: 0,
+   over: 2,
+   gap: 21,
+   h: 2.6,
+   h2: 2.4,
+   face: 9,
+   land: 10
+  },
+  segments: [
+   {
+    len: 120,
+    name: "Underpass Straight",
+    features: [],
+    w: 20,
+    free: true
+   },
+   {
+    turn: 270,
+    r: 60,
+    berm: 0.7
+   },
+   {
+    len: 120,
+    name: "Crossover Jump",
+    features: [
+     {
+      at: 36,
+      type: "double",
+      h: 2.6,
+      face: 9,
+      gap: 21,
+      h2: 2.4,
+      land: 10
+     }
+    ],
+    free: true
+   },
+   {
+    turn: -270,
+    r: 60,
+    berm: 0.7
+   }
+  ],
+  worldSize: 540,
+  start: {
+   x: -60,
+   z: 0,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100,
+  crossAt: {
+   s: 463,
+   under: 60
+  }
+ },
+ {
+  id: "outback",
+  name: "Outback Station",
+  difficulty: "Medium",
+  recommend: [
+   "Side-by-Sides",
+   "Quads"
+  ],
+  seed: 9211,
+  defaultWidth: 20,
+  desc: "A huge red-dirt cattle station. Miles of wide trail, sweeping turns, big rollers and long tables - built for four wheels.",
+  look: {
+   dirt: [
+    1.3,
+    0.8,
+    0.6
+   ],
+   grass: [
+    1.15,
+    1,
+    0.65
+   ],
+   trees: 0.35,
+   pines: 0.02,
+   rocks: 1.6,
+   fog: 15452582,
+   skyTop: 4031702,
+   horizon: 15914680
+  },
+  terrain: {
+   hills: 9,
+   hillScale: 260,
+   rim: 40,
+   bumps: [
+    {
+     x: 120,
+     z: -80,
+     r: 200,
+     h: 10
+    }
+   ],
+   rimStart: 402
+  },
+  segments: [
+   {
+    len: 240,
+    name: "Station Straight",
+    features: [],
+    w: 26,
+    free: false
+   },
+   {
+    turn: 70,
+    r: 60,
+    berm: 0.4
+   },
+   {
+    len: 260,
+    name: "Cattle Rollers",
+    features: [
+     {
+      at: 30,
+      type: "rollers",
+      n: 5,
+      len: 18,
+      h: 1.2
+     },
+     {
+      at: 150,
+      type: "table",
+      h: 1.8,
+      face: 12,
+      top: 12,
+      land: 14
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 110,
+    r: 55,
+    berm: 0.5
+   },
+   {
+    len: 220,
+    name: "Dry Creek",
+    features: [
+     {
+      at: 20,
+      type: "whoops",
+      n: 10,
+      len: 7,
+      h: 0.6
+     },
+     {
+      at: 120,
+      type: "double",
+      h: 2,
+      face: 11,
+      gap: 9,
+      h2: 1.8,
+      land: 13
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -50,
+    r: 70,
+    berm: 0.3
+   },
+   {
+    len: 200,
+    name: "Windmill Run",
+    features: [
+     {
+      at: 40,
+      type: "table",
+      h: 2.2,
+      face: 13,
+      top: 14,
+      land: 15
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 120,
+    r: 55,
+    berm: 0.5
+   },
+   {
+    len: 260,
+    name: "Red Ridge",
+    features: [
+     {
+      at: 20,
+      type: "rollers",
+      n: 4,
+      len: 20,
+      h: 1.3
+     },
+     {
+      at: 150,
+      type: "table",
+      h: 2,
+      face: 12,
+      top: 13,
+      land: 14
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 110,
+    r: 60,
+    berm: 0.4
+   },
+   {
+    len: 180,
+    name: "Homestead Bend",
+    features: [
+     {
+      at: 30,
+      type: "double",
+      h: 1.9,
+      face: 11,
+      gap: 8,
+      h2: 1.7,
+      land: 12
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -90,
+    r: 50,
+    berm: 0.5
+   },
+   {
+    len: 160,
+    name: "Dingo Gap",
+    features: [
+     {
+      at: 30,
+      type: "double",
+      h: 2.2,
+      face: 12,
+      gap: 10,
+      h2: 2,
+      land: 14
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 55,
+    berm: 0.5
+   }
+  ],
+  worldSize: 983,
+  start: {
+   x: -25,
+   z: 298,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "timber",
+  name: "Timberline Trail",
+  difficulty: "Medium",
+  recommend: [
+   "Side-by-Sides",
+   "Quads"
+  ],
+  seed: 9222,
+  defaultWidth: 18,
+  desc: "A long forest trail through tall pines: logging-road straights, root whoops and big woodland tables.",
+  look: {
+   dirt: [
+    0.78,
+    0.66,
+    0.52
+   ],
+   grass: [
+    0.75,
+    0.95,
+    0.68
+   ],
+   trees: 2.6,
+   pines: 2.2,
+   rocks: 1,
+   fog: 11123624,
+   skyTop: 5208744,
+   horizon: 13095876
+  },
+  terrain: {
+   hills: 14,
+   hillScale: 230,
+   rim: 50,
+   bumps: [
+    {
+     x: -100,
+     z: 60,
+     r: 180,
+     h: 14
+    }
+   ],
+   rimStart: 396
+  },
+  segments: [
+   {
+    len: 220,
+    name: "Logging Road",
+    features: [],
+    w: 24,
+    free: true
+   },
+   {
+    turn: 90,
+    r: 50,
+    berm: 0.5
+   },
+   {
+    len: 220,
+    name: "Root Whoops",
+    features: [
+     {
+      at: 24,
+      type: "whoops",
+      n: 12,
+      len: 6.5,
+      h: 0.6
+     },
+     {
+      at: 140,
+      type: "table",
+      h: 1.9,
+      face: 11,
+      top: 11,
+      land: 13
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -60,
+    r: 60,
+    berm: 0.4
+   },
+   {
+    len: 200,
+    name: "Pine Tables",
+    features: [
+     {
+      at: 24,
+      type: "table",
+      h: 2,
+      face: 12,
+      top: 12,
+      land: 14
+     },
+     {
+      at: 110,
+      type: "table",
+      h: 2.2,
+      face: 12,
+      top: 13,
+      land: 14
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 120,
+    r: 50,
+    berm: 0.5
+   },
+   {
+    len: 240,
+    name: "Sawmill Rollers",
+    features: [
+     {
+      at: 24,
+      type: "rollers",
+      n: 5,
+      len: 17,
+      h: 1.2
+     },
+     {
+      at: 150,
+      type: "double",
+      h: 2,
+      face: 11,
+      gap: 9,
+      h2: 1.8,
+      land: 13
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 55,
+    berm: 0.5
+   },
+   {
+    len: 180,
+    name: "Creek Crossing",
+    features: [
+     {
+      at: 30,
+      type: "double",
+      h: 2.1,
+      face: 12,
+      gap: 10,
+      h2: 1.9,
+      land: 14
+     }
+    ],
+    free: true
+   },
+   {
+    turn: -20,
+    r: 60,
+    berm: 0.4
+   },
+   {
+    len: 200,
+    name: "Ranger Run",
+    features: [
+     {
+      at: 40,
+      type: "table",
+      h: 2.1,
+      face: 12,
+      top: 12,
+      land: 14
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 140,
+    r: 50,
+    berm: 0.5
+   }
+  ],
+  worldSize: 971,
+  start: {
+   x: -286,
+   z: 299,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "glacier",
+  name: "Glacier Basin",
+  difficulty: "Hard",
+  recommend: [
+   "Quads",
+   "Side-by-Sides"
+  ],
+  seed: 9233,
+  defaultWidth: 18,
+  desc: "A frozen mountain basin: snowy berms, icy rollers and huge tables with the peaks all around you.",
+  look: {
+   snow: 0.7,
+   dirt: [
+    0.85,
+    0.85,
+    0.9
+   ],
+   grass: [
+    0.9,
+    0.95,
+    1.05
+   ],
+   trees: 0.6,
+   pines: 1.4,
+   rocks: 2.4,
+   fog: 14674418,
+   skyTop: 3499696,
+   horizon: 15134454
+  },
+  terrain: {
+   hills: 12,
+   hillScale: 220,
+   rim: 70,
+   bumps: [
+    {
+     x: 80,
+     z: 80,
+     r: 170,
+     h: 16
+    }
+   ],
+   rimStart: 348
+  },
+  segments: [
+   {
+    len: 220,
+    name: "Basin Straight",
+    features: [],
+    w: 24,
+    free: false
+   },
+   {
+    turn: 100,
+    r: 55,
+    berm: 0.5
+   },
+   {
+    len: 220,
+    name: "Ice Rollers",
+    features: [
+     {
+      at: 24,
+      type: "rollers",
+      n: 5,
+      len: 16,
+      h: 1.2
+     },
+     {
+      at: 130,
+      type: "table",
+      h: 2.2,
+      face: 12,
+      top: 12,
+      land: 14
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 80,
+    r: 50,
+    berm: 0.5
+   },
+   {
+    len: 200,
+    name: "Crevasse Gap",
+    features: [
+     {
+      at: 30,
+      type: "double",
+      h: 2.3,
+      face: 12,
+      gap: 10,
+      h2: 2.1,
+      land: 14
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -60,
+    r: 60,
+    berm: 0.4
+   },
+   {
+    len: 220,
+    name: "Moraine Whoops",
+    features: [
+     {
+      at: 24,
+      type: "whoops",
+      n: 12,
+      len: 6.5,
+      h: 0.65
+     },
+     {
+      at: 140,
+      type: "table",
+      h: 2,
+      face: 11,
+      top: 11,
+      land: 13
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 130,
+    r: 50,
+    berm: 0.5
+   },
+   {
+    len: 200,
+    name: "Avalanche Table",
+    features: [
+     {
+      at: 30,
+      type: "table",
+      h: 2.4,
+      face: 13,
+      top: 14,
+      land: 15
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 60,
+    r: 55,
+    berm: 0.5
+   },
+   {
+    len: 160,
+    name: "Summit Bend",
+    features: [
+     {
+      at: 20,
+      type: "rollers",
+      n: 3,
+      len: 16,
+      h: 1.1
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 50,
+    r: 50,
+    berm: 0.5
+   }
+  ],
+  worldSize: 877,
+  start: {
+   x: -6,
+   z: 274,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "sunset",
+  name: "Sunset Dunes Ranch",
+  difficulty: "Easy",
+  recommend: [
+   "Side-by-Sides",
+   "Quads",
+   "Dirt Bikes"
+  ],
+  seed: 9244,
+  defaultWidth: 20,
+  desc: "Open ranch land at golden hour. Wide, smooth and fast with big friendly tables - a cruising map for everyone.",
+  look: {
+   sand: 0.4,
+   dirt: [
+    1.2,
+    0.95,
+    0.72
+   ],
+   grass: [
+    1.2,
+    1,
+    0.65
+   ],
+   trees: 0.5,
+   pines: 0.05,
+   rocks: 0.6,
+   fog: 15780000,
+   skyTop: 4878256,
+   horizon: 16169354
+  },
+  terrain: {
+   hills: 7,
+   hillScale: 240,
+   rim: 34,
+   bumps: [],
+   rimStart: 338
+  },
+  segments: [
+   {
+    len: 240,
+    name: "Ranch Straight",
+    features: [],
+    w: 26,
+    free: true
+   },
+   {
+    turn: 90,
+    r: 60,
+    berm: 0.4
+   },
+   {
+    len: 240,
+    name: "Golden Tables",
+    features: [
+     {
+      at: 30,
+      type: "table",
+      h: 1.6,
+      face: 10,
+      top: 10,
+      land: 12
+     },
+     {
+      at: 130,
+      type: "table",
+      h: 1.8,
+      face: 11,
+      top: 11,
+      land: 13
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 58,
+    berm: 0.4
+   },
+   {
+    len: 220,
+    name: "Sage Rollers",
+    features: [
+     {
+      at: 24,
+      type: "rollers",
+      n: 5,
+      len: 18,
+      h: 1
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -60,
+    r: 70,
+    berm: 0.3
+   },
+   {
+    len: 200,
+    name: "Corral Double",
+    features: [
+     {
+      at: 30,
+      type: "double",
+      h: 1.8,
+      face: 10,
+      gap: 8,
+      h2: 1.6,
+      land: 12
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 150,
+    r: 55,
+    berm: 0.5
+   },
+   {
+    len: 220,
+    name: "Canyon Mouth",
+    features: [
+     {
+      at: 40,
+      type: "table",
+      h: 2,
+      face: 11,
+      top: 12,
+      land: 13
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 60,
+    berm: 0.4
+   }
+  ],
+  worldSize: 856,
+  start: {
+   x: -198,
+   z: 278,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "thunder",
+  name: "Thunder Raceway",
+  difficulty: "Medium",
+  recommend: [
+   "Dirt Bikes",
+   "Quads"
+  ],
+  seed: 9255,
+  defaultWidth: 14,
+  desc: "A pro motocross race circuit: holeshot straight, tight berms, rhythm sections and a big finish-line table.",
+  look: {
+   dirt: [
+    0.95,
+    0.8,
+    0.66
+   ],
+   grass: [
+    0.82,
+    1.02,
+    0.74
+   ],
+   trees: 0.7,
+   pines: 0.3,
+   rocks: 0.3
+  },
+  terrain: {
+   hills: 4,
+   hillScale: 200,
+   rim: 30,
+   bumps: [],
+   rimStart: 237
+  },
+  segments: [
+   {
+    len: 170,
+    name: "Holeshot",
+    features: [],
+    w: 22,
+    free: false
+   },
+   {
+    turn: 90,
+    r: 22,
+    berm: 1
+   },
+   {
+    len: 120,
+    name: "Rhythm One",
+    features: [
+     {
+      at: 12,
+      type: "double",
+      h: 1.6,
+      face: 6.5,
+      gap: 5,
+      h2: 1.4,
+      land: 8
+     },
+     {
+      at: 64,
+      type: "rollers",
+      n: 3,
+      len: 11,
+      h: 0.9
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 120,
+    r: 18,
+    berm: 1
+   },
+   {
+    len: 80,
+    name: "Step Up",
+    features: [
+     {
+      at: 18,
+      type: "step",
+      h: 1.5,
+      face: 6.5,
+      gap: 6,
+      h2: 2.4,
+      top: 8,
+      land: 10
+     }
+    ],
+    free: true
+   },
+   {
+    turn: -60,
+    r: 18,
+    berm: 1
+   },
+   {
+    len: 100,
+    name: "Whoop Lane",
+    features: [
+     {
+      at: 14,
+      type: "whoops",
+      n: 12,
+      len: 4.6,
+      h: 0.5
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 120,
+    r: 18,
+    berm: 1
+   },
+   {
+    len: 110,
+    name: "Triple",
+    features: [
+     {
+      at: 24,
+      type: "triple",
+      h: 2,
+      face: 8.5,
+      gap: 8,
+      h2: 1.8,
+      land: 10
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 20,
+    berm: 1
+   },
+   {
+    len: 90,
+    name: "Rollers",
+    features: [
+     {
+      at: 12,
+      type: "rollers",
+      n: 4,
+      len: 11,
+      h: 0.9
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -60,
+    r: 20,
+    berm: 1
+   },
+   {
+    len: 120,
+    name: "Finish Table",
+    features: [
+     {
+      at: 28,
+      type: "table",
+      h: 2,
+      face: 9,
+      top: 9,
+      land: 10
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 60,
+    r: 22,
+    berm: 1
+   }
+  ],
+  worldSize: 653,
+  start: {
+   x: 3,
+   z: 144,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "riverside",
+  name: "Riverside MX",
+  difficulty: "Easy",
+  recommend: [
+   "Dirt Bikes",
+   "Quads"
+  ],
+  seed: 9266,
+  defaultWidth: 13,
+  desc: "A grassy race track by the river: flowing berms, small doubles and a fun step-down. Great for racing friends.",
+  look: {
+   dirt: [
+    0.88,
+    0.72,
+    0.58
+   ],
+   grass: [
+    0.78,
+    1.1,
+    0.72
+   ],
+   trees: 1.8,
+   pines: 0.2,
+   rocks: 0.3,
+   fog: 13097164,
+   skyTop: 4883916,
+   horizon: 13623782
+  },
+  terrain: {
+   hills: 5,
+   hillScale: 180,
+   rim: 30,
+   bumps: [
+    {
+     x: -60,
+     z: 0,
+     r: 80,
+     h: -3
+    }
+   ],
+   rimStart: 199
+  },
+  segments: [
+   {
+    len: 150,
+    name: "Start Straight",
+    features: [],
+    w: 20,
+    free: true
+   },
+   {
+    turn: 90,
+    r: 20,
+    berm: 1
+   },
+   {
+    len: 100,
+    name: "River Double",
+    features: [
+     {
+      at: 16,
+      type: "double",
+      h: 1.4,
+      face: 6,
+      gap: 4.5,
+      h2: 1.2,
+      land: 7
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 18,
+    berm: 1
+   },
+   {
+    len: 90,
+    name: "Bank Rollers",
+    features: [
+     {
+      at: 12,
+      type: "rollers",
+      n: 4,
+      len: 10,
+      h: 0.8
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -45,
+    r: 16,
+    berm: 1
+   },
+   {
+    len: 100,
+    name: "Willow Table",
+    features: [
+     {
+      at: 18,
+      type: "table",
+      h: 1.5,
+      face: 7,
+      top: 6,
+      land: 8
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 135,
+    r: 18,
+    berm: 1
+   },
+   {
+    len: 80,
+    name: "Boat Ramp",
+    features: [
+     {
+      at: 12,
+      type: "double",
+      h: 1.5,
+      face: 6.5,
+      gap: 5,
+      h2: 1.3,
+      land: 7
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -45,
+    r: 18,
+    berm: 1
+   },
+   {
+    len: 110,
+    name: "Meadow Whoops",
+    features: [
+     {
+      at: 12,
+      type: "whoops",
+      n: 10,
+      len: 4.4,
+      h: 0.45
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 135,
+    r: 20,
+    berm: 1
+   }
+  ],
+  worldSize: 578,
+  start: {
+   x: -119,
+   z: 104,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "dustbowl",
+  name: "Dust Bowl Speedway",
+  difficulty: "Medium",
+  recommend: [
+   "Side-by-Sides",
+   "Quads"
+  ],
+  seed: 9277,
+  defaultWidth: 18,
+  desc: "A side-by-side race track: wide banked corners, big rollers and long straights for drafting and passing.",
+  look: {
+   dirt: [
+    1.15,
+    0.95,
+    0.72
+   ],
+   grass: [
+    1.08,
+    1,
+    0.7
+   ],
+   trees: 0.2,
+   pines: 0.05,
+   rocks: 0.8,
+   fog: 15060910,
+   skyTop: 4950224,
+   horizon: 15654080
+  },
+  terrain: {
+   hills: 3,
+   hillScale: 220,
+   rim: 30,
+   bumps: [],
+   rimStart: 206
+  },
+  segments: [
+   {
+    len: 220,
+    name: "Front Straight",
+    features: [],
+    w: 24,
+    free: true
+   },
+   {
+    turn: 90,
+    r: 36,
+    berm: 1.1
+   },
+   {
+    len: 110,
+    name: "Dust Table",
+    features: [
+     {
+      at: 24,
+      type: "table",
+      h: 2,
+      face: 12,
+      top: 12,
+      land: 13
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 36,
+    berm: 1.1
+   },
+   {
+    len: 220,
+    name: "Back Rollers",
+    features: [
+     {
+      at: 24,
+      type: "rollers",
+      n: 5,
+      len: 16,
+      h: 1.1
+     },
+     {
+      at: 140,
+      type: "table",
+      h: 1.8,
+      face: 11,
+      top: 11,
+      land: 12
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 36,
+    berm: 1.1
+   },
+   {
+    len: 110,
+    name: "Short Chute",
+    features: [
+     {
+      at: 24,
+      type: "double",
+      h: 1.8,
+      face: 10,
+      gap: 8,
+      h2: 1.6,
+      land: 11
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 36,
+    berm: 1.1
+   }
+  ],
+  worldSize: 592,
+  start: {
+   x: -110,
+   z: 91,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
  }
 ];

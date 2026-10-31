@@ -43,6 +43,13 @@ export function bankBoost(v, steer) {
   return Math.max(0, Math.min(0.7, lean * 2.2));
 }
 
+// tyre side grip as a force through the centre of mass: stops the slide without turning the nose
+export function sideGrip(v, vlat, sliding) {
+  const m = v.cfg.mass, cap = m * 9.81 * (sliding ? 0.26249999999999996 : 0.75);
+  const f = Math.max(-cap, Math.min(cap, -vlat * m * 8));
+  v.force.addScaledVector(v.left, f);
+}
+
 export class BikeController {
   constructor(veh) {
     this.v = veh;
@@ -137,16 +144,17 @@ export class BikeController {
 
       // steering: turn the heading toward the asked-for turn rate
       const sliding = inp.rearBrake > 0.1 || rear.slipLong > 0.35;
-      const kp = sliding ? 4 : 9;
+      const kp = sliding ? 5 : 20; // firm: the bike turns at the rate you ask for (9 left it ~30% short of it)
       let ty = kp * (this.yawTarget - yawW);
-      // keep the heading lined up with where the bike is going (stops slow drifts)
-      if (v.speed > 2) {
-        const vf = v.vel.dot(fwd), vlat = v.vel.dot(left);
-        const beta = Math.atan2(vlat, Math.abs(vf));
-        // only a light touch: more than this and the bike steers itself (it should go where YOU point it)
-        ty += (sliding ? 0.8 : 1.4 + 6 * inp.brake) * beta; // steadier under hard braking
+      // the tyres hold the line: sideways sliding is killed by grip, so the bike goes where the
+      // nose points. (Turning the nose toward the slide instead made the bike steer itself - it
+      // pushed back against every turn and swung the wrong way when you let go.)
+      if (v.speed > 1) {
+        const vlat = v.vel.dot(left);
+        if (inp.brake > 0.3) ty += 6 * inp.brake * Math.atan2(vlat, Math.abs(v.vel.dot(fwd))); // hard braking: stay straight
+        sideGrip(v, vlat, sliding);
       }
-      ty = clamp(ty, -16, 16);
+      ty = clamp(ty, -30, 30);
       v.torque.addScaledVector(up, ty * I[1]);
 
       // weight shift + manual wheelies
@@ -225,7 +233,7 @@ export class BikeController {
         // The longer you hold, the further it goes; let go and a spring brings it
         // back upright and lined up with where you are flying, ready to land.
         const holding = Math.abs(this.steer) > 0.15;
-        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 2.0) : Math.max(0, (this.whipAmt || 0) - dt * 9);
+        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 2.8) : Math.max(0, (this.whipAmt || 0) - dt * 9);
         // the swing spring keeps the bike lined up for the landing - but never in the middle of a flip
         // (a normal jump tips the nose down ~50 degrees - that is not a flip; pointing near vertical it is)
         const flipping = Math.abs(tr.pitch) > 2.0 || Math.abs(inp.lean) > 0.1 || Math.abs(pitchW) > 2.2;
@@ -234,7 +242,7 @@ export class BikeController {
         const amt = this.whipAmt * late;
         const side = this.whipSide || 0;
         const rollT = -side * A.whip * DEG * amt;          // lay it over
-        const yawT = side * 40 * DEG * amt;                 // rear out, nose into the whip
+        const yawT = side * 55 * DEG * amt;                 // rear kicks well out, nose into the whip
         // how far the bike points away from the direction it is flying (+ = nose to the left)
         let yawOff = 0;
         const hx = fwd.x, hz = fwd.z, vx = v.vel.x, vz = v.vel.z;
