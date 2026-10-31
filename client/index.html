@@ -14,7 +14,7 @@
   <div id="stage-tags"></div>
   <!-- CHAT: always open (online accounts, or anyone in a party) - bottom-left in the lobby, top-left while riding -->
   <div id="chat" class="chat off">
-    <div class="chat-head"><div id="chat-tabs" class="chat-tabs" hidden><button data-chat-tab="global" class="sel">Global<i id="chat-dot-global" hidden></i></button><button data-chat-tab="party">Party<i id="chat-dot-party" hidden></i></button></div><span class="chat-title">Chat</span><span class="chat-key"><kbd>T</kbd> to type</span></div>
+    <div class="chat-head" id="chat-head"><div id="chat-tabs" class="chat-tabs" hidden><button data-chat-tab="global" class="sel">Global<i id="chat-dot-global" hidden></i></button><button data-chat-tab="party">Party<i id="chat-dot-party" hidden></i></button></div><span class="chat-title">Chat</span><span class="chat-key"><b id="chat-new" class="chat-new" hidden></b><kbd>T</kbd> to type</span></div>
     <div id="chat-log" class="chat-log"></div>
     <div class="chat-row"><input id="chat-input" maxlength="200" placeholder="Type a message, Enter sends" autocomplete="off"><button id="chat-send" class="small">Send</button></div>
   </div>

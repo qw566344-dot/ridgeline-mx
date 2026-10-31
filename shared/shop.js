@@ -4,7 +4,7 @@
 //  slot: which thing it changes - 'vehicle', 'color' (paint), 'gear' or
 //        'upgrade' (id = vehicle.part.level, generated from UPGRADES)
 // =====================================================================
-import { VEHICLES, UPGRADES } from './vehicles.js';
+import { VEHICLES, UPGRADES, SPECIAL_VEHICLES } from './vehicles.js';
 export const GEAR_SETS = [
   { id: 'match', name: 'Team Kit', desc: 'Matches your paint', colors: null },
   { id: 'black', name: 'Blackout', colors: [0x1c1c22, 0x2a2a30, 0xe5e7eb] },
@@ -67,6 +67,7 @@ export const SHOP = [
   { id: 'rally', slot: 'vehicle', price: 13500 },
   { id: 'utvbaja', slot: 'vehicle', price: 14000 },
   { id: 'sxsr', slot: 'vehicle', price: 15000 },
+  { id: 'sxsu', slot: 'vehicle', price: 11000 },
   // paint ('stock' = the colour the vehicle comes in)
   { id: 'stock', slot: 'color', price: 0 },
   { id: 'red', slot: 'color', price: 0 },
@@ -189,6 +190,9 @@ export function bundlePrice(b, owns) {
   const it = shopItem(left[0][0], left[0][1]);
   return Math.round((it.price * 0.75) / 100) * 100;
 }
+
+// special vehicles: real items so they can be owned and ridden, but never for sale (see vehicles.js)
+for (const v of SPECIAL_VEHICLES) SHOP.push({ id: v.id, slot: 'vehicle', price: 1e9, special: true });
 
 // performance upgrades: 3 levels of engine / suspension / tyres for every vehicle
 for (const v of VEHICLES) {

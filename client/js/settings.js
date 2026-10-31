@@ -20,6 +20,7 @@ const DEFAULTS = {
   cameraSensitivity: 1.0,
   mouseSensitivity: 1.0,
   cameraShake: 1.0,
+  fov: 62,                // field of view of the chase cams (first person gets +28)
   screenEffects: true,
   masterVolume: 0.8,
   engineVolume: 0.8,

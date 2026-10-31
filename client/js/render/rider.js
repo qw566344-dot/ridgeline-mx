@@ -196,6 +196,93 @@ export class Rider {
     this.tmp = { a: V(), b: V(), c: V(), up: V(), fwd: V(), left: V() };
   }
 
+  // --- special: no vehicle, the rider crawls on all fours -------------------
+  // Deliberately goofy: a frantic scramble whose pace follows the speed - the bum
+  // waggles side to side, the head bobbles, hands slap high and wide, and the feet
+  // kick up behind like a cartoon. Lots of air flails everything.
+  updateCrawl(dt, veh, vis) {
+    const s = this.s, J = this.j, t = this.tmp;
+    const g = -vis.cfg.rideHeight + 0.02;                  // the ground in vehicle space
+    const spd = veh.fwdSpeed !== undefined ? veh.fwdSpeed : veh.speed || 0;
+    s.walk = (s.walk || 0) + (Math.abs(spd) * 3.2 + 2.5 * Math.abs((veh.input && veh.input.throttle) || 0)) * dt;
+    s.idle = (s.idle || 0) + dt;
+    const ph = s.walk, air = !veh.grounded && (veh.airTime || 0) > 0.08;
+    const go = Math.min(1, Math.abs(spd) / 3 + 0.25);       // how wild it gets
+    const fl = air ? Math.sin(s.idle * 22) : 0;            // flailing in the air
+    const lift = (x) => (air ? 0.18 + fl * 0.1 : Math.max(0, Math.sin(x)) * 0.22 * go);
+    const swing = (x) => (air ? fl * 0.2 : Math.cos(x) * 0.26 * go);
+    const bob = air ? 0.05 : Math.abs(Math.sin(ph)) * 0.07 * go;
+    const wag = Math.sin(ph) * 0.11 * go;                   // bum waggle
+    const wob = Math.sin(ph * 2 + 0.6) * 0.07 * go;         // head bobble
+    J.pelvis.set(wag, g + 0.53 + bob, -0.38);
+    J.neck.set(-wag * 0.4, g + 0.56 + bob * 0.5, 0.2);
+    t.up.subVectors(J.neck, J.pelvis).normalize();         // the spine runs forward
+    t.fwd.set(wag * 1.5, -1, 0.15).normalize();            // chest to the ground, rolling with the waggle
+    t.left.crossVectors(t.up, t.fwd).normalize();
+    J.head.copy(J.neck).add(t.c.set(wob, 0.13 + Math.abs(wob) * 0.5, 0.08)); // head up, bobbling
+    J.shL.copy(J.neck).addScaledVector(t.left, 0.19).add(t.c.set(0, -0.04, -0.03));
+    J.shR.copy(J.neck).addScaledVector(t.left, -0.19).add(t.c.set(0, -0.04, -0.03));
+    // hands slap down wide and high (left hand with the right knee)
+    for (const [sh, el, ha, sx, x] of [[J.shL, J.elL, J.haL, 1, ph], [J.shR, J.elR, J.haR, -1, ph + Math.PI]]) {
+      t.b.set(sx * (0.27 + Math.max(0, Math.sin(x)) * 0.1 * go), g + 0.03 + lift(x), 0.32 + swing(x));
+      if (air) t.b.add(t.c.set(sx * 0.25, 0.25, 0));      // arms out like wings in the air
+      t.a.copy(sh).add(t.c.set(sx * 0.45, 0.05, -0.15));    // chicken elbows
+      ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
+    }
+    // knees scuttle under the hips, feet flick up behind
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1);
+    J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    for (const [kn, an, toe, sx, x] of [[J.knL, J.anL, J.toeL, 1, ph + Math.PI], [J.knR, J.anR, J.toeR, -1, ph]]) {
+      kn.set(sx * 0.15 + wag * 0.6, g + 0.05 + lift(x) * 0.6, -0.4 + swing(x) * 0.8);
+      const kick = air ? 0.35 + fl * 0.1 : Math.max(0, Math.sin(x)) * 0.32 * go; // heels kick up
+      an.copy(kn).add(t.c.set(sx * 0.03, 0.04 + kick, -0.42 + kick * 0.45));
+      toe.copy(an).add(t.c.set(0, -0.06 + kick * 0.2, -0.1));
+    }
+    this.applyBones(t.up, t.fwd);
+  }
+
+  // --- special: an office chair, ridden BACKWARDS -----------------------------
+  // The rider group is turned round (see updateRiding), so this pose is built
+  // facing the rider's own front, which is the back of the chair's travel.
+  // Sitting on the seat, leaning forward over the knees, both feet reaching
+  // out in front and paddling the ground: that pushes the chair the other way.
+  updateChair(dt, veh, vis) {
+    const s = this.s, J = this.j, t = this.tmp;
+    const g = -vis.cfg.rideHeight + 0.02;
+    const spd = Math.abs(veh.fwdSpeed !== undefined ? veh.fwdSpeed : veh.speed || 0);
+    const push = Math.min(1, spd / 3 + Math.abs((veh.input && veh.input.throttle) || 0));
+    s.walk = (s.walk || 0) + (spd * 2.2 + push * 3) * dt;
+    const ph = s.walk;
+    const seatY = g + 0.5;
+    J.pelvis.set(0, seatY + 0.1, -0.02);
+    const lean = 0.35 + push * 0.2;                         // hunched forward, pushing
+    t.up.set(0, Math.cos(lean), Math.sin(lean)).normalize();
+    J.neck.copy(J.pelvis).addScaledVector(t.up, LEN.torso);
+    t.fwd.set(0, -Math.sin(lean), Math.cos(lean));
+    t.left.crossVectors(t.up, t.fwd).normalize();
+    J.shL.copy(J.neck).addScaledVector(t.left, 0.19).addScaledVector(t.up, -0.07);
+    J.shR.copy(J.neck).addScaledVector(t.left, -0.19).addScaledVector(t.up, -0.07);
+    J.head.copy(J.neck).addScaledVector(t.up, 0.04);
+    // hands hold the sides of the seat
+    for (const [sh, el, ha, sx] of [[J.shL, J.elL, J.haL, 1], [J.shR, J.elR, J.haR, -1]]) {
+      t.b.set(sx * 0.27, seatY + 0.02, 0.08);
+      t.a.copy(sh).add(t.c.set(sx * 0.4, -0.2, -0.1));
+      ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
+    }
+    // feet paddle the ground out in front (each foot plants, pushes back, lifts, reaches again)
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1);
+    J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    for (const [hip, kn, an, toe, sx, a] of [[J.hipL, J.knL, J.anL, J.toeL, 1, ph], [J.hipR, J.knR, J.anR, J.toeR, -1, ph + Math.PI]]) {
+      const reach = 0.55 + Math.cos(a) * 0.22 * push;      // foot slides from far to near
+      const up = Math.max(0, Math.sin(a)) * 0.12 * push;     // and lifts on the way back out
+      t.b.set(sx * 0.17, g + 0.08 + up, reach);
+      t.a.copy(hip).add(t.c.set(sx * 0.08, 0.5, 0.3));      // knees up
+      ik(hip, t.b, LEN.th, LEN.sh, t.a, kn, an);
+      toe.copy(an).add(t.c.set(0, -0.05, 0.2));
+    }
+    this.applyBones(t.up, t.fwd);
+  }
+
   // --- riding pose (vehicle-local coordinates) ---------------------------
   // --- driver in a side-by-side / buggy: strapped into the seat --------------
   updateSeated(dt, veh, vis) {
@@ -214,6 +301,18 @@ export class Rider {
     J.shL.copy(J.neck).addScaledVector(t.left, 0.19).addScaledVector(t.up, -0.07);
     J.shR.copy(J.neck).addScaledVector(t.left, -0.19).addScaledVector(t.up, -0.07);
     J.head.copy(J.neck).addScaledVector(t.up, 0.04);
+    // in a car the wheel can be further than the arms reach from the seat: lean the upper body
+    // toward it (up to 30 cm) so both hands really hold the wheel and turn with it
+    {
+      t.a.addVectors(J.shL, J.shR).multiplyScalar(0.5);
+      t.b.addVectors(A.gripL, A.gripR).multiplyScalar(0.5);
+      const reach = (LEN.ua + LEN.fa) * 0.93;
+      const far = Math.max(J.shL.distanceTo(A.gripL), J.shR.distanceTo(A.gripR)) - reach;
+      if (far > 0) {
+        t.c.subVectors(t.b, t.a).normalize().multiplyScalar(Math.min(0.3, far + 0.02));
+        for (const j of [J.neck, J.shL, J.shR, J.head]) j.add(t.c);
+      }
+    }
     for (const [sh, el, ha, grip, sx] of [[J.shL, J.elL, J.haL, A.gripL, 1], [J.shR, J.elR, J.haR, A.gripR, -1]]) {
       t.a.copy(sh).add(t.c.set(sx * 0.45, -0.35, 0.05));
       ik(sh, grip, LEN.ua, LEN.fa, t.a, el, ha);
@@ -229,6 +328,9 @@ export class Rider {
   }
 
   updateRiding(dt, veh, vis) {
+    this.group.rotation.y = vis.special === 'chair' ? Math.PI : 0;
+    if (vis.special === 'crawl') return this.updateCrawl(dt, veh, vis);
+    if (vis.special === 'chair') return this.updateChair(dt, veh, vis);
     if (vis.seated) return this.updateSeated(dt, veh, vis);
     const s = this.s, A = vis.attach, isBike = vis.isBike;
     const inp = veh.input || {};
@@ -251,8 +353,9 @@ export class Rider {
     s.fore += (Math.max(-1, Math.min(1, fore)) - s.fore) * k;
     // on the ground lean with the vehicle; in the air counter the whip and tuck for flips
     const airRoll = air && veh.controller ? veh.controller.airRoll || 0 : 0;
-    // in the air the rider goes with the bike (a little extra into a whip), not against it
-    const leanT = air ? airRoll * 0.18 : (isBike ? -0.25 : 0.9) * (veh.lean || 0);
+    // whip: the bike lays flat UNDER the rider - hips and legs go with it, the upper body stays
+    // up over it (that is what makes a whip look like a whip, not a bike tipping over)
+    const leanT = air ? airRoll * (isBike ? 0.62 : 0.3) : (isBike ? -0.25 : 0.9) * (veh.lean || 0);
     s.leanBody += (leanT - s.leanBody) * k;
     const flipping = air && veh.angVel ? Math.min(1, Math.abs(veh.angVel.dot(veh.left)) / 3) : 0;
     s.crouch = Math.max(s.crouch, flipping * 0.45);
@@ -273,7 +376,7 @@ export class Rider {
     J.pelvis.lerp(t.a, s.stand);
     J.pelvis.z += s.fore * 0.14 * (0.5 + s.stand);
     J.pelvis.y -= s.crouch * 0.22 * (0.4 + s.stand);
-    J.pelvis.x += Math.sin(s.leanBody) * 0.1;
+    J.pelvis.x += Math.sin(s.leanBody) * (air ? 0.16 : 0.1); // hips shift to the high side in a whip
     // rider tricks (keys 1-4 in the air): blend into the pose
     const curPose = veh.controller && veh.controller.trick && !veh.grounded ? veh.controller.trick.cur : null;
     if (curPose) s.poseId = curPose;
@@ -333,6 +436,12 @@ export class Rider {
     setBone(b[B.ftL], J.anL, J.toeL, t.a.set(0, 1, 0));
     setBone(b[B.thR], J.hipR, J.knR, fwd); setBone(b[B.shR], J.knR, J.anR, fwd);
     setBone(b[B.ftR], J.anR, J.toeR, t.a.set(0, 1, 0));
+    // first person: shrink away the head, chest and upper arms (the camera is inside them); the forearms, gloves
+    // and legs stay, so you see your hands on the bars / steering wheel
+    const fp = this.firstPerson ? 0.0001 : 1;
+    b[B.head].scale.setScalar(fp); b[B.torso].scale.setScalar(fp);
+    b[B.uaL].scale.setScalar(fp); b[B.uaR].scale.setScalar(fp); // no upper arms poking into view: forearms and gloves only
+    if (this.helmet) this.helmet.visible = !this.firstPerson;
   }
 
   // race number printed on the back of the jersey (a small curved decal on the torso bone)

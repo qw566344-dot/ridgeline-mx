@@ -19,13 +19,14 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice } from '../shared/shop.js';
-import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
+import { VEHICLES, BIKE_COLORS, ownsSpecials } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
 import { Chat } from './chat.js';
 import { cloudEnabled, cloudLoad, cloudSave } from './store.js';
 import { Casino } from './casino.js';
 import { Admin, ADMINS } from './admin.js';
 
+const splitKey = (k) => { const [s, ...rest] = String(k).split(':'); return [s, rest.join(':')]; };
 const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
 
 // TESTING ONLY: accounts topped up to this many coins when they log in.
@@ -163,7 +164,7 @@ export class Accounts {
     const n = (x, max) => Math.max(0, Math.min(max, Math.floor(Number(x) || 0)));
     u.coins = n(r.coins, MAX_COINS);
     const owned = Array.isArray(r.owned) ? r.owned.filter((k) => typeof k === 'string' && (() => { const [s, ...rest] = k.split(':'); return !!shopItem(s, rest.join(':')); })()) : [];
-    u.owned = [...new Set([...STARTER.owned, ...owned])];
+    u.owned = [...new Set([...STARTER.owned, ...owned])].filter((k) => !(shopItem(...splitKey(k)) || {}).special || ownsSpecials(u.key));
     const eq = r.equipped || {};
     for (const slot of ['vehicle', 'color', 'gear']) if (typeof eq[slot] === 'string' && this.has(u, slot + ':' + eq[slot])) u.equipped[slot] = eq[slot];
     const st = r.stats || {};
@@ -186,7 +187,7 @@ export class Accounts {
     if (c && u.coins < c) { u.coins = c; this.save(); }
     // admins own every vehicle, skin, gear set and upgrade
     if (ADMINS.includes(u.key)) {
-      const all = SHOP.map((i) => i.slot + ':' + i.id);
+      const all = SHOP.filter((i) => !i.special || ownsSpecials(u.key)).map((i) => i.slot + ':' + i.id);
       if (all.some((k) => !u.owned.includes(k))) { u.owned = [...new Set([...u.owned, ...all])]; this.save(); }
     }
   }
@@ -203,7 +204,34 @@ export class Accounts {
     if (restore) this.restoreInto(u, restore);
     this.db.users[key] = u;
     this.grant(u);
-    return { token: this.issue(u), profile: this.profile(u), restored: !!restore };
+    return { token: this.issue(u), profile: this.profile(u), restored: !!restore, seal: this.seal(u) };
+  }
+
+  // the account's password check, handed to its owner's browser after a real login. If the
+  // free server is wiped, that browser sends it back (revive) and the account - coins, items,
+  // friends - comes back by itself, with the same password, without anyone logging in again.
+  seal(u) { return { salt: u.salt, hash: u.hash }; }
+
+  revive(m, ip) {
+    if (this.throttle(ip)) return { error: 'Too many tries - wait a minute' };
+    const name = String(m.name || '').trim(), key = name.toLowerCase();
+    const token = String(m.token || ''), s = m.seal || {};
+    if (!NAME_RE.test(name) || !/^[0-9a-f]{48}$/.test(token) || !/^[0-9a-f]{32}$/.test(String(s.salt)) || !/^[0-9a-f]{64}$/.test(String(s.hash))) return { error: 'Please log in again' };
+    let u = this.db.users[key];
+    if (u) {
+      // the account is here already (someone revived or re-made it): only its owner gets in
+      if (u.salt !== s.salt || u.hash !== s.hash) return { error: 'Please log in again' };
+      if (u.banned) return { error: 'This account has been banned' };
+    } else {
+      u = { key, name, salt: s.salt, hash: s.hash, created: Date.now(), coins: STARTER.coins, owned: [...STARTER.owned], equipped: { ...STARTER.equipped }, stats: { laps: 0, wins: 0, tricks: 0 }, rewardLog: [] };
+      this.restoreInto(u, m.restore);
+      this.db.users[key] = u;
+    }
+    // keep the browser's own login token working
+    if (!(u.tokens || []).includes(token)) { u.tokens = [...(u.tokens || []).slice(-4), token]; this.tokens.set(token, u.key); }
+    this.grant(u);
+    this.save();
+    return { token, profile: this.profile(u), revived: true, seal: this.seal(u) };
   }
 
   login(name, password, ip) {
@@ -214,7 +242,7 @@ export class Accounts {
     if (!crypto.timingSafeEqual(Buffer.from(h, 'hex'), Buffer.from(u.hash, 'hex'))) return { error: 'Wrong password' };
     if (u.banned) return { error: 'This account has been banned' };
     this.grant(u);
-    return { token: this.issue(u), profile: this.profile(u) };
+    return { token: this.issue(u), profile: this.profile(u), seal: this.seal(u) };
   }
 
   user(token) { const k = this.tokens.get(token); return k ? this.db.users[k] : null; }
@@ -238,6 +266,7 @@ export class Accounts {
     if (!item) return { error: 'No such item' };
     const k = slot + ':' + id;
     if (u.owned.includes(k)) return { profile: this.profile(u) };
+    if (item.special) return { error: 'That one is not for sale' };
     if (!inShop(slot, id)) return { error: 'That is not in the item shop right now - check back when it rotates' };
     if (slot === 'upgrade') for (const n of upgradeNeeds(item)) if (!this.has(u, n)) return { error: n.startsWith('vehicle') ? 'Buy the vehicle first' : 'Buy the level below first' };
     if (u.coins < item.price) return { error: `Not enough coins (need ${item.price})` };
@@ -306,11 +335,12 @@ export class Accounts {
       const r = url.pathname.replace('/api/', '');
       if (r === 'register') return send(200, this.register(m.name, m.password, ip, m.restore));
       if (r === 'login') return send(200, this.login(m.name, m.password, ip));
+      if (r === 'revive') return send(200, this.revive(m, ip));
       if (r === 'info') return send(200, { ok: true, accounts: Object.keys(this.db.users).length });
       if (r === 'tags') return send(200, { tags: this.admin.tags() }); // name tags anyone can see (DEV)
       const u = this.user(token);
       if (!u || u.banned) return send(401, { error: u ? 'This account has been banned' : 'Please log in again' });
-      if (r === 'me') { this.grant(u); return send(200, { profile: this.profile(u) }); }
+      if (r === 'me') { this.grant(u); return send(200, { profile: this.profile(u), seal: this.seal(u) }); }
       if (r === 'buy') return send(200, this.buy(u, m.slot, m.id));
       if (r === 'equip') return send(200, this.equip(u, m.slot, m.id));
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));

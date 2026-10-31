@@ -13,6 +13,7 @@ import { pointAt } from '/shared/trackgen.js';
 export const CAMERA_MODES = ['Chase', 'Close Chase', 'Helmet', 'Trackside'];
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion();
+const _e = new THREE.Vector3(), _f = new THREE.Vector3(), _u = new THREE.Vector3(), _m = new THREE.Matrix4(), _qi = new THREE.Quaternion();
 
 export class CameraRig {
   constructor(camera) {
@@ -22,6 +23,7 @@ export class CameraRig {
     this.look = new THREE.Vector3();
     this.heading = new THREE.Vector3(0, 0, 1);
     this.fov = 65;
+    this.baseFov = 62; // Settings > Field of view (chase cams); first person gets a bit more
     this.shake = 0;
     this.shakeT = 0;
     this.orbitYaw = 0; this.orbitPitch = 0; this.orbitHold = 0;
@@ -66,7 +68,7 @@ export class CameraRig {
     else { this.orbitYaw *= 1 - Math.min(1, dt * 2.5); this.orbitPitch *= 1 - Math.min(1, dt * 2.5); }
 
     const mode = CAMERA_MODES[this.mode];
-    let fovTarget = 62 + Math.min(16, spd * 0.45);
+    let fovTarget = this.baseFov + Math.min(16, spd * 0.45);
     if (dt > 0) {
       const a = (spd - this.prevSpd) / dt;
       this.prevSpd = spd;
@@ -107,19 +109,34 @@ export class CameraRig {
       cam.up.set(0, 1, 0);
       cam.lookAt(_v2.copy(this.look).setY(this.look.y + this.dip * fx * 0.4));
     } else if (mode === 'Helmet') {
-      // first person from the rider's eyes, follows the head (lean and all)
+      // first person from the rider's eyes. The head bounces with the riding animation, so the
+      // eye point is smoothed in the vehicle's own frame (bumps still come through, the jitter
+      // does not), and the view direction is smoothed too so jumps and whoops don't whip it around.
       const eye = riderHead ? riderHead.clone() : target.pos.clone().add(_v2.set(0, 0.9, 0));
-      cam.position.copy(eye);
-      const upv = new THREE.Vector3(0, 1, 0).applyQuaternion(target.quat).lerp(new THREE.Vector3(0, 1, 0), 0.4).normalize();
-      if (target.lean) upv.applyAxisAngle(fwd, -target.lean * 0.6);
-      const look = eye.clone().addScaledVector(fwd, 10).addScaledVector(this.heading, 4);
-      look.y -= 1.2;
-      look.applyAxisAngle(THREE.Object3D.DEFAULT_UP, 0);
-      cam.up.copy(upv);
-      cam.lookAt(look);
-      fovTarget = 78 + Math.min(10, spd * 0.25);
+      _qi.copy(target.quat).invert();
+      _e.copy(eye).sub(target.pos).applyQuaternion(_qi);               // eye in the vehicle's frame
+      // a little behind the head so the bars and your arms come into view (in a car: the wheel and your hands)
+      const car = target.type === 'car';
+      _e.y += car ? 0.05 : 0.12; _e.z -= car ? 0.14 : 0.42;
+      if (!this.eyeLocal || this.snapNext) this.eyeLocal = _e.clone();
+      this.eyeLocal.lerp(_e, Math.min(1, dt * 7));
+      cam.position.copy(this.eyeLocal).applyQuaternion(target.quat).add(target.pos);
+      // look where the bike points, eased toward where it is going; level-ish horizon
+      _f.copy(fwd).lerp(this.heading, 0.25);
+      _f.y = Math.max(-0.45, Math.min(0.35, _f.y)) - (car ? 0.08 : 0.2); // only a slight tilt down: bars / wheel and arms at the bottom edge
+      _f.normalize();
+      _f.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.orbitYaw);    // mouse look
+      _u.set(0, 1, 0);
+      if (target.lean) _u.applyAxisAngle(_f, -target.lean * 0.45);    // lean into turns, but less than the bike
+      _m.lookAt(_v2.set(0, 0, 0), _f, _u); // camera looks down its -z: from the origin toward _f
+      _q.setFromRotationMatrix(_m);
+      if (!this.helmQ || this.snapNext) this.helmQ = _q.clone();
+      this.helmQ.slerp(_q, Math.min(1, dt * (target.grounded ? 9 : 5)));
+      cam.quaternion.copy(this.helmQ);
+      if (this.orbitPitch) cam.rotateX(-this.orbitPitch * 0.8);
+      fovTarget = this.baseFov + 28 + Math.min(8, spd * 0.2);
       this.pos.copy(cam.position);
-      this.look.copy(look);
+      this.look.copy(cam.position).addScaledVector(_f, 10);
     } else {
       // trackside TV camera: a fixed spot beside the track, zooming to follow
       const T = world.T;

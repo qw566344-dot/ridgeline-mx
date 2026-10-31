@@ -29,6 +29,7 @@
 //    GET  /api/tags (anyone)             -> {tags: {name: ['DEV']}} for name tags / chat
 // =====================================================================
 import { SHOP, STARTER, shopItem } from '../shared/shop.js';
+import { ownsSpecials } from '../shared/vehicles.js';
 import { cloudEnabled } from './store.js';
 
 export const ADMINS = ['lmkk']; // owners
@@ -260,7 +261,7 @@ export class Admin {
   unlock(m) {
     const u = this.find(m.name);
     if (!u) return { error: 'No such rider' };
-    u.owned = [...new Set([...u.owned, ...SHOP.map((i) => i.slot + ':' + i.id)])];
+    u.owned = [...new Set([...u.owned, ...SHOP.filter((i) => !i.special || ownsSpecials(u.key)).map((i) => i.slot + ':' + i.id)])];
     this.A.save();
     return { ok: `Unlocked everything for ${u.name}` };
   }
@@ -271,6 +272,7 @@ export class Admin {
     const [slot, id] = String(m.item || '').split(':');
     const item = shopItem(slot, id);
     if (!item) return { error: 'No such item' };
+    if (item.special && !ownsSpecials(u.key)) return { error: 'Special vehicles are only for their owner' };
     const k = slot + ':' + id;
     if (u.owned.includes(k)) return { ok: `${u.name} already has ${item.name || id}` };
     u.owned.push(k);

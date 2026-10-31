@@ -82,14 +82,15 @@ try {
   const a2 = (await api(null, 'login', { name: 'Gambler1', password: pw })).token;
   r = await api(a2, 'chat/send', { text: '  hello   riders ' });
   ok(r.ok, 'rider sends a chat message');
+  await new Promise((res) => setTimeout(res, 150));
   r = await api(a2, 'chat/send', { text: 'spam' });
-  ok(r.error, 'chat is rate limited');
+  ok(r.ok, 'spamming is allowed (only a 0.1 s flood guard)');
   r = await api(adm, 'chat?after=0');
-  ok(r.messages.length === 1 && r.messages[0].text === 'hello riders' && r.messages[0].name === 'Gambler1', 'everyone reads the chat');
+  ok(r.messages.length === 2 && r.messages[0].text === 'hello riders' && r.messages[0].name === 'Gambler1', 'everyone reads the chat');
   ok((await api(adm, 'chat?after=' + r.latest)).messages.length === 0, 'only new messages come back');
   ok((await api(a2, 'admin/chatclear')).error === 'Admins only', 'riders cannot clear the chat');
   r = await api(adm, 'admin/chatdelete', { id: r.messages[0].id });
-  ok(!r.error && (await api(adm, 'chat?after=0')).messages.length === 0, 'admin deletes a message');
+  ok(!r.error && (await api(adm, 'chat?after=0')).messages.length === 1, 'admin deletes a message');
   await new Promise((res) => setTimeout(res, 1300));
   await api(a2, 'chat/send', { text: 'again' });
   await api(adm, 'admin/chatclear');

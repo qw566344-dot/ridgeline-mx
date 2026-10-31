@@ -10,7 +10,7 @@
 // =====================================================================
 import crypto from 'crypto';
 import { getTrack, TRACKS } from '../shared/tracks.js';
-import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
+import { VEHICLES, BIKE_COLORS, isSpecial } from '../shared/vehicles.js';
 import { buildTrack, buildFields, locatePrecise } from '../shared/trackgen.js';
 import { LapTracker, GAME } from '../shared/rules.js';
 import { GEAR_SETS } from '../shared/shop.js';
@@ -89,10 +89,10 @@ export class Lobby {
     }
   }
 
-  // token bucket: ~40 messages per second sustained
+  // token bucket: ~60 messages per second sustained (30 rider states a second + everything else)
   allow(conn) {
     const now = Date.now();
-    conn.bucket = Math.min(80, conn.bucket + ((now - conn.bucketTime) / 1000) * 40);
+    conn.bucket = Math.min(120, conn.bucket + ((now - conn.bucketTime) / 1000) * 60);
     conn.bucketTime = now;
     if (conn.bucket < 1) {
       conn.drops++;
@@ -167,7 +167,7 @@ export class Lobby {
 
   profile(p, m, quiet) {
     if (m.name !== undefined) p.name = cleanName(m.name);
-    if (VEHICLES.some((v) => v.id === m.vehicle)) p.vehicle = m.vehicle;
+    if (VEHICLES.some((v) => v.id === m.vehicle) || isSpecial(m.vehicle)) p.vehicle = m.vehicle;
     if (m.color === 'stock' || BIKE_COLORS.some((c) => c.id === m.color)) p.color = m.color;
     if (GEAR_SETS.some((g) => g.id === m.gear)) p.gear = m.gear;
     if (!quiet && p.party) this.broadcastParty(p.party);
@@ -202,7 +202,7 @@ export class Lobby {
     if (p.conn) p.conn.send({ t: 'notice', msg: `Joining <b>${String(m.name).replace(/[<>&]/g, '')}</b>... their game connects in a few seconds` });
   }
 
-  // party chat: only the riders in your party get it (one message a second each)
+  // party chat: only the riders in your party get it (spam allowed; 100 ms flood guard)
   partyChat(p, m) {
     if (!p.party) return this.err(p, 'NO_PARTY', 'You are not in a party.');
     const acc = this.accounts && this.accounts.db.users[p.name.toLowerCase()];
@@ -210,7 +210,7 @@ export class Lobby {
     const text = String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
     if (!text) return;
     const now = Date.now();
-    if (now - (p.chatAt || 0) < 1000) return this.err(p, 'SLOW', 'Slow down a little');
+    if (now - (p.chatAt || 0) < 100) return this.err(p, 'SLOW', 'Slow down a little');
     p.chatAt = now;
     const msg = JSON.stringify({ t: 'pchat', name: p.name, text, at: now });
     for (const x of p.party.members.values()) if (x.conn) x.conn.send(msg);

@@ -13,11 +13,10 @@ await Promise.all([A.open, Bc.open, C.open]); await wait(300);
 A.send({ t: 'create' }); await wait(300);
 const code = A.msgs.find((m) => m.t === 'party').code;
 Bc.send({ t: 'join', code }); C.send({ t: 'create' }); await wait(300);
-A.send({ t: 'pchat', text: '  hi   team ' }); await wait(300);
+A.send({ t: 'pchat', text: '  hi   team ' }); A.send({ t: 'pchat', text: 'spam' }); await wait(300); // the second, straight away, is too fast
 const got = (c) => c.msgs.filter((m) => m.t === 'pchat');
 const okB = got(Bc).length === 1 && got(Bc)[0].text === 'hi team' && got(Bc)[0].name === 'Alpha';
 const okA = got(A).length === 1, okC = got(C).length === 0;
-A.send({ t: 'pchat', text: 'spam' }); await wait(100);
 const slowed = A.msgs.some((m) => m.t === 'error' && m.code === 'SLOW');
 console.log('party mate gets it:', okB, '| sender sees it:', okA, '| other party does not:', okC, '| rate limited:', slowed);
 const ok = okA && okB && okC && slowed;

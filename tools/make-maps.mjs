@@ -8,7 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { buildTrack } from '../shared/trackgen.js';
+import { buildTrack, featureKnots } from '../shared/trackgen.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const T = (at, h, face, top, land) => ({ at, type: 'table', h, face, top, land });
@@ -81,7 +81,80 @@ const MAPS = [
     look: { dirt: [0.85, 0.72, 0.75], grass: [0.75, 0.85, 0.9], trees: 1.4, pines: 0.6, rocks: 0.8, fog: 0x6b5b8a, skyTop: 0x1e1b4b, horizon: 0xc77dba },
     terrain: { hills: 9, hillScale: 150, rim: 40, bumps: [{ x: 0, z: 0, r: 80, h: -4 }] },
     segments: [str(150, 'Start Straight', [], 18), turn(90, 20), str(110, 'Dusk Rhythm', [D(12, 1.5, 6.5, 5, 1.3, 8), D(56, 1.6, 6.5, 5, 1.4, 8)]), turn(90, 18), str(120, 'Moon Table', [T(20, 2.0, 9, 9, 10)]), turn(-90, 18), str(90, 'Shadow Whoops', [WH(12, 10, 4.6, 0.5)]), turn(90, 20), str(140, 'Starlight Triple', [TR(32, 2.0, 8.5, 8, 1.8, 10)]), turn(90, 20), str(90, 'Valley Bend', [RO(14, 3, 11, 0.8)]), turn(90, 20)] },
+
+  // ---- figure 8: the start lane runs straight under the middle of a big gap jump on the other lane
+  { id: 'crossover', name: 'Crossover 8', difficulty: 'Medium', recommend: ['Dirt Bikes', 'Quads', 'Side-by-Sides'], seed: 9201, defaultWidth: 14,
+    desc: 'A giant figure 8. Where the lanes cross, one lane jumps clean over the other - look up as riders fly over your head.',
+    look: { dirt: [1.02, 0.84, 0.68], grass: [0.85, 1.05, 0.75], trees: 0.8, pines: 0.3, rocks: 0.4 },
+    terrain: { hills: 1.2, hillScale: 220, rim: 30, bumps: [] },
+    cross: { under: 0, over: 2, gap: 24, h: 3.0, h2: 2.8, face: 10, land: 11 },
+    segments: [str(150, 'Underpass Straight', [], 20), turn(270, 75, 0.7), str(150, 'Crossover Jump'), turn(-270, 75, 0.7)] },
+
+  // ---- big maps for quads and side-by-sides: wide, long, flowing
+  { id: 'outback', name: 'Outback Station', difficulty: 'Medium', recommend: ['Side-by-Sides', 'Quads'], seed: 9211, defaultWidth: 20,
+    desc: 'A huge red-dirt cattle station. Miles of wide trail, sweeping turns, big rollers and long tables - built for four wheels.',
+    look: { dirt: [1.3, 0.8, 0.6], grass: [1.15, 1.0, 0.65], trees: 0.35, pines: 0.02, rocks: 1.6, fog: 0xebc9a6, skyTop: 0x3d84d6, horizon: 0xf2d6b8 },
+    terrain: { hills: 9, hillScale: 260, rim: 40, bumps: [{ x: 120, z: -80, r: 200, h: 10 }] },
+    segments: [str(240, 'Station Straight', [], 26), turn(70, 60, 0.4), str(260, 'Cattle Rollers', [RO(30, 5, 18, 1.2), T(150, 1.8, 12, 12, 14)]), turn(110, 55, 0.5), str(220, 'Dry Creek', [WH(20, 10, 7, 0.6), D(120, 2.0, 11, 9, 1.8, 13)]), turn(-50, 70, 0.3), str(200, 'Windmill Run', [T(40, 2.2, 13, 14, 15)]), turn(120, 55, 0.5), str(260, 'Red Ridge', [RO(20, 4, 20, 1.3), T(150, 2.0, 12, 13, 14)]), turn(110, 60, 0.4), str(180, 'Homestead Bend', [D(30, 1.9, 11, 8, 1.7, 12)]), turn(-90, 50, 0.5), str(160, 'Dingo Gap', [D(30, 2.2, 12, 10, 2.0, 14)]), turn(90, 55, 0.5)] },
+  { id: 'timber', name: 'Timberline Trail', difficulty: 'Medium', recommend: ['Side-by-Sides', 'Quads'], seed: 9222, defaultWidth: 18,
+    desc: 'A long forest trail through tall pines: logging-road straights, root whoops and big woodland tables.',
+    look: { dirt: [0.78, 0.66, 0.52], grass: [0.75, 0.95, 0.68], trees: 2.6, pines: 2.2, rocks: 1.0, fog: 0xa9bba8, skyTop: 0x4f7aa8, horizon: 0xc7d3c4 },
+    terrain: { hills: 14, hillScale: 230, rim: 50, bumps: [{ x: -100, z: 60, r: 180, h: 14 }] },
+    segments: [str(220, 'Logging Road', [], 24), turn(90, 50, 0.5), str(220, 'Root Whoops', [WH(24, 12, 6.5, 0.6), T(140, 1.9, 11, 11, 13)]), turn(-60, 60, 0.4), str(200, 'Pine Tables', [T(24, 2.0, 12, 12, 14), T(110, 2.2, 12, 13, 14)]), turn(120, 50, 0.5), str(240, 'Sawmill Rollers', [RO(24, 5, 17, 1.2), D(150, 2.0, 11, 9, 1.8, 13)]), turn(90, 55, 0.5), str(180, 'Creek Crossing', [D(30, 2.1, 12, 10, 1.9, 14)]), turn(-20, 60, 0.4), str(200, 'Ranger Run', [T(40, 2.1, 12, 12, 14)]), turn(140, 50, 0.5)] },
+  { id: 'glacier', name: 'Glacier Basin', difficulty: 'Hard', recommend: ['Quads', 'Side-by-Sides'], seed: 9233, defaultWidth: 18,
+    desc: 'A frozen mountain basin: snowy berms, icy rollers and huge tables with the peaks all around you.',
+    look: { snow: 0.7, dirt: [0.85, 0.85, 0.9], grass: [0.9, 0.95, 1.05], trees: 0.6, pines: 1.4, rocks: 2.4, fog: 0xdfe9f2, skyTop: 0x3566b0, horizon: 0xe6eef6 },
+    terrain: { hills: 12, hillScale: 220, rim: 70, bumps: [{ x: 80, z: 80, r: 170, h: 16 }] },
+    segments: [str(220, 'Basin Straight', [], 24), turn(100, 55, 0.5), str(220, 'Ice Rollers', [RO(24, 5, 16, 1.2), T(130, 2.2, 12, 12, 14)]), turn(80, 50, 0.5), str(200, 'Crevasse Gap', [D(30, 2.3, 12, 10, 2.1, 14)]), turn(-60, 60, 0.4), str(220, 'Moraine Whoops', [WH(24, 12, 6.5, 0.65), T(140, 2.0, 11, 11, 13)]), turn(130, 50, 0.5), str(200, 'Avalanche Table', [T(30, 2.4, 13, 14, 15)]), turn(60, 55, 0.5), str(160, 'Summit Bend', [RO(20, 3, 16, 1.1)]), turn(50, 50, 0.5)] },
+  { id: 'sunset', name: 'Sunset Dunes Ranch', difficulty: 'Easy', recommend: ['Side-by-Sides', 'Quads', 'Dirt Bikes'], seed: 9244, defaultWidth: 20,
+    desc: 'Open ranch land at golden hour. Wide, smooth and fast with big friendly tables - a cruising map for everyone.',
+    look: { sand: 0.4, dirt: [1.2, 0.95, 0.72], grass: [1.2, 1.0, 0.65], trees: 0.5, pines: 0.05, rocks: 0.6, fog: 0xf0c8a0, skyTop: 0x4a6fb0, horizon: 0xf6b98a },
+    terrain: { hills: 7, hillScale: 240, rim: 34, bumps: [] },
+    segments: [str(240, 'Ranch Straight', [], 26), turn(90, 60, 0.4), str(240, 'Golden Tables', [T(30, 1.6, 10, 10, 12), T(130, 1.8, 11, 11, 13)]), turn(90, 58, 0.4), str(220, 'Sage Rollers', [RO(24, 5, 18, 1.0)]), turn(-60, 70, 0.3), str(200, 'Corral Double', [D(30, 1.8, 10, 8, 1.6, 12)]), turn(150, 55, 0.5), str(220, 'Canyon Mouth', [T(40, 2.0, 11, 12, 13)]), turn(90, 60, 0.4)] },
+
+  // ---- race tracks: proper motocross circuits with lots of corners and rhythm
+  { id: 'thunder', name: 'Thunder Raceway', difficulty: 'Medium', recommend: ['Dirt Bikes', 'Quads'], seed: 9255, defaultWidth: 14,
+    desc: 'A pro motocross race circuit: holeshot straight, tight berms, rhythm sections and a big finish-line table.',
+    look: { dirt: [0.95, 0.8, 0.66], grass: [0.82, 1.02, 0.74], trees: 0.7, pines: 0.3, rocks: 0.3 },
+    terrain: { hills: 4, hillScale: 200, rim: 30, bumps: [] },
+    segments: [str(170, 'Holeshot', [], 22), turn(90, 22), str(120, 'Rhythm One', [D(12, 1.6, 6.5, 5, 1.4, 8), RO(64, 3, 11, 0.9)]), turn(120, 18), str(80, 'Step Up', [ST(18, 1.5, 6.5, 6, 2.4, 8, 10)]), turn(-60, 18), str(100, 'Whoop Lane', [WH(14, 12, 4.6, 0.5)]), turn(120, 18), str(110, 'Triple', [TR(24, 2.0, 8.5, 8, 1.8, 10)]), turn(90, 20), str(90, 'Rollers', [RO(12, 4, 11, 0.9)]), turn(-60, 20), str(120, 'Finish Table', [T(28, 2.0, 9, 9, 10)]), turn(60, 22)] },
+  { id: 'riverside', name: 'Riverside MX', difficulty: 'Easy', recommend: ['Dirt Bikes', 'Quads'], seed: 9266, defaultWidth: 13,
+    desc: 'A grassy race track by the river: flowing berms, small doubles and a fun step-down. Great for racing friends.',
+    look: { dirt: [0.88, 0.72, 0.58], grass: [0.78, 1.1, 0.72], trees: 1.8, pines: 0.2, rocks: 0.3, fog: 0xc7d8cc, skyTop: 0x4a85cc, horizon: 0xcfe1e6 },
+    terrain: { hills: 5, hillScale: 180, rim: 30, bumps: [{ x: -60, z: 0, r: 80, h: -3 }] },
+    segments: [str(150, 'Start Straight', [], 20), turn(90, 20), str(100, 'River Double', [D(16, 1.4, 6, 4.5, 1.2, 7)]), turn(90, 18), str(90, 'Bank Rollers', [RO(12, 4, 10, 0.8)]), turn(-45, 16), str(100, 'Willow Table', [T(18, 1.5, 7, 6, 8)]), turn(135, 18), str(80, 'Boat Ramp', [D(12, 1.5, 6.5, 5, 1.3, 7)]), turn(-45, 18), str(110, 'Meadow Whoops', [WH(12, 10, 4.4, 0.45)]), turn(135, 20)] },
+  { id: 'dustbowl', name: 'Dust Bowl Speedway', difficulty: 'Medium', recommend: ['Side-by-Sides', 'Quads'], seed: 9277, defaultWidth: 18,
+    desc: 'A side-by-side race track: wide banked corners, big rollers and long straights for drafting and passing.',
+    look: { dirt: [1.15, 0.95, 0.72], grass: [1.08, 1.0, 0.7], trees: 0.2, pines: 0.05, rocks: 0.8, fog: 0xe5cfae, skyTop: 0x4b88d0, horizon: 0xeedcc0 },
+    terrain: { hills: 3, hillScale: 220, rim: 30, bumps: [] },
+    segments: [str(220, 'Front Straight', [], 24), turn(90, 36, 1.1), str(110, 'Dust Table', [T(24, 2.0, 12, 12, 13)]), turn(90, 36, 1.1), str(220, 'Back Rollers', [RO(24, 5, 16, 1.1), T(140, 1.8, 11, 11, 12)]), turn(90, 36, 1.1), str(110, 'Short Chute', [D(24, 1.8, 10, 8, 1.6, 11)]), turn(90, 36, 1.1)] },
 ];
+
+// Figure 8: find where the 'over' straight crosses the 'under' straight and put a double there
+// whose flat gap (ground level) is centred on the crossing - the other lane runs through the gap.
+function placeCrossJump(def, c) {
+  const T = buildTrack(def);
+  const segS = (idx) => { const sec = T.sections.filter((x) => x.name === def.segments[idx].name)[0]; return sec; };
+  const over = segS(c.over), under = segS(c.under);
+  let best = null;
+  for (let a = over.s0; a < over.s1; a += 0.25) {
+    const ia = Math.round(a / T.step) % T.n;
+    for (let b = under.s0; b < under.s1; b += 0.5) {
+      const ib = Math.round(b / T.step) % T.n;
+      const d = Math.hypot(T.xs[ia] - T.xs[ib], T.zs[ia] - T.zs[ib]);
+      if (!best || d < best.d) best = { d, a, b };
+    }
+  }
+  if (!best || best.d > 1.5) throw new Error(def.id + ': the lanes do not cross');
+  // the double as it is really built (jumps are scaled up in trackgen): knots 3..4 are the flat gap
+  const jump = { type: 'double', h: c.h, face: c.face, gap: c.gap, h2: c.h2, land: c.land };
+  const k = featureKnots(jump);
+  const at = Math.round((best.a - over.s0) - (k[3].x + k[4].x) / 2);
+  if (at < 4 || at + k[k.length - 1].x > over.s1 - over.s0) throw new Error(def.id + ': the crossover jump does not fit its straight - make the loops bigger');
+  def.segments[c.over] = { ...def.segments[c.over], features: [{ at, ...jump }] };
+  def.crossAt = { s: Math.round(best.a), under: Math.round(best.b) };
+  console.log(`${def.name}: lanes cross at s=${best.a.toFixed(1)} (over) / ${best.b.toFixed(1)} (under); gap jump placed at ${at} m`);
+}
 
 function evaluate(def) {
   const warns = [];
@@ -113,9 +186,10 @@ for (const m of MAPS) {
     def.segments = m.segments.map((s, i) => (s.len ? { ...s, free: i === idxs[a] || i === idxs[b] } : s));
     const r = evaluate(def);
     if (!r || r.warns.length || r.minLen < 30) continue;
-    if (!best || r.minSep > best.r.minSep) best = { def, r };
+    if (!best || m.cross || r.minSep > best.r.minSep) best = { def, r };
   }
-  if (!best) { console.log('NO LAYOUT for', m.id); continue; }
+  if (!best) { const def = { ...m, worldSize: 2000, start: { x: 0, z: 0, heading: 0 }, gateAt: 14, finishAt: 100, terrain: { ...m.terrain, rimStart: 900 } }; def.segments = m.segments.map((x, i) => (x.len ? { ...x, free: i === idxs[0] || i === idxs[1] } : x)); const r = evaluate(def); console.log('NO LAYOUT for', m.id, r ? JSON.stringify({ warns: r.warns.slice(0, 2), minLen: r.minLen }) : 'build failed'); continue; }
+  if (m.cross) placeCrossJump(best.def, m.cross);
   const [x0, x1, z0, z1] = best.r.bounds;
   const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, span = Math.max(x1 - x0, z1 - z0);
   const def = best.def;

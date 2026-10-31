@@ -11,7 +11,7 @@
 //  The party itself lives in net.js; friends in social.js.
 // =====================================================================
 import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
-import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES } from '/shared/vehicles.js';
+import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES, SPECIAL_VEHICLES, SPECIAL_CATEGORY } from '/shared/vehicles.js';
 import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop, BUNDLES, getBundle, bundlePrice } from '/shared/shop.js';
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
@@ -395,11 +395,13 @@ export class UI {
     const view = this.gView || cur;
     const vv = getVehicle(view);
     if (!this.garageCat) this.garageCat = getVehicle(cur).category;
-    $('garage-cats').innerHTML = CATEGORIES.map((c) => `<button class="${c === this.garageCat ? 'sel' : ''}" data-cat="${c}">${c}</button>`).join('');
+    // the Specials tab only shows for riders who own one
+    const cats = SPECIAL_VEHICLES.some((x) => owns('vehicle', x.id)) ? [...CATEGORIES, SPECIAL_CATEGORY] : CATEGORIES;
+    $('garage-cats').innerHTML = cats.map((c) => `<button class="${c === this.garageCat ? 'sel' : ''}" data-cat="${c}">${c}</button>`).join('');
     $('garage-cats').querySelectorAll('[data-cat]').forEach((b) => b.onclick = () => { this.garageCat = b.dataset.cat; this.renderGarage(); });
     const list = $('garage-vehicles');
     list.innerHTML = '';
-    const ownedHere = VEHICLES.filter((x) => x.category === this.garageCat && owns('vehicle', x.id));
+    const ownedHere = [...VEHICLES, ...SPECIAL_VEHICLES].filter((x) => x.category === this.garageCat && owns('vehicle', x.id));
     if (!ownedHere.length) list.innerHTML = '<p class="hint">You have none of these yet - get one in the Shop.</p>';
     for (const v of ownedHere) {
       const own = true;
@@ -887,6 +889,7 @@ export class UI {
       range('cameraSensitivity', 'Camera follow speed', 0.4, 2, 0.05, (x) => x.toFixed(2) + 'x');
       range('mouseSensitivity', 'Mouse look sensitivity', 0.2, 3, 0.1, (x) => x.toFixed(1) + 'x');
       range('cameraShake', 'Camera shake', 0, 1.5, 0.05, pct);
+      range('fov', 'Field of view', 45, 95, 1, (x) => `${Math.round(x)}° (first person ${Math.round(x + 28)}°)`);
       seg('screenEffects', 'Speed effects (FOV, landing dip)', [[true, 'On'], [false, 'Off']]);
     } else if (this.settingsTab === 'Riding Assists') {
       range('landingAssist', 'Landing assist (auto-level in the air)', 0, 1, 0.05, (x) => (x > 0 ? pct(x) : 'off'));

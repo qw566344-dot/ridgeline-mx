@@ -12,6 +12,7 @@
 import * as THREE from '../../vendor/three.module.js';
 import { groundAt } from '../../../shared/terrain.js';
 import { bankBoost } from './bike.js';
+import { sideGrip } from './bike.js';
 import { newTrick, scoreTricks, trackPose, wheelieAssist, trackWheelie } from './tricks.js';
 
 const DEG = Math.PI / 180;
@@ -118,15 +119,20 @@ export class AtvController {
       const k = clamp(Math.abs(v.fwdSpeed) / 5, 0, 1);
       v.torque.addScaledVector(fwd, -this.steer * c.riderLean * k);
       // solid rear axle scrub -> understeer
-      if (rl.contact && rr.contact) {
+      if (c.type === 'atv' && rl.contact && rr.contact) { // cars have independent rear suspension: no scrub
         const slip = Math.max(rl.slipLong, rr.slipLong);
         v.torque.addScaledVector(up, -yawW * c.axleScrub * (rl.load + rr.load) * 0.35 * (1 - slip * 0.8));
       }
       // steering: turn the heading toward the asked-for turn rate
       const sliding = inp.rearBrake > 0.1 || Math.max(rl.slipLong, rr.slipLong) > 0.35;
-      let ty = (sliding ? 3 : 7) * (this.yawTarget - yawW);
-      if (v.speed > 2) ty += (sliding ? 1 : 4) * Math.atan2(v.vel.dot(left), Math.abs(v.vel.dot(fwd)));
-      v.torque.addScaledVector(up, clamp(ty, -12, 12) * I[1]);
+      let ty = (sliding ? 4 : 18) * (this.yawTarget - yawW); // firm: turns at the asked-for rate
+      // grip holds the line (see bike.js sideGrip): no more turning the nose back toward the slide
+      if (v.speed > 1) {
+        const vlat = v.vel.dot(left);
+        if (inp.brake > 0.3) ty += 4 * inp.brake * Math.atan2(vlat, Math.abs(v.vel.dot(fwd)));
+        sideGrip(v, vlat, sliding);
+      }
+      v.torque.addScaledVector(up, clamp(ty, -28, 28) * I[1]);
       // weight shift + manual wheelies (Q + throttle pops the front wheels up)
       const p = v.groundPitch() * DEG;
       const pull = Math.max(0, -inp.lean), push = Math.max(0, inp.lean);

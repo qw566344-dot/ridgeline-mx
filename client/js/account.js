@@ -95,6 +95,12 @@ export class Account {
     all[k] = { ...b, removed: b.removed || [], name: this.profile.name, profile: this.profile, friends: this.friendNames || b.friends || [], check: check || b.check, salt: b.salt, at: Date.now() };
     LS.set('mx.backups', all);
   }
+  rememberSeal(seal) {
+    if (!seal || !this.profile) return;
+    const all = this.backups(), k = this.profile.name.toLowerCase();
+    all[k] = { ...(all[k] || {}), seal };
+    LS.set('mx.backups', all);
+  }
   async rememberPassword(pw) {
     const all = this.backups(), k = this.profile.name.toLowerCase();
     const salt = (all[k] && all[k].salt) || Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -130,8 +136,23 @@ export class Account {
     const r = await this.api('register', { name: b.name, password, restore: { ...b.profile, friends: b.friends || [] } });
     if (r.error) return r.error;
     this.set('online', r.token, r.profile);
+    this.rememberSeal(r.seal);
     this.restoredNote = true;
     return '';
+  }
+
+  // put this browser's account back on a server that lost it (free hosting wipes its disk)
+  async revive() {
+    const b = this.backups()[(this.name || '').toLowerCase()];
+    if (!b || !b.seal || !this.token) return false;
+    try {
+      const r = await this.api('revive', { name: b.name || this.name, token: this.token, seal: b.seal, restore: { ...(b.profile || this.profile || {}), friends: b.friends || [] } });
+      if (!r.profile) return false;
+      this.set('online', r.token, r.profile);
+      this.rememberSeal(r.seal);
+      this.flushOutbox();
+      return true;
+    } catch { return false; }
   }
 
   async api(path, body) {
@@ -140,7 +161,13 @@ export class Account {
       headers: { 'Content-Type': 'application/json', ...(this.token ? { Authorization: 'Bearer ' + this.token } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
-    const r = await res.json();
+    let r = await res.json();
+    // the server was wiped while you were playing: put the account back and try again
+    if (r && r.error === 'Please log in again' && path !== 'revive' && !this.reviving && this.mode === 'online') {
+      this.reviving = true;
+      const back = await this.revive().finally(() => { this.reviving = false; });
+      if (back) return this.api(path, body);
+    }
     // banned by an admin: log out and tell the player (once)
     if (r && r.error && /banned/i.test(r.error) && !this.bannedShown) {
       this.bannedShown = true;
@@ -155,8 +182,9 @@ export class Account {
     if (this.mode !== 'online' || !this.token) return;
     try {
       const r = await this.api('me');
-      if (r.profile) { this.profile = r.profile; this.changed(); this.flushOutbox(); }
-      else if (r.error) { this.expiredName = this.name; this.logout(); } // server restarted: log in again (progress comes back)
+      if (r.profile) { this.profile = r.profile; this.changed(); this.rememberSeal(r.seal); this.flushOutbox(); }
+      else if (r.error && !/banned/i.test(r.error) && await this.revive()) { /* the server had been wiped: account, coins and friends are back */ }
+      else if (r.error) { this.expiredName = this.name; this.logout(); } // could not bring it back: log in again (progress comes back)
     } catch { /* server not reachable: keep the cached profile for now */ this.stale = true; }
   }
 
@@ -165,6 +193,7 @@ export class Account {
       const r = await this.api('register', { name, password });
       if (r.error) return r.error;
       this.set('online', r.token, r.profile);
+      this.rememberSeal(r.seal);
       await this.rememberPassword(password);
       return null;
     } catch {
@@ -199,6 +228,7 @@ export class Account {
         return r.error;
       }
       this.set('online', r.token, r.profile);
+      this.rememberSeal(r.seal);
       await this.rememberPassword(password);
       this.flushOutbox();
       return null;
