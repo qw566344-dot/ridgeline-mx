@@ -41,7 +41,7 @@ for (const [id, lean, label] of [['mx450', -1, 'backflip'], ['mx450', 1, 'front 
   const ai = new AIDriver(v, { skill: 1.06 });
   let tricks = [], air = 0, took = false;
   for (let i = 0; i < 120 * 12; i++) {
-    if (!v.grounded && v.airTime > 0.12) {
+    if (!v.grounded && v.airTime > 0.12 && (took || v.trackS > tbl.s0 - 3)) {
       took = true;
       air = Math.max(air, v.airTime);
       const t = v.controller.trick;

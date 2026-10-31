@@ -214,6 +214,18 @@ export class Rider {
     J.shL.copy(J.neck).addScaledVector(t.left, 0.19).addScaledVector(t.up, -0.07);
     J.shR.copy(J.neck).addScaledVector(t.left, -0.19).addScaledVector(t.up, -0.07);
     J.head.copy(J.neck).addScaledVector(t.up, 0.04);
+    // in a car the wheel can be further than the arms reach from the seat: lean the upper body
+    // toward it (up to 30 cm) so both hands really hold the wheel and turn with it
+    {
+      t.a.addVectors(J.shL, J.shR).multiplyScalar(0.5);
+      t.b.addVectors(A.gripL, A.gripR).multiplyScalar(0.5);
+      const reach = (LEN.ua + LEN.fa) * 0.93;
+      const far = Math.max(J.shL.distanceTo(A.gripL), J.shR.distanceTo(A.gripR)) - reach;
+      if (far > 0) {
+        t.c.subVectors(t.b, t.a).normalize().multiplyScalar(Math.min(0.3, far + 0.02));
+        for (const j of [J.neck, J.shL, J.shR, J.head]) j.add(t.c);
+      }
+    }
     for (const [sh, el, ha, grip, sx] of [[J.shL, J.elL, J.haL, A.gripL, 1], [J.shR, J.elR, J.haR, A.gripR, -1]]) {
       t.a.copy(sh).add(t.c.set(sx * 0.45, -0.35, 0.05));
       ik(sh, grip, LEN.ua, LEN.fa, t.a, el, ha);
@@ -334,6 +346,12 @@ export class Rider {
     setBone(b[B.ftL], J.anL, J.toeL, t.a.set(0, 1, 0));
     setBone(b[B.thR], J.hipR, J.knR, fwd); setBone(b[B.shR], J.knR, J.anR, fwd);
     setBone(b[B.ftR], J.anR, J.toeR, t.a.set(0, 1, 0));
+    // first person: shrink away the head, chest and upper arms (the camera is inside them); the forearms, gloves
+    // and legs stay, so you see your hands on the bars / steering wheel
+    const fp = this.firstPerson ? 0.0001 : 1;
+    b[B.head].scale.setScalar(fp); b[B.torso].scale.setScalar(fp);
+    b[B.uaL].scale.setScalar(fp); b[B.uaR].scale.setScalar(fp); // no upper arms poking into view: forearms and gloves only
+    if (this.helmet) this.helmet.visible = !this.firstPerson;
   }
 
   // race number printed on the back of the jersey (a small curved decal on the torso bone)

@@ -8,7 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { buildTrack } from '../shared/trackgen.js';
+import { buildTrack, featureKnots } from '../shared/trackgen.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const T = (at, h, face, top, land) => ({ at, type: 'table', h, face, top, land });
@@ -87,8 +87,8 @@ const MAPS = [
     desc: 'A giant figure 8. Where the lanes cross, one lane jumps clean over the other - look up as riders fly over your head.',
     look: { dirt: [1.02, 0.84, 0.68], grass: [0.85, 1.05, 0.75], trees: 0.8, pines: 0.3, rocks: 0.4 },
     terrain: { hills: 1.2, hillScale: 220, rim: 30, bumps: [] },
-    cross: { under: 0, over: 2, gap: 21, h: 2.6, h2: 2.4, face: 9, land: 10 },
-    segments: [str(120, 'Underpass Straight', [], 20), turn(270, 60, 0.7), str(120, 'Crossover Jump'), turn(-270, 60, 0.7)] },
+    cross: { under: 0, over: 2, gap: 24, h: 3.0, h2: 2.8, face: 10, land: 11 },
+    segments: [str(150, 'Underpass Straight', [], 20), turn(270, 75, 0.7), str(150, 'Crossover Jump'), turn(-270, 75, 0.7)] },
 
   // ---- big maps for quads and side-by-sides: wide, long, flowing
   { id: 'outback', name: 'Outback Station', difficulty: 'Medium', recommend: ['Side-by-Sides', 'Quads'], seed: 9211, defaultWidth: 20,
@@ -146,10 +146,12 @@ function placeCrossJump(def, c) {
     }
   }
   if (!best || best.d > 1.5) throw new Error(def.id + ': the lanes do not cross');
-  // double: face, 0.7 lip, backside max(2.4, 1.5h) down to the ground, then the flat gap
-  const toGap = c.face + 0.7 + Math.max(2.4, c.h * 1.5);
-  const at = Math.round((best.a - over.s0) - toGap - c.gap / 2);
-  def.segments[c.over] = { ...def.segments[c.over], features: [{ at, type: 'double', h: c.h, face: c.face, gap: c.gap, h2: c.h2, land: c.land }] };
+  // the double as it is really built (jumps are scaled up in trackgen): knots 3..4 are the flat gap
+  const jump = { type: 'double', h: c.h, face: c.face, gap: c.gap, h2: c.h2, land: c.land };
+  const k = featureKnots(jump);
+  const at = Math.round((best.a - over.s0) - (k[3].x + k[4].x) / 2);
+  if (at < 4 || at + k[k.length - 1].x > over.s1 - over.s0) throw new Error(def.id + ': the crossover jump does not fit its straight - make the loops bigger');
+  def.segments[c.over] = { ...def.segments[c.over], features: [{ at, ...jump }] };
   def.crossAt = { s: Math.round(best.a), under: Math.round(best.b) };
   console.log(`${def.name}: lanes cross at s=${best.a.toFixed(1)} (over) / ${best.b.toFixed(1)} (under); gap jump placed at ${at} m`);
 }

@@ -13,6 +13,10 @@ const STEP = 0.5; // centreline sample spacing (m)
 const LAND_SCALE = 1.75; // landing ramps run longer than the numbers in tracks.js (no more overshooting)
 // whoops and rollers are built lower than the numbers in tracks.js (easier to ride)
 const WHOOP_SCALE = 0.62, ROLLER_SCALE = 0.8;
+// every jump is built bigger than written in tracks.js: gaps, tables and landings this much
+// longer, lips this much taller. At the old size full throttle sailed far past the landing;
+// now the sweet spot sits much closer to the speed you actually hit the lip at.
+export const JUMP_DIST = 1.45, JUMP_HEIGHT = 1.15;
 
 function nl(th) { return [Math.sin(th), -Math.cos(th)]; } // left normal of heading th
 
@@ -114,7 +118,8 @@ function takeoff(k, x, h, face) {
   return x + face + 0.7;
 }
 
-export function featureKnots(f) {
+export function featureKnots(f0) {
+  const f = scaled(f0);
   const k = [{ x: 0, h: 0, m: 0 }];
   let x = 0;
   switch (f.type) {
@@ -162,6 +167,39 @@ export function featureKnots(f) {
       return null;
   }
   return k;
+}
+
+// a jump at its built size (see JUMP_DIST / JUMP_HEIGHT)
+function scaled(f) {
+  // freestyle kickers and rhythm sections marked keep: true stay the size they were tuned at
+  if (f.type === 'whoops' || f.type === 'rollers' || f.type === 'kicker' || f.keep || f.scaled) return f;
+  const o = { ...f, scaled: true };
+  const dist = f.dist ?? JUMP_DIST, hgt = f.hgt ?? JUMP_HEIGHT;
+  for (const key of ['h', 'h2', 'landH']) if (o[key] !== undefined) o[key] *= hgt;
+  if (o.face !== undefined) o.face *= hgt;                         // same lip angle, just taller
+  for (const key of ['gap', 'top']) if (o[key] !== undefined) o[key] *= dist;
+  if (o.land !== undefined) o.land *= 1 + (dist - 1) * 0.6;       // longer landings too
+  return o;
+}
+
+// each jump grows as much as the room on its straight allows (up to JUMP_DIST), so the
+// track layout never changes - a jump squeezed between others just grows a little less
+function growToFit(f, room) {
+  if (f.type === 'whoops' || f.type === 'rollers') return f;
+  for (let d = JUMP_DIST; d > 1.001; d -= 0.05) {
+    const g = { ...f, dist: d };
+    if (featureLength(g) <= room) return g;
+  }
+  return { ...f, dist: 1, hgt: featureLength({ ...f, dist: 1 }) <= room ? JUMP_HEIGHT : 1 };
+}
+function fitFeatures(feats, straightLen) {
+  const sorted = [...feats].sort((x, y) => x.at - y.at);
+  return sorted.map((f, i) => {
+    // room: up to the next jump in the same lane (or on both lanes), else the end of the straight
+    const next = sorted.slice(i + 1).find((o) => !f.lane || !o.lane || o.lane === f.lane);
+    const end = next ? next.at - 4 : straightLen - 6; // keep the landing well clear of the next jump / the turn
+    return growToFit(f, end - f.at);
+  });
 }
 
 export function featureLength(f) {
@@ -234,7 +272,7 @@ export function buildTrack(def) {
   const features = [];
   for (const p of parts) {
     if (p.kind !== 'straight' || !p.seg.features) continue;
-    for (const f of p.seg.features) {
+    for (const f of fitFeatures(p.seg.features, p.len)) {
       const len = featureLength(f);
       const knots = featureKnots(f);
       const s0 = p.s0 + f.at;

@@ -384,8 +384,8 @@ TRACKS.push(...[
       { len: 95, w: 14, free: true, name: 'Start Straight' },
       { turn: 180, r: 15, berm: 1 },
       { len: 95, name: 'Rhythm Lane', features: [
-        { at: 8, type: 'double', h: 1.5, face: 6, gap: 4.5, h2: 1.3, land: 7 },
-        { at: 48, type: 'double', h: 1.5, face: 6, gap: 4.5, h2: 1.3, land: 7 },
+        { at: 8, keep: true, type: 'double', h: 1.5, face: 6, gap: 4.5, h2: 1.3, land: 7 },
+        { at: 48, keep: true, type: 'double', h: 1.5, face: 6, gap: 4.5, h2: 1.3, land: 7 },
       ] },
       { turn: -180, r: 15, berm: 1 },
       { len: 95, name: 'Triple Lane', features: [{ at: 30, type: 'triple', h: 1.7, face: 7.5, gap: 6, h2: 1.5, land: 9 }] },

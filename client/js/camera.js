@@ -23,6 +23,7 @@ export class CameraRig {
     this.look = new THREE.Vector3();
     this.heading = new THREE.Vector3(0, 0, 1);
     this.fov = 65;
+    this.baseFov = 62; // Settings > Field of view (chase cams); first person gets a bit more
     this.shake = 0;
     this.shakeT = 0;
     this.orbitYaw = 0; this.orbitPitch = 0; this.orbitHold = 0;
@@ -67,7 +68,7 @@ export class CameraRig {
     else { this.orbitYaw *= 1 - Math.min(1, dt * 2.5); this.orbitPitch *= 1 - Math.min(1, dt * 2.5); }
 
     const mode = CAMERA_MODES[this.mode];
-    let fovTarget = 62 + Math.min(16, spd * 0.45);
+    let fovTarget = this.baseFov + Math.min(16, spd * 0.45);
     if (dt > 0) {
       const a = (spd - this.prevSpd) / dt;
       this.prevSpd = spd;
@@ -114,12 +115,15 @@ export class CameraRig {
       const eye = riderHead ? riderHead.clone() : target.pos.clone().add(_v2.set(0, 0.9, 0));
       _qi.copy(target.quat).invert();
       _e.copy(eye).sub(target.pos).applyQuaternion(_qi);               // eye in the vehicle's frame
+      // a little behind the head so the bars and your arms come into view (in a car: the wheel and your hands)
+      const car = target.type === 'car';
+      _e.y += car ? 0.05 : 0.12; _e.z -= car ? 0.14 : 0.42;
       if (!this.eyeLocal || this.snapNext) this.eyeLocal = _e.clone();
       this.eyeLocal.lerp(_e, Math.min(1, dt * 7));
       cam.position.copy(this.eyeLocal).applyQuaternion(target.quat).add(target.pos);
       // look where the bike points, eased toward where it is going; level-ish horizon
       _f.copy(fwd).lerp(this.heading, 0.25);
-      _f.y = Math.max(-0.45, Math.min(0.35, _f.y)) - 0.1;              // a touch down: see the ground ahead
+      _f.y = Math.max(-0.45, Math.min(0.35, _f.y)) - (car ? 0.08 : 0.2); // only a slight tilt down: bars / wheel and arms at the bottom edge
       _f.normalize();
       _f.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.orbitYaw);    // mouse look
       _u.set(0, 1, 0);
@@ -130,7 +134,7 @@ export class CameraRig {
       this.helmQ.slerp(_q, Math.min(1, dt * (target.grounded ? 9 : 5)));
       cam.quaternion.copy(this.helmQ);
       if (this.orbitPitch) cam.rotateX(-this.orbitPitch * 0.8);
-      fovTarget = 80 + Math.min(12, spd * 0.3);
+      fovTarget = this.baseFov + 28 + Math.min(8, spd * 0.2);
       this.pos.copy(cam.position);
       this.look.copy(cam.position).addScaledVector(_f, 10);
     } else {

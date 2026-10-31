@@ -1964,20 +1964,20 @@ export const MORE_TRACKS = [
    hillScale: 220,
    rim: 30,
    bumps: [],
-   rimStart: 180
+   rimStart: 210
   },
   cross: {
    under: 0,
    over: 2,
-   gap: 21,
-   h: 2.6,
-   h2: 2.4,
-   face: 9,
-   land: 10
+   gap: 24,
+   h: 3,
+   h2: 2.8,
+   face: 10,
+   land: 11
   },
   segments: [
    {
-    len: 120,
+    len: 150,
     name: "Underpass Straight",
     features: [],
     w: 20,
@@ -1985,42 +1985,42 @@ export const MORE_TRACKS = [
    },
    {
     turn: 270,
-    r: 60,
+    r: 75,
     berm: 0.7
    },
    {
-    len: 120,
+    len: 150,
     name: "Crossover Jump",
     features: [
      {
-      at: 36,
+      at: 40,
       type: "double",
-      h: 2.6,
-      face: 9,
-      gap: 21,
-      h2: 2.4,
-      land: 10
+      h: 3,
+      face: 10,
+      gap: 24,
+      h2: 2.8,
+      land: 11
      }
     ],
     free: true
    },
    {
     turn: -270,
-    r: 60,
+    r: 75,
     berm: 0.7
    }
   ],
-  worldSize: 540,
+  worldSize: 600,
   start: {
-   x: -60,
+   x: -75,
    z: 0,
    heading: 0
   },
   gateAt: 14,
   finishAt: 100,
   crossAt: {
-   s: 463,
-   under: 60
+   s: 578,
+   under: 75
   }
  },
  {

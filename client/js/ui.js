@@ -887,6 +887,7 @@ export class UI {
       range('cameraSensitivity', 'Camera follow speed', 0.4, 2, 0.05, (x) => x.toFixed(2) + 'x');
       range('mouseSensitivity', 'Mouse look sensitivity', 0.2, 3, 0.1, (x) => x.toFixed(1) + 'x');
       range('cameraShake', 'Camera shake', 0, 1.5, 0.05, pct);
+      range('fov', 'Field of view', 45, 95, 1, (x) => `${Math.round(x)}° (first person ${Math.round(x + 28)}°)`);
       seg('screenEffects', 'Speed effects (FOV, landing dip)', [[true, 'On'], [false, 'Off']]);
     } else if (this.settingsTab === 'Riding Assists') {
       range('landingAssist', 'Landing assist (auto-level in the air)', 0, 1, 0.05, (x) => (x > 0 ? pct(x) : 'off'));

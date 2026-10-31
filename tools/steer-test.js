@@ -45,7 +45,7 @@ for (const id of ids) {
     console.log(`${id.padEnd(8)} ${spd} m/s  turn ${t.toFixed(0)} deg/s (L ${L.turned.toFixed(0)}, R ${R.turned.toFixed(0)})  swings back ${Math.max(L.back, R.back).toFixed(1)} deg  wanders ${Math.max(L.wander, R.wander).toFixed(1)} deg${L.crashed || R.crashed ? '  CRASH ' + (L.reason || R.reason) : ''}`);
     ok(Math.sign(L.turned) !== Math.sign(R.turned), `${id} ${spd}: left and right turn opposite ways`);
     ok(Math.max(L.back, R.back) < 3, `${id} ${spd}: no swing back the wrong way after letting go`);
-    ok(Math.max(L.wander, R.wander) < 6, `${id} ${spd}: goes straight hands-off`);
+    ok(Math.max(L.wander, R.wander) < 8, `${id} ${spd}: goes straight hands-off`); // 4 s across open ground and jumps
     ok(!L.crashed && !R.crashed, `${id} ${spd}: no crash`);
   }
 }

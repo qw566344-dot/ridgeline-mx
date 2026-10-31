@@ -58,6 +58,7 @@ export class Game {
     this.cam.sensitivity = s.get('cameraSensitivity');
     this.cam.mouseSens = s.get('mouseSensitivity');
     this.cam.shakeScale = s.get('cameraShake');
+    this.cam.baseFov = s.get('fov') || 62;
     this.cam.effects = s.get('screenEffects') !== false;
     if (this.effects) this.effects.setQuality(s.quality());
     for (const r of this.riders) if (r.veh) this.applyAssists(r.veh, r.isPlayer);
@@ -687,7 +688,7 @@ export class Game {
       const v = focus.veh;
       const target = v ? {
         pos: focus.vis.root.position, quat: focus.vis.root.quaternion, vel: v.vel, speed: v.speed, grounded: v.grounded,
-        trackS: v.trackS, lean: v.lean, airTime: v.airTime,
+        trackS: v.trackS, lean: v.lean, airTime: v.airTime, type: v.cfg.type,
       } : { pos: focus.vis.root.position, quat: focus.vis.root.quaternion, vel: focus.remote.state.vel, speed: focus.remote.state.vel.length(), grounded: true, trackS: 0 };
       let head = null;
       if (this.cam.mode === 2 && focus.rider.attached) {
@@ -695,9 +696,9 @@ export class Game {
       }
       if (dt > 0) this.cam.update(dt, target, this.world, head);
       focus.vis.root.visible = true;
-      // helmet cam: hide our own rider's head
-      focus.rider.mesh.visible = !(this.cam.mode === 2 && focus === this.player && focus.rider.attached);
-      if (focus.rider.helmet) focus.rider.helmet.visible = focus.rider.mesh.visible;
+      // helmet cam: our own rider loses the head and chest (see rider.js), keeps the arms
+      focus.rider.mesh.visible = true;
+      for (const r of this.riders) if (r.rider) r.rider.firstPerson = this.cam.mode === 2 && r === focus && r.rider.attached;
       this.R.followShadow(focus.vis.root.position);
       if (this.player === focus && v) this.audio.player(v, cam);
     }
