@@ -19,13 +19,14 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice } from '../shared/shop.js';
-import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
+import { VEHICLES, BIKE_COLORS, ownsSpecials } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
 import { Chat } from './chat.js';
 import { cloudEnabled, cloudLoad, cloudSave } from './store.js';
 import { Casino } from './casino.js';
 import { Admin, ADMINS } from './admin.js';
 
+const splitKey = (k) => { const [s, ...rest] = String(k).split(':'); return [s, rest.join(':')]; };
 const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
 
 // TESTING ONLY: accounts topped up to this many coins when they log in.
@@ -163,7 +164,7 @@ export class Accounts {
     const n = (x, max) => Math.max(0, Math.min(max, Math.floor(Number(x) || 0)));
     u.coins = n(r.coins, MAX_COINS);
     const owned = Array.isArray(r.owned) ? r.owned.filter((k) => typeof k === 'string' && (() => { const [s, ...rest] = k.split(':'); return !!shopItem(s, rest.join(':')); })()) : [];
-    u.owned = [...new Set([...STARTER.owned, ...owned])];
+    u.owned = [...new Set([...STARTER.owned, ...owned])].filter((k) => !(shopItem(...splitKey(k)) || {}).special || ownsSpecials(u.key));
     const eq = r.equipped || {};
     for (const slot of ['vehicle', 'color', 'gear']) if (typeof eq[slot] === 'string' && this.has(u, slot + ':' + eq[slot])) u.equipped[slot] = eq[slot];
     const st = r.stats || {};
@@ -186,7 +187,7 @@ export class Accounts {
     if (c && u.coins < c) { u.coins = c; this.save(); }
     // admins own every vehicle, skin, gear set and upgrade
     if (ADMINS.includes(u.key)) {
-      const all = SHOP.map((i) => i.slot + ':' + i.id);
+      const all = SHOP.filter((i) => !i.special || ownsSpecials(u.key)).map((i) => i.slot + ':' + i.id);
       if (all.some((k) => !u.owned.includes(k))) { u.owned = [...new Set([...u.owned, ...all])]; this.save(); }
     }
   }
@@ -265,6 +266,7 @@ export class Accounts {
     if (!item) return { error: 'No such item' };
     const k = slot + ':' + id;
     if (u.owned.includes(k)) return { profile: this.profile(u) };
+    if (item.special) return { error: 'That one is not for sale' };
     if (!inShop(slot, id)) return { error: 'That is not in the item shop right now - check back when it rotates' };
     if (slot === 'upgrade') for (const n of upgradeNeeds(item)) if (!this.has(u, n)) return { error: n.startsWith('vehicle') ? 'Buy the vehicle first' : 'Buy the level below first' };
     if (u.coins < item.price) return { error: `Not enough coins (need ${item.price})` };

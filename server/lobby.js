@@ -10,7 +10,7 @@
 // =====================================================================
 import crypto from 'crypto';
 import { getTrack, TRACKS } from '../shared/tracks.js';
-import { VEHICLES, BIKE_COLORS } from '../shared/vehicles.js';
+import { VEHICLES, BIKE_COLORS, isSpecial } from '../shared/vehicles.js';
 import { buildTrack, buildFields, locatePrecise } from '../shared/trackgen.js';
 import { LapTracker, GAME } from '../shared/rules.js';
 import { GEAR_SETS } from '../shared/shop.js';
@@ -167,7 +167,7 @@ export class Lobby {
 
   profile(p, m, quiet) {
     if (m.name !== undefined) p.name = cleanName(m.name);
-    if (VEHICLES.some((v) => v.id === m.vehicle)) p.vehicle = m.vehicle;
+    if (VEHICLES.some((v) => v.id === m.vehicle) || isSpecial(m.vehicle)) p.vehicle = m.vehicle;
     if (m.color === 'stock' || BIKE_COLORS.some((c) => c.id === m.color)) p.color = m.color;
     if (GEAR_SETS.some((g) => g.id === m.gear)) p.gear = m.gear;
     if (!quiet && p.party) this.broadcastParty(p.party);

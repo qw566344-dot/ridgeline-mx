@@ -528,8 +528,38 @@ export const VEHICLES = [
 
 export const CATEGORIES = ['Dirt Bikes', 'Quads', 'Side-by-Sides'];
 
+// ---------------------------------------------------------------------
+//  SPECIAL VEHICLES - never sold, never in the shop or the AI pool. Only the
+//  accounts in SPECIAL_OWNERS have them (the server enforces it).
+//   crawl: no vehicle at all - the rider crawls on all fours, with the
+//          Desert Rally 450's speed and handling
+//   chair: an office chair; the rider sits on it backwards and pushes with
+//          their feet (built from simple shapes, drawn in vehicleModel.js)
+// ---------------------------------------------------------------------
+export const SPECIAL_OWNERS = ['lmkk'];
+const RALLY = VEHICLES.find((v) => v.id === 'rally');
+export const SPECIAL_VEHICLES = [
+  {
+    ...RALLY, id: 'crawl', name: 'The Crawler', category: 'Specials', tier: 'Dev', special: 'crawl', modelKey: 'none', paint: 'stock',
+    desc: 'No bike. Just you, on all fours, at Desert Rally 450 speed. Only lmkk has this one.',
+    audio: { kind: 'none' },
+  },
+  {
+    ...ATV_BASE, id: 'chair', name: 'Office Chair', category: 'Specials', tier: 'Dev', special: 'chair', modelKey: 'none', paint: 'stock',
+    desc: 'A swivel chair, ridden backwards, pushed along with both feet. Only lmkk has this one.',
+    stats: { speed: 4, accel: 5, handling: 7, stability: 6, suspension: 3 },
+    mass: 140, inertia: [40, 50, 22],
+    engine: engine({ idle: 1200, redline: 7000, torque: [[1000, 14], [3000, 20], [5000, 22], [7000, 18]], gearSpeeds: [8, 12, 15] }),
+    crash: { landPitch: 60, impact: 15, roll: 80, loop: 85 },
+    audio: { kind: 'none' },
+  },
+];
+export const SPECIAL_CATEGORY = 'Specials';
+export const isSpecial = (id) => SPECIAL_VEHICLES.some((v) => v.id === id);
+export const ownsSpecials = (accountKey) => SPECIAL_OWNERS.includes(String(accountKey || '').toLowerCase());
+
 export function getVehicle(id) {
-  return VEHICLES.find((v) => v.id === id) || VEHICLES[0];
+  return VEHICLES.find((v) => v.id === id) || SPECIAL_VEHICLES.find((v) => v.id === id) || VEHICLES[0];
 }
 
 // ---------------------------------------------------------------------

@@ -260,6 +260,31 @@ function buildAtv(cfg, scheme) {
 }
 
 // ---------------------------------------------------------------------
+// office chair (special vehicle): five-star base on casters, gas lift, seat and a backrest.
+// The rider sits on it backwards, so the backrest is on the side the chair travels toward (+z).
+function buildChair(cfg, scheme) {
+  const g = -cfg.rideHeight;                               // the ground in vehicle space
+  const paint = [], metal = [], rubber = [];
+  const fabric = scheme && scheme.body !== undefined ? scheme.body : 0x2b2f36, dark = 0x1d1f24, chrome = 0xb8bec7;
+  for (let i = 0; i < 5; i++) {                             // the star base and its casters
+    const a = (i / 5) * Math.PI * 2;
+    const x = Math.sin(a) * 0.17, z = Math.cos(a) * 0.17;
+    metal.push(box(0.05, 0.035, 0.34, dark, [x, g + 0.11, z], [0, a, 0]));
+    rubber.push(sphere(0.045, 0x111111, [Math.sin(a) * 0.33, g + 0.045, Math.cos(a) * 0.33], [1, 1, 0.75], 10, 8));
+  }
+  metal.push(cyl(0.05, 0.06, 0.06, dark, [0, g + 0.13, 0]));
+  metal.push(cyl(0.026, 0.026, 0.3, chrome, [0, g + 0.28, 0], [0, 0, 0], 12));          // gas lift
+  metal.push(box(0.2, 0.03, 0.2, dark, [0, g + 0.43, 0]));                                // seat plate
+  paint.push(box(0.5, 0.08, 0.48, fabric, [0, g + 0.49, 0], [0, 0, 0], 0.03));            // cushion
+  metal.push(box(0.05, 0.36, 0.035, dark, [0, g + 0.6, 0.25], [0.12, 0, 0]));             // back post
+  paint.push(box(0.46, 0.5, 0.07, fabric, [0, g + 0.86, 0.29], [0.14, 0, 0], 0.03));      // backrest
+  for (const sx of [1, -1]) {                                                              // armrests
+    metal.push(box(0.035, 0.2, 0.035, dark, [sx * 0.25, g + 0.6, 0.02]));
+    rubber.push(box(0.06, 0.03, 0.26, dark, [sx * 0.25, g + 0.71, 0.02]));
+  }
+  return meshGroup({ paint, metal, rubber });
+}
+
 export class VehicleVisual {
   constructor(def, scheme, number = 1) {
     this.def = def;
@@ -279,6 +304,14 @@ export class VehicleVisual {
     this.isBike = this.cfg.type === 'bike';
     this.seated = this.cfg.type === 'car';
     this.usingGLB = false;
+    // special vehicles (vehicles.js SPECIAL_VEHICLES): the crawler has no vehicle at all, the
+    // office chair is built here; the rider pose for each is in rider.js
+    this.special = def.special || null;
+    if (this.special) {
+      this.seated = false; this.isBike = false; this.camDist = 0;
+      if (this.special === 'chair') { this.chair = buildChair(this.cfg, scheme); this.model.add(this.chair); }
+      return;
+    }
     // the real 3D model (see modelRig.js); the built-in model is only a fallback
     this.inst = createModelInstance(this.cfg.modelKey, scheme);
     if (this.inst) {
@@ -471,6 +504,12 @@ export class VehicleVisual {
 
   // state: { lean, steer, wheels:[{comp, spin, steer}], crashed }
   update(state) {
+    if (this.special) {
+      // the chair turns a little under the rider as you steer; the crawler has nothing to move
+      if (this.chair) this.chair.rotation.y = -(state.steer || 0) * 0.35;
+      this.lean.rotation.z = 0;
+      return;
+    }
     if (this.inst) return this.updateRigged(state);
     const cfg = this.cfg;
     this.lean.rotation.z = this.isBike ? -state.lean : 0;

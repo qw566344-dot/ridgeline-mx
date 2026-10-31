@@ -111,7 +111,7 @@ export class Audio {
     let v = this.voices.get('player');
     const kind = veh.cfg.audio.kind;
     if (!v || v.kind !== kind) { if (v) this.stopVoice(v); v = this.makeEngine(kind, true); this.voices.set('player', v); }
-    this.setEngine(v, veh, 1);
+    this.setEngine(v, veh, kind === 'none' ? 0 : 1); // the crawler and the office chair have no engine
     const t = this.ctx.currentTime;
     const spd = veh.speed;
     this.wind.g.gain.setTargetAtTime(Math.min(0.25, Math.max(0, spd - 8) * 0.012), t, 0.1);
@@ -159,7 +159,7 @@ export class Audio {
       keep.add(key);
       let v = this.voices.get(key);
       if (!v || v.kind !== o.kind) { if (v) this.stopVoice(v); v = this.makeEngine(o.kind, false); this.voices.set(key, v); }
-      this.setEngine(v, o, 0.9);
+      this.setEngine(v, o, o.kind === 'none' ? 0 : 0.9);
       const t = c.currentTime;
       v.panner.positionX ? (v.panner.positionX.setTargetAtTime(o.pos.x, t, 0.03), v.panner.positionY.setTargetAtTime(o.pos.y, t, 0.03), v.panner.positionZ.setTargetAtTime(o.pos.z, t, 0.03)) : v.panner.setPosition(o.pos.x, o.pos.y, o.pos.z);
     }

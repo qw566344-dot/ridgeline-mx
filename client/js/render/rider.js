@@ -196,6 +196,86 @@ export class Rider {
     this.tmp = { a: V(), b: V(), c: V(), up: V(), fwd: V(), left: V() };
   }
 
+  // --- special: no vehicle, the rider crawls on all fours -------------------
+  // Hands and knees on the ground, a trotting gait (left hand with right knee)
+  // whose pace follows the speed, head up looking where they are going.
+  updateCrawl(dt, veh, vis) {
+    const s = this.s, J = this.j, t = this.tmp;
+    const g = -vis.cfg.rideHeight + 0.02;                  // the ground in vehicle space
+    const spd = veh.fwdSpeed !== undefined ? veh.fwdSpeed : veh.speed || 0;
+    s.walk = (s.walk || 0) + spd * dt * 2.4;               // gait phase (a stride every ~2.6 m)
+    const ph = s.walk, air = !veh.grounded && (veh.airTime || 0) > 0.08;
+    const lift = (a) => (air ? 0.12 : Math.max(0, Math.sin(a)) * 0.1);
+    const swing = (a) => (air ? 0 : Math.cos(a) * 0.16);
+    const bob = air ? 0 : Math.abs(Math.sin(ph)) * 0.03;
+    J.pelvis.set(0, g + 0.5 + bob, -0.38);
+    J.neck.set(0, g + 0.58 + bob, 0.2);
+    t.up.subVectors(J.neck, J.pelvis).normalize();         // the spine runs forward
+    t.fwd.set(0, -1, 0.15).normalize();                    // the chest faces the ground
+    t.left.crossVectors(t.up, t.fwd).normalize();
+    J.head.copy(J.neck).add(t.c.set(0, 0.08, 0.06));
+    J.shL.copy(J.neck).addScaledVector(t.left, 0.19).add(t.c.set(0, -0.04, -0.03));
+    J.shR.copy(J.neck).addScaledVector(t.left, -0.19).add(t.c.set(0, -0.04, -0.03));
+    // hands (left hand moves with the right knee)
+    for (const [sh, el, ha, sx, a] of [[J.shL, J.elL, J.haL, 1, ph], [J.shR, J.elR, J.haR, -1, ph + Math.PI]]) {
+      t.b.set(sx * 0.2, g + 0.03 + lift(a), 0.3 + swing(a));
+      t.a.copy(sh).add(t.c.set(sx * 0.3, 0, -0.2));      // elbows out and back
+      ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
+    }
+    // knees on the ground under the hips, shins and feet trailing behind
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1);
+    J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    for (const [hip, kn, an, toe, sx, a] of [[J.hipL, J.knL, J.anL, J.toeL, 1, ph + Math.PI], [J.hipR, J.knR, J.anR, J.toeR, -1, ph]]) {
+      kn.set(sx * 0.13, g + 0.05 + lift(a) * 0.7, -0.4 + swing(a) * 0.8);
+      an.copy(kn).add(t.c.set(0, 0.04 + lift(a) * 0.3, -0.42));
+      toe.copy(an).add(t.c.set(0, -0.06, -0.1));
+      void hip;
+    }
+    this.applyBones(t.up, t.fwd);
+  }
+
+  // --- special: an office chair, ridden BACKWARDS -----------------------------
+  // The rider group is turned round (see updateRiding), so this pose is built
+  // facing the rider's own front, which is the back of the chair's travel.
+  // Sitting on the seat, leaning forward over the knees, both feet reaching
+  // out in front and paddling the ground: that pushes the chair the other way.
+  updateChair(dt, veh, vis) {
+    const s = this.s, J = this.j, t = this.tmp;
+    const g = -vis.cfg.rideHeight + 0.02;
+    const spd = Math.abs(veh.fwdSpeed !== undefined ? veh.fwdSpeed : veh.speed || 0);
+    const push = Math.min(1, spd / 3 + Math.abs((veh.input && veh.input.throttle) || 0));
+    s.walk = (s.walk || 0) + (spd * 2.2 + push * 3) * dt;
+    const ph = s.walk;
+    const seatY = g + 0.5;
+    J.pelvis.set(0, seatY + 0.1, -0.02);
+    const lean = 0.35 + push * 0.2;                         // hunched forward, pushing
+    t.up.set(0, Math.cos(lean), Math.sin(lean)).normalize();
+    J.neck.copy(J.pelvis).addScaledVector(t.up, LEN.torso);
+    t.fwd.set(0, -Math.sin(lean), Math.cos(lean));
+    t.left.crossVectors(t.up, t.fwd).normalize();
+    J.shL.copy(J.neck).addScaledVector(t.left, 0.19).addScaledVector(t.up, -0.07);
+    J.shR.copy(J.neck).addScaledVector(t.left, -0.19).addScaledVector(t.up, -0.07);
+    J.head.copy(J.neck).addScaledVector(t.up, 0.04);
+    // hands hold the sides of the seat
+    for (const [sh, el, ha, sx] of [[J.shL, J.elL, J.haL, 1], [J.shR, J.elR, J.haR, -1]]) {
+      t.b.set(sx * 0.27, seatY + 0.02, 0.08);
+      t.a.copy(sh).add(t.c.set(sx * 0.4, -0.2, -0.1));
+      ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
+    }
+    // feet paddle the ground out in front (each foot plants, pushes back, lifts, reaches again)
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1);
+    J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    for (const [hip, kn, an, toe, sx, a] of [[J.hipL, J.knL, J.anL, J.toeL, 1, ph], [J.hipR, J.knR, J.anR, J.toeR, -1, ph + Math.PI]]) {
+      const reach = 0.55 + Math.cos(a) * 0.22 * push;      // foot slides from far to near
+      const up = Math.max(0, Math.sin(a)) * 0.12 * push;     // and lifts on the way back out
+      t.b.set(sx * 0.17, g + 0.08 + up, reach);
+      t.a.copy(hip).add(t.c.set(sx * 0.08, 0.5, 0.3));      // knees up
+      ik(hip, t.b, LEN.th, LEN.sh, t.a, kn, an);
+      toe.copy(an).add(t.c.set(0, -0.05, 0.2));
+    }
+    this.applyBones(t.up, t.fwd);
+  }
+
   // --- riding pose (vehicle-local coordinates) ---------------------------
   // --- driver in a side-by-side / buggy: strapped into the seat --------------
   updateSeated(dt, veh, vis) {
@@ -241,6 +321,9 @@ export class Rider {
   }
 
   updateRiding(dt, veh, vis) {
+    this.group.rotation.y = vis.special === 'chair' ? Math.PI : 0;
+    if (vis.special === 'crawl') return this.updateCrawl(dt, veh, vis);
+    if (vis.special === 'chair') return this.updateChair(dt, veh, vis);
     if (vis.seated) return this.updateSeated(dt, veh, vis);
     const s = this.s, A = vis.attach, isBike = vis.isBike;
     const inp = veh.input || {};
