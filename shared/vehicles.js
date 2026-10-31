@@ -594,6 +594,8 @@ export const CATEGORIES = ['Dirt Bikes', 'Quads', 'Side-by-Sides'];
 //          Desert Rally 450's speed and handling
 //   chair: an office chair; the rider sits on it backwards and pushes with
 //          their feet (built from simple shapes, drawn in vehicleModel.js)
+//   penguin: no vehicle - belly-down slide with swim strokes (rider.js)
+//   hop:     no vehicle - a sack race, hopping along feet together (rider.js)
 // ---------------------------------------------------------------------
 export const SPECIAL_OWNERS = ['lmkk'];
 const RALLY = VEHICLES.find((v) => v.id === 'rally');
@@ -612,6 +614,26 @@ export const SPECIAL_VEHICLES = [
     mass: 140, inertia: [40, 50, 22],
     engine: engine({ idle: 1200, redline: 7000, torque: [[1000, 26], [3000, 36], [5000, 40], [7000, 34]], gearSpeeds: [11, 17, 23, 27] }),
     crash: { landPitch: 60, impact: 15, roll: 80, loop: 85 },
+    audio: { kind: 'none' },
+  },
+  {
+    ...ATV_BASE, id: 'penguin', name: 'Penguin Slide', category: 'Specials', tier: 'Dev', special: 'penguin', modelKey: 'none', paint: 'stock',
+    desc: 'Belly down, arms out, sliding across the dirt like a penguin on ice. Flaps on the jumps. Only lmkk has this one.',
+    stats: { speed: 9, accel: 7, handling: 6, stability: 9, suspension: 4 },
+    mass: 180, inertia: [55, 70, 30],
+    steer: { ...ATV_BASE.steer, rate: 2.6 },                 // slippery: wide, lazy turns
+    wheels: ATV_BASE.wheels.map((w) => ({ ...w, mu: w.mu * 0.85, alphaPeak: w.alphaPeak * 1.4 })),
+    engine: engine({ idle: 1200, redline: 9000, torque: [[1000, 30], [3000, 44], [6000, 52], [8000, 50], [9000, 44]], gearSpeeds: [13, 20, 27, 33, 39] }),
+    audio: { kind: 'none' },
+  },
+  {
+    ...ATV_BASE, id: 'hop', name: 'Sack Race', category: 'Specials', tier: 'Dev', special: 'hop', modelKey: 'none', paint: 'stock',
+    desc: 'Both feet in a sack, hopping round the track as fast as a quad. Arms flailing. Only lmkk has this one.',
+    stats: { speed: 7, accel: 6, handling: 9, stability: 8, suspension: 9 },
+    mass: 160, inertia: [45, 55, 25],
+    steer: { ...ATV_BASE.steer, rate: 3.8 },
+    air: { ...ATV_BASE.air, flipRate: 4.5, spinRate: 5 },
+    engine: engine({ idle: 1400, redline: 9500, torque: [[1000, 22], [3000, 34], [6000, 42], [8000, 41], [9500, 35]], gearSpeeds: [11, 17, 23, 28, 33] }),
     audio: { kind: 'none' },
   },
 ];

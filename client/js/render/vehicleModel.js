@@ -389,6 +389,7 @@ export class VehicleVisual {
   // Swap the placeholder for the player's GLB model (if one is available)
   async tryLoadModel() {
     if (this.inst || this.seated) return true;
+    if (this.special || !this.def.model) return false; // specials (crawler, chair...) have no model file
     const gltf = await loadGLB(this.def.model);
     if (!gltf) return false;
     try {

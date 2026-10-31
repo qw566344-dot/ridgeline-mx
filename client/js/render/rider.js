@@ -200,17 +200,23 @@ export class Rider {
   // Deliberately goofy: a frantic scramble whose pace follows the speed - the bum
   // waggles side to side, the head bobbles, hands slap high and wide, and the feet
   // kick up behind like a cartoon. Lots of air flails everything.
+  // Each hand / knee reaches FORWARD while it is lifted and pushes back while it is
+  // planted (the cycle runs backwards when reversing); the stride is sized so a
+  // planted hand keeps pace with the ground, up to a frantic blur at full speed.
   updateCrawl(dt, veh, vis) {
     const s = this.s, J = this.j, t = this.tmp;
     const g = -vis.cfg.rideHeight + 0.02;                  // the ground in vehicle space
     const spd = veh.fwdSpeed !== undefined ? veh.fwdSpeed : veh.speed || 0;
-    s.walk = (s.walk || 0) + (Math.abs(spd) * 3.2 + 2.5 * Math.abs((veh.input && veh.input.throttle) || 0)) * dt;
+    const thr = Math.abs((veh.input && veh.input.throttle) || 0);
+    const rate = Math.min(42, Math.abs(spd) * 6) + 2.5 * thr; // stroke 0.52 m: pi / 0.52 ~ 6 per m/s
+    s.walk = (s.walk || 0) + (spd < -0.3 ? -rate : rate) * dt;
     s.idle = (s.idle || 0) + dt;
     const ph = s.walk, air = !veh.grounded && (veh.airTime || 0) > 0.08;
     const go = Math.min(1, Math.abs(spd) / 3 + 0.25);       // how wild it gets
     const fl = air ? Math.sin(s.idle * 22) : 0;            // flailing in the air
     const lift = (x) => (air ? 0.18 + fl * 0.1 : Math.max(0, Math.sin(x)) * 0.22 * go);
-    const swing = (x) => (air ? fl * 0.2 : Math.cos(x) * 0.26 * go);
+    // forward while lifted (sin > 0), back while planted: z = -cos, so dz/dphase = sin
+    const swing = (x) => (air ? fl * 0.2 : -Math.cos(x) * 0.26 * go);
     const bob = air ? 0.05 : Math.abs(Math.sin(ph)) * 0.07 * go;
     const wag = Math.sin(ph) * 0.11 * go;                   // bum waggle
     const wob = Math.sin(ph * 2 + 0.6) * 0.07 * go;         // head bobble
@@ -237,6 +243,96 @@ export class Rider {
       const kick = air ? 0.35 + fl * 0.1 : Math.max(0, Math.sin(x)) * 0.32 * go; // heels kick up
       an.copy(kn).add(t.c.set(sx * 0.03, 0.04 + kick, -0.42 + kick * 0.45));
       toe.copy(an).add(t.c.set(0, -0.06 + kick * 0.2, -0.1));
+    }
+    this.applyBones(t.up, t.fwd);
+  }
+
+  // --- special: Penguin Slide - belly down on the dirt, no vehicle at all -------
+  // Flat on the belly, head up, sliding along. The arms do big swim strokes (reach
+  // out front, pull back along the ground under the shoulders), the feet flutter.
+  // In the air the arms go out like wings and flap.
+  updatePenguin(dt, veh, vis) {
+    const s = this.s, J = this.j, t = this.tmp;
+    const g = -vis.cfg.rideHeight + 0.02;
+    const spd = veh.fwdSpeed !== undefined ? veh.fwdSpeed : veh.speed || 0;
+    const thr = Math.abs((veh.input && veh.input.throttle) || 0);
+    s.walk = (s.walk || 0) + (Math.min(16, Math.abs(spd) * 1.6) + 3 * thr) * (spd < -0.3 ? -1 : 1) * dt;
+    s.idle = (s.idle || 0) + dt;
+    const ph = s.walk, air = !veh.grounded && (veh.airTime || 0) > 0.08;
+    const go = Math.min(1, Math.abs(spd) / 4 + 0.3 * thr);
+    const roll = Math.sin(ph) * 0.12 * go;                 // the body rocks with each stroke
+    J.pelvis.set(-roll * 0.3, g + 0.17, -0.42);
+    J.neck.set(roll * 0.3, g + 0.24, 0.12);
+    t.up.subVectors(J.neck, J.pelvis).normalize();         // spine along the ground, head first
+    t.fwd.set(roll, -1, 0.1).normalize();                  // chest down
+    t.left.crossVectors(t.up, t.fwd).normalize();
+    J.head.copy(J.neck).add(t.c.set(0, 0.15, 0.08));      // chin up, looking ahead
+    J.shL.copy(J.neck).addScaledVector(t.left, 0.19).add(t.c.set(0, 0.02, -0.04));
+    J.shR.copy(J.neck).addScaledVector(t.left, -0.19).add(t.c.set(0, 0.02, -0.04));
+    const flap = Math.sin(s.idle * 14);
+    for (const [sh, el, ha, sx, x] of [[J.shL, J.elL, J.haL, 1, ph], [J.shR, J.elR, J.haR, -1, ph + Math.PI]]) {
+      if (air) t.b.set(sx * (0.75 + flap * 0.05), g + 0.45 + flap * 0.25, 0.05);   // wings
+      else {
+        // swim stroke: reach far forward (lifted), pull back along the ground to the hip
+        const reach = 0.25 + (1 - Math.cos(x)) * 0.32 * go + (1 - go) * 0.55;
+        t.b.set(sx * 0.3, g + 0.04 + Math.max(0, Math.sin(x)) * 0.25 * go, reach);
+      }
+      t.a.copy(sh).add(t.c.set(sx * 0.4, 0.25, -0.1));      // elbows out and up
+      ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
+    }
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1);
+    J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    for (const [hip, kn, an, toe, sx, x] of [[J.hipL, J.knL, J.anL, J.toeL, 1, s.idle * 11], [J.hipR, J.knR, J.anR, J.toeR, -1, s.idle * 11 + Math.PI]]) {
+      const kick = Math.sin(x) * (air ? 0.15 : 0.08 + 0.06 * go); // flutter kick
+      t.b.set(sx * 0.13, g + 0.12 + kick, -1.22);
+      t.a.copy(hip).add(t.c.set(sx * 0.05, -0.3, -0.2));     // knees to the ground
+      ik(hip, t.b, LEN.th, LEN.sh, t.a, kn, an);
+      toe.copy(an).add(t.c.set(0, -0.02, -0.14));           // toes pointed back
+    }
+    this.applyBones(t.up, t.fwd);
+  }
+
+  // --- special: Sack Race - standing up, feet together, hopping everywhere -------
+  // Bounces along in big two-footed hops (faster = quicker, longer hops), knees
+  // soaking each landing, arms flailing over the head on every hop. In the air the
+  // legs tuck and the arms windmill.
+  updateHop(dt, veh, vis) {
+    const s = this.s, J = this.j, t = this.tmp;
+    const g = -vis.cfg.rideHeight + 0.02;
+    const spd = Math.abs(veh.fwdSpeed !== undefined ? veh.fwdSpeed : veh.speed || 0);
+    const thr = Math.abs((veh.input && veh.input.throttle) || 0);
+    s.walk = (s.walk || 0) + (2.2 + Math.min(4, spd * 0.18) + thr) * Math.PI * dt; // hops per second
+    s.idle = (s.idle || 0) + dt;
+    const ph = s.walk, air = !veh.grounded && (veh.airTime || 0) > 0.08;
+    const go = Math.min(1, spd / 3 + 0.4 * thr + 0.15);
+    const hop = air ? 0.25 : Math.abs(Math.sin(ph)) * (0.18 + 0.32 * go); // height of this hop
+    const squash = air ? 0 : Math.max(0, 0.12 - hop) * 0.9;              // knees bend at the bottom
+    const lean = 0.12 + 0.15 * go;                                         // leaning into the hops
+    J.pelvis.set(0, g + 0.86 + hop - squash, -0.02);
+    t.up.set(0, Math.cos(lean), Math.sin(lean));
+    J.neck.copy(J.pelvis).addScaledVector(t.up, LEN.torso);
+    t.fwd.set(0, -Math.sin(lean), Math.cos(lean));
+    t.left.crossVectors(t.up, t.fwd).normalize();
+    J.shL.copy(J.neck).addScaledVector(t.left, 0.19).addScaledVector(t.up, -0.07);
+    J.shR.copy(J.neck).addScaledVector(t.left, -0.19).addScaledVector(t.up, -0.07);
+    J.head.copy(J.neck).addScaledVector(t.up, 0.04).add(t.c.set(Math.sin(ph * 2) * 0.03, 0, 0));
+    // arms: flung up over the head on each hop (windmilling in the air)
+    for (const [sh, el, ha, sx] of [[J.shL, J.elL, J.haL, 1], [J.shR, J.elR, J.haR, -1]]) {
+      const a = air ? s.idle * 16 + (sx > 0 ? 0 : Math.PI) : ph * 2;
+      const up = air ? Math.sin(a) : Math.abs(Math.sin(ph));
+      t.b.copy(sh).add(t.c.set(sx * (0.3 + 0.12 * Math.cos(a)), -0.35 + up * 0.75, 0.12 + (air ? Math.cos(a) * 0.3 : 0)));
+      t.a.copy(sh).add(t.c.set(sx * 0.5, 0, -0.1));
+      ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
+    }
+    // feet together (it is a sack race), tucked up in the air
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1);
+    J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    const footY = g + 0.06 + (air ? 0.35 : Math.max(0, hop - 0.06));
+    for (const [hip, kn, an, toe, sx] of [[J.hipL, J.knL, J.anL, J.toeL, 1], [J.hipR, J.knR, J.anR, J.toeR, -1]]) {
+      t.b.set(sx * 0.07, footY, 0.02);
+      t.a.copy(hip).add(t.c.set(sx * 0.05, 0, 0.6));        // knees forward
+      ik(hip, t.b, LEN.th, LEN.sh, t.a, kn, an);
+      toe.copy(an).add(t.c.set(0, -0.05, 0.2));
     }
     this.applyBones(t.up, t.fwd);
   }
@@ -331,6 +427,8 @@ export class Rider {
     this.group.rotation.y = vis.special === 'chair' ? Math.PI : 0;
     if (vis.special === 'crawl') return this.updateCrawl(dt, veh, vis);
     if (vis.special === 'chair') return this.updateChair(dt, veh, vis);
+    if (vis.special === 'penguin') return this.updatePenguin(dt, veh, vis);
+    if (vis.special === 'hop') return this.updateHop(dt, veh, vis);
     if (vis.seated) return this.updateSeated(dt, veh, vis);
     const s = this.s, A = vis.attach, isBike = vis.isBike;
     const inp = veh.input || {};
