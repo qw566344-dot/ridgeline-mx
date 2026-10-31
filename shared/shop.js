@@ -67,6 +67,7 @@ export const SHOP = [
   { id: 'rally', slot: 'vehicle', price: 13500 },
   { id: 'utvbaja', slot: 'vehicle', price: 14000 },
   { id: 'sxsr', slot: 'vehicle', price: 15000 },
+  { id: 'sxsu', slot: 'vehicle', price: 11000 },
   // paint ('stock' = the colour the vehicle comes in)
   { id: 'stock', slot: 'color', price: 0 },
   { id: 'red', slot: 'color', price: 0 },

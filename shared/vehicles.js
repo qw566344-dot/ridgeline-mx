@@ -106,12 +106,32 @@ export const PATTERNS = ['solid', 'stripes', 'flames', 'camo', 'galaxy', 'carbon
 // ---------------------------------------------------------------------
 export const MODELS = {
   // the user's long-travel side-by-side, split into wheels by tools/bake-sxs.py
+  // the user's buggy in three looks, by tools/bake-buggy.py (wheels split, the real steering wheel)
   sxs: {
-    file: 'models/dune_runner.glb', kind: 'car', comX: -0.05,
-    paint: ['material'], accent: ['material_6'],
-    steerWheel: 'steering_wheel', wheelCentre: [0.59, 0.6, -0.23], wheelAxisTo: [0.86, 0.5, -0.23],
+    file: 'models/dune_runner_stock.glb', kind: 'car', comX: -0.05,
+    paint: ['material_3'], accent: ['material_6'],
+    steerWheel: 'steering_wheel', wheelCentre: [0.264,0.825,0.002], wheelAxisTo: [0.531,0.688,0.009],
     corners: { fl: { wheel: 'wheel_FL', steer: true }, fr: { wheel: 'wheel_FR', steer: true }, rl: { wheel: 'wheel_RL' }, rr: { wheel: 'wheel_RR' } },
-    attach: { seat: [0.0, 0.36, -0.23], pegL: [0.86, 0.34, -0.31], pegR: [0.86, 0.34, -0.15], gripL: [0.57, 0.62, -0.42], gripR: [0.57, 0.62, -0.04], wheel: [0.59, 0.6, -0.23] },
+    // centre seat; hands on the rim at 9 and 3 o'clock; feet on the pedals
+    attach: { seat: [-0.22, 0.470, 0], pegL: [0.65, 0.500, -0.12], pegR: [0.65, 0.500, 0.12], gripL: [0.246,0.834,-0.12], gripR: [0.246,0.834,0.12], wheel: [0.264,0.825,0.002] },
+    seated: true,
+  },
+  sxs_up: {
+    file: 'models/dune_runner_upgraded.glb', kind: 'car', comX: -0.05,
+    paint: ['paint_sand'], accent: ['shock_gold'],
+    steerWheel: 'steering_wheel', wheelCentre: [0.264,0.861,0.002], wheelAxisTo: [0.531,0.724,0.009],
+    corners: { fl: { wheel: 'wheel_FL', steer: true }, fr: { wheel: 'wheel_FR', steer: true }, rl: { wheel: 'wheel_RL' }, rr: { wheel: 'wheel_RR' } },
+    // centre seat; hands on the rim at 9 and 3 o'clock; feet on the pedals
+    attach: { seat: [-0.22, 0.506, 0], pegL: [0.65, 0.536, -0.12], pegR: [0.65, 0.536, 0.12], gripL: [0.246,0.87,-0.12], gripR: [0.246,0.87,0.12], wheel: [0.264,0.861,0.002] },
+    seated: true,
+  },
+  sxs_race: {
+    file: 'models/dune_runner_race.glb', kind: 'car', comX: -0.05,
+    paint: ['paint_race_orange'], accent: ['shock_orange'],
+    steerWheel: 'steering_wheel', wheelCentre: [0.264,0.825,0.002], wheelAxisTo: [0.531,0.688,0.009],
+    corners: { fl: { wheel: 'wheel_FL', steer: true }, fr: { wheel: 'wheel_FR', steer: true }, rl: { wheel: 'wheel_RL' }, rr: { wheel: 'wheel_RR' } },
+    // centre seat; hands on the rim at 9 and 3 o'clock; feet on the pedals
+    attach: { seat: [-0.22, 0.470, 0], pegL: [0.65, 0.500, -0.12], pegR: [0.65, 0.500, 0.12], gripL: [0.246,0.834,-0.12], gripR: [0.246,0.834,0.12], wheel: [0.264,0.825,0.002] },
     seated: true,
   },
   bike: {
@@ -402,7 +422,7 @@ export const VEHICLES = [
   // ---- the Dune Runner (the user's side-by-side model) ----
   {
     ...UTV_BASE,
-    id: 'sxs', modelKey: 'sxs', name: 'Dune Runner XP', paint: 'orange', tier: 'Pro',
+    id: 'sxs', modelKey: 'sxs', name: 'Dune Runner XP', paint: 'white', native: true, tier: 'Pro',
     desc: 'A stripped-down long-travel side-by-side with an open cage. Shorter and lighter than the Viper - it dances over rough ground.',
     stats: { speed: 9, accel: 9, handling: 8, stability: 8, suspension: 10 },
     mass: 720, rideHeight: 0.7,
@@ -515,11 +535,22 @@ export const VEHICLES = [
   },
   {
     ...UTV_BASE,
-    id: 'sxsr', modelKey: 'sxs', name: 'Dune Runner Turbo', paint: 'black', tier: 'Works',
+    id: 'sxsr', modelKey: 'sxs_race', name: 'Dune Runner Turbo', paint: 'orange', native: true, tier: 'Works',
     desc: 'The Dune Runner with a turbo bolted on. Light, angry and very fast - keep it pointed straight on landing.',
     stats: { speed: 10, accel: 10, handling: 8, stability: 7, suspension: 10 },
     mass: 735, rideHeight: 0.7,
     wheels: UTV_BASE.wheels.map((w) => ({ ...w, z: Math.sign(w.z) * 1.043, x: Math.sign(w.x) * (w.z > 0 ? 0.852 : 0.925), r: 0.37, travel: w.travel * 1.1 })),
+    halfLength: 1.7, halfWidth: 0.85,
+    steer: { ...UTV_BASE.steer, rate: 4.2 },
+    engine: engine({ idle: 1200, redline: 8800, torque: [[1000, 128], [3000, 196], [5500, 232], [7000, 224], [8800, 186]], gearSpeeds: [12.5, 21, 29.5, 38], engineBrake: 28, shiftTime: 0.07, reverseSpeed: 5 }),
+  },
+  {
+    ...UTV_BASE,
+    id: 'sxsu', modelKey: 'sxs_up', name: 'Dune Runner Pro', paint: 'yellow', native: true, tier: 'Works',
+    desc: 'The upgraded Dune Runner: sand paint, gold shocks, bronze wheels and taller tyres. Soaks up anything.',
+    stats: { speed: 9, accel: 9, handling: 8, stability: 9, suspension: 10 },
+    mass: 728, rideHeight: 0.736,
+    wheels: UTV_BASE.wheels.map((w) => ({ ...w, z: Math.sign(w.z) * 1.043, x: Math.sign(w.x) * (w.z > 0 ? 0.852 : 0.925), r: 0.406, travel: w.travel * 1.18 })),
     halfLength: 1.7, halfWidth: 0.85,
     steer: { ...UTV_BASE.steer, rate: 4.2 },
     engine: engine({ idle: 1200, redline: 8800, torque: [[1000, 128], [3000, 196], [5500, 232], [7000, 224], [8800, 186]], gearSpeeds: [12.5, 21, 29.5, 38], engineBrake: 28, shiftTime: 0.07, reverseSpeed: 5 }),
@@ -622,6 +653,9 @@ export function prepareVehicle(def) {
 // the paint a vehicle is shown in: 'stock' = the colour that model variant comes in
 export function paintFor(vehicleId, colorId) {
   const v = getVehicle(vehicleId);
-  const id = !colorId || colorId === 'stock' ? v.paint : colorId;
-  return BIKE_COLORS.find((c) => c.id === id) || BIKE_COLORS[0];
+  const stock = !colorId || colorId === 'stock';
+  const id = stock ? v.paint : colorId;
+  const c = BIKE_COLORS.find((x) => x.id === id) || BIKE_COLORS[0];
+  // native: the model keeps its own painted colours in stock (only the rider kit uses 'paint')
+  return stock && v.native ? { ...c, id: 'native-' + v.id, native: true } : c;
 }

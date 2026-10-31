@@ -474,7 +474,8 @@ export function createModelInstance(key, scheme) {
   root.traverse((o) => {
     if (!o.isMesh) return;
     const n = o.material.name;
-    if (T.M.paint.includes(n)) o.material = paintMaterial(o.material, scheme, 'body', key);
+    if (scheme && scheme.native) { /* stock paint on a model with its own colours: leave them */ }
+    else if (T.M.paint.includes(n)) o.material = paintMaterial(o.material, scheme, 'body', key);
     else if (T.M.accent.includes(n)) o.material = paintMaterial(o.material, scheme, 'accent', key);
     meshes.push({ mesh: o, hi: o.geometry, lo: loMap.get(o.geometry) || o.geometry });
   });
