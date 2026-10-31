@@ -197,39 +197,46 @@ export class Rider {
   }
 
   // --- special: no vehicle, the rider crawls on all fours -------------------
-  // Hands and knees on the ground, a trotting gait (left hand with right knee)
-  // whose pace follows the speed, head up looking where they are going.
+  // Deliberately goofy: a frantic scramble whose pace follows the speed - the bum
+  // waggles side to side, the head bobbles, hands slap high and wide, and the feet
+  // kick up behind like a cartoon. Lots of air flails everything.
   updateCrawl(dt, veh, vis) {
     const s = this.s, J = this.j, t = this.tmp;
     const g = -vis.cfg.rideHeight + 0.02;                  // the ground in vehicle space
     const spd = veh.fwdSpeed !== undefined ? veh.fwdSpeed : veh.speed || 0;
-    s.walk = (s.walk || 0) + spd * dt * 2.4;               // gait phase (a stride every ~2.6 m)
+    s.walk = (s.walk || 0) + (Math.abs(spd) * 3.2 + 2.5 * Math.abs((veh.input && veh.input.throttle) || 0)) * dt;
+    s.idle = (s.idle || 0) + dt;
     const ph = s.walk, air = !veh.grounded && (veh.airTime || 0) > 0.08;
-    const lift = (a) => (air ? 0.12 : Math.max(0, Math.sin(a)) * 0.1);
-    const swing = (a) => (air ? 0 : Math.cos(a) * 0.16);
-    const bob = air ? 0 : Math.abs(Math.sin(ph)) * 0.03;
-    J.pelvis.set(0, g + 0.5 + bob, -0.38);
-    J.neck.set(0, g + 0.58 + bob, 0.2);
+    const go = Math.min(1, Math.abs(spd) / 3 + 0.25);       // how wild it gets
+    const fl = air ? Math.sin(s.idle * 22) : 0;            // flailing in the air
+    const lift = (x) => (air ? 0.18 + fl * 0.1 : Math.max(0, Math.sin(x)) * 0.22 * go);
+    const swing = (x) => (air ? fl * 0.2 : Math.cos(x) * 0.26 * go);
+    const bob = air ? 0.05 : Math.abs(Math.sin(ph)) * 0.07 * go;
+    const wag = Math.sin(ph) * 0.11 * go;                   // bum waggle
+    const wob = Math.sin(ph * 2 + 0.6) * 0.07 * go;         // head bobble
+    J.pelvis.set(wag, g + 0.53 + bob, -0.38);
+    J.neck.set(-wag * 0.4, g + 0.56 + bob * 0.5, 0.2);
     t.up.subVectors(J.neck, J.pelvis).normalize();         // the spine runs forward
-    t.fwd.set(0, -1, 0.15).normalize();                    // the chest faces the ground
+    t.fwd.set(wag * 1.5, -1, 0.15).normalize();            // chest to the ground, rolling with the waggle
     t.left.crossVectors(t.up, t.fwd).normalize();
-    J.head.copy(J.neck).add(t.c.set(0, 0.08, 0.06));
+    J.head.copy(J.neck).add(t.c.set(wob, 0.13 + Math.abs(wob) * 0.5, 0.08)); // head up, bobbling
     J.shL.copy(J.neck).addScaledVector(t.left, 0.19).add(t.c.set(0, -0.04, -0.03));
     J.shR.copy(J.neck).addScaledVector(t.left, -0.19).add(t.c.set(0, -0.04, -0.03));
-    // hands (left hand moves with the right knee)
-    for (const [sh, el, ha, sx, a] of [[J.shL, J.elL, J.haL, 1, ph], [J.shR, J.elR, J.haR, -1, ph + Math.PI]]) {
-      t.b.set(sx * 0.2, g + 0.03 + lift(a), 0.3 + swing(a));
-      t.a.copy(sh).add(t.c.set(sx * 0.3, 0, -0.2));      // elbows out and back
+    // hands slap down wide and high (left hand with the right knee)
+    for (const [sh, el, ha, sx, x] of [[J.shL, J.elL, J.haL, 1, ph], [J.shR, J.elR, J.haR, -1, ph + Math.PI]]) {
+      t.b.set(sx * (0.27 + Math.max(0, Math.sin(x)) * 0.1 * go), g + 0.03 + lift(x), 0.32 + swing(x));
+      if (air) t.b.add(t.c.set(sx * 0.25, 0.25, 0));      // arms out like wings in the air
+      t.a.copy(sh).add(t.c.set(sx * 0.45, 0.05, -0.15));    // chicken elbows
       ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
     }
-    // knees on the ground under the hips, shins and feet trailing behind
+    // knees scuttle under the hips, feet flick up behind
     J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1);
     J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
-    for (const [hip, kn, an, toe, sx, a] of [[J.hipL, J.knL, J.anL, J.toeL, 1, ph + Math.PI], [J.hipR, J.knR, J.anR, J.toeR, -1, ph]]) {
-      kn.set(sx * 0.13, g + 0.05 + lift(a) * 0.7, -0.4 + swing(a) * 0.8);
-      an.copy(kn).add(t.c.set(0, 0.04 + lift(a) * 0.3, -0.42));
-      toe.copy(an).add(t.c.set(0, -0.06, -0.1));
-      void hip;
+    for (const [kn, an, toe, sx, x] of [[J.knL, J.anL, J.toeL, 1, ph + Math.PI], [J.knR, J.anR, J.toeR, -1, ph]]) {
+      kn.set(sx * 0.15 + wag * 0.6, g + 0.05 + lift(x) * 0.6, -0.4 + swing(x) * 0.8);
+      const kick = air ? 0.35 + fl * 0.1 : Math.max(0, Math.sin(x)) * 0.32 * go; // heels kick up
+      an.copy(kn).add(t.c.set(sx * 0.03, 0.04 + kick, -0.42 + kick * 0.45));
+      toe.copy(an).add(t.c.set(0, -0.06 + kick * 0.2, -0.1));
     }
     this.applyBones(t.up, t.fwd);
   }

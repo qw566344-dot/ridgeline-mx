@@ -541,15 +541,17 @@ const RALLY = VEHICLES.find((v) => v.id === 'rally');
 export const SPECIAL_VEHICLES = [
   {
     ...RALLY, id: 'crawl', name: 'The Crawler', category: 'Specials', tier: 'Dev', special: 'crawl', modelKey: 'none', paint: 'stock',
-    desc: 'No bike. Just you, on all fours, at Desert Rally 450 speed. Only lmkk has this one.',
+    desc: 'No bike. Just you, on all fours, FASTER than a Desert Rally 450. Only lmkk has this one.',
+    // the Desert Rally 450, tuned up: more pull and taller gearing
+    engine: engine({ idle: 1400, redline: 10200, torque: [[1000, 38], [3000, 55], [6000, 66], [8000, 66], [10000, 57], [11000, 45]], gearSpeeds: [17, 26, 35, 43, 51] }),
     audio: { kind: 'none' },
   },
   {
     ...ATV_BASE, id: 'chair', name: 'Office Chair', category: 'Specials', tier: 'Dev', special: 'chair', modelKey: 'none', paint: 'stock',
     desc: 'A swivel chair, ridden backwards, pushed along with both feet. Only lmkk has this one.',
-    stats: { speed: 4, accel: 5, handling: 7, stability: 6, suspension: 3 },
+    stats: { speed: 7, accel: 8, handling: 7, stability: 6, suspension: 3 },
     mass: 140, inertia: [40, 50, 22],
-    engine: engine({ idle: 1200, redline: 7000, torque: [[1000, 14], [3000, 20], [5000, 22], [7000, 18]], gearSpeeds: [8, 12, 15] }),
+    engine: engine({ idle: 1200, redline: 7000, torque: [[1000, 26], [3000, 36], [5000, 40], [7000, 34]], gearSpeeds: [11, 17, 23, 27] }),
     crash: { landPitch: 60, impact: 15, roll: 80, loop: 85 },
     audio: { kind: 'none' },
   },
