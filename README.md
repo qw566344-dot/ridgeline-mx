@@ -79,7 +79,9 @@ Test it locally with `node tools/store-test.js`.
 - Rider helmet: `client/models/rider_helmet.glb`, made from `dirtbike_helmet.glb` by
   `node tools/bake-helmet-mx.mjs dirtbike_helmet.glb` (turned to face forward, slimmed; the shell is
   painted in each rider's gear colours, the gold goggle lens stays).
-- Quad, side-by-side and buggy: `pro_450r_quad.glb`, `viper_rs_turbo.glb`, `trophy_buggy.glb`.
+- Quad, side-by-side and buggy: `pro_450r_quad.glb`, `trophy_buggy.glb`.
+- Vipers: `viper_turbo.glb`, `viper_turbo_r.glb`, `viper_baja.glb`, made from the dune buggy models by
+  `node tools/bake-viper.mjs in.glb out.glb` (wheels + steering wheel grouped, slimmed, compressed).
 - Pivots and seat / grip / peg points for each model are in `MODELS` in `shared/vehicles.js`.
 
 ## Changing things (for later)

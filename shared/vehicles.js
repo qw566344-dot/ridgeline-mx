@@ -104,6 +104,18 @@ export const PATTERNS = ['solid', 'stripes', 'flames', 'camo', 'galaxy', 'carbon
 //  paint:  materials recoloured with the paint's main colour
 //  accent: materials recoloured with the paint's second colour
 // ---------------------------------------------------------------------
+function viperModel(file, dy) {
+  const y = (v) => +(v + dy).toFixed(3);
+  return {
+    file, kind: 'car', comX: 0.035,
+    paint: ['diffuse'], accent: ['spring'],
+    steerWheel: 'steering_wheel', wheelCentre: [0.28, y(1.01), -0.32], wheelAxisTo: [0.55, y(0.94), -0.32],
+    corners: { fl: { wheel: 'wheel_FL', steer: true }, fr: { wheel: 'wheel_FR', steer: true }, rl: { wheel: 'wheel_RL' }, rr: { wheel: 'wheel_RR' } },
+    attach: { seat: [-0.3, y(0.62), -0.32], pegL: [0.7, y(0.6), -0.44], pegR: [0.7, y(0.6), -0.2], gripL: [0.28, y(1.01), -0.5], gripR: [0.28, y(1.01), -0.14], wheel: [0.28, y(1.01), -0.32] },
+    seated: true,
+  };
+}
+
 export const MODELS = {
   // the user's long-travel side-by-side, split into wheels by tools/bake-sxs.py
   sxs: {
@@ -134,19 +146,11 @@ export const MODELS = {
     rearAxle: { group: 'swingarm', pivot: [-0.11, 0.30, 0], wheels: ['wheel_RL', 'wheel_RR'], shock: 'shock_R' },
     attach: { seat: [-0.26, 0.90, 0], pegL: [-0.02, 0.33, -0.36], pegR: [-0.02, 0.33, 0.36], gripL: [0.23, 1.04, -0.39], gripR: [0.23, 1.04, 0.39] },
   },
-  utv: {
-    file: 'models/viper_rs_turbo.glb', kind: 'car', comX: 0.0,
-    paint: ['body_green'], accent: ['shock_spring_orange'],
-    steerWheel: 'steering_wheel', wheelCentre: [0.25, 0.98, -0.33], wheelAxisTo: [0.55, 0.88, -0.33],
-    corners: {
-      fl: { wheel: 'wheel_FL', carry: ['knuckle_FL', 'tie_rod_FL'], steer: true, arms: ['a_arm_lower_FL', 'a_arm_upper_FL'], shocks: ['shock_FL'] },
-      fr: { wheel: 'wheel_FR', carry: ['knuckle_FR', 'tie_rod_FR'], steer: true, arms: ['a_arm_lower_FR', 'a_arm_upper_FR'], shocks: ['shock_FR'] },
-      rl: { wheel: 'wheel_RL', carry: ['cv_axle_RL', 'radius_rods_RL'], trailing: 'trailing_arm_RL', shocks: ['shock_RL'] },
-      rr: { wheel: 'wheel_RR', carry: ['cv_axle_RR', 'radius_rods_RR'], trailing: 'trailing_arm_RR', shocks: ['shock_RR'] },
-    },
-    attach: { seat: [-0.36, 0.62, -0.33], pegL: [0.62, 0.48, -0.45], pegR: [0.62, 0.48, -0.21], gripL: [0.27, 0.98, -0.53], gripR: [0.27, 0.98, -0.13], wheel: [0.25, 0.98, -0.33] },
-    seated: true,
-  },
+  // the Vipers: the user's dune buggy, three versions (tools/bake-viper.mjs groups the
+  // wheels and steering wheel). dy: how much higher the chassis sits than the Turbo's
+  utv: viperModel('models/viper_turbo.glb', 0),
+  utvr: viperModel('models/viper_turbo_r.glb', -0.03),
+  utvbaja: viperModel('models/viper_baja.glb', 0.12),
 
 };
 
@@ -269,6 +273,10 @@ const UTV_BASE = {
   radius: 1.1, halfWidth: 0.92, halfLength: 1.98,
   audio: { kind: 'utv' },
 };
+// wheel positions of the Viper models (see viperModel), for the physics
+function viperWheels(r, f = (w) => w) {
+  return UTV_BASE.wheels.map((w) => f({ ...w, z: Math.sign(w.z) * 1.125, x: Math.sign(w.x) * 0.86, r }));
+}
 
 function engine(o) {
   return {
@@ -340,13 +348,15 @@ export const VEHICLES = [
   {
     ...UTV_BASE,
     id: 'utv', name: 'Viper RS Turbo', paint: 'green', tier: 'Pro',
+    wheels: viperWheels(0.375), halfLength: 1.83, halfWidth: 1.0,
     desc: 'Two-seat turbo side-by-side with all-wheel drive. Soaks up huge landings and drifts on command.',
     stats: { speed: 9, accel: 8, handling: 7, stability: 9, suspension: 10 },
     engine: engine({ idle: 1200, redline: 8000, torque: [[1000, 120], [3000, 175], [5500, 205], [7000, 195], [8500, 165]], gearSpeeds: [12, 20, 28, 35], engineBrake: 30, shiftTime: 0.08, reverseSpeed: 5 }),
   },
   {
     ...UTV_BASE,
-    id: 'utvr', name: 'Viper RS Turbo R', paint: 'black', tier: 'Works',
+    id: 'utvr', modelKey: 'utvr', name: 'Viper RS Turbo R', paint: 'black', tier: 'Works',
+    wheels: viperWheels(0.375), halfLength: 1.83, halfWidth: 1.0, rideHeight: 0.72,
     desc: 'Race-built Viper: bigger turbo, stiffer shocks and a quicker steering rack. The fastest thing on four small wheels.',
     stats: { speed: 10, accel: 9, handling: 8, stability: 9, suspension: 10 },
     damping: { bump: 0.48, rebound: 0.78 },
@@ -505,11 +515,12 @@ export const VEHICLES = [
   },
   {
     ...UTV_BASE,
-    id: 'utvbaja', name: 'Viper Baja', paint: 'desertcamo', tier: 'Works',
+    id: 'utvbaja', modelKey: 'utvbaja', name: 'Viper Baja', paint: 'desertcamo', tier: 'Works',
+    halfLength: 1.83, halfWidth: 1.0, rideHeight: 0.86,
     desc: 'Long-travel desert Viper with tall gearing. Floats over whoops at full throttle and lands from the moon.',
     stats: { speed: 10, accel: 8, handling: 7, stability: 10, suspension: 10 },
     damping: { bump: 0.4, rebound: 0.68 },
-    wheels: UTV_BASE.wheels.map((w) => ({ ...w, travel: w.travel * 1.15, freq: w.freq * 0.92 })),
+    wheels: viperWheels(0.43, (w) => ({ ...w, travel: w.travel * 1.15, freq: w.freq * 0.92 })), // bigger tyres, longer travel
     mass: 820,
     engine: engine({ idle: 1200, redline: 8000, torque: [[1000, 125], [3000, 190], [5500, 220], [7000, 212], [8500, 178]], gearSpeeds: [13, 22, 31, 39], engineBrake: 30, shiftTime: 0.08, reverseSpeed: 5 }),
   },
