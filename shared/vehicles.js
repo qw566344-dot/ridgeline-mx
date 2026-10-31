@@ -13,6 +13,7 @@
 //  Local axes:  +z = forward,  +y = up,  +x = LEFT side of the vehicle.
 //  The body origin is the centre of mass (rider included).
 // =====================================================================
+import { QUAD_MODELS } from './quadModels.js';
 
 export const BIKE_COLORS = [
   { id: 'red', name: 'Factory Red', body: 0xd8261c, accent: 0xffffff, gear: [0xd8261c, 0x1b1b1f, 0xffffff] },
@@ -116,6 +117,18 @@ function viperModel(file, dy) {
   };
 }
 
+function quadModel(q) {
+  const corner = (k) => ({ wheel: 'wheel_' + k, carry: ['knuckle_' + k], steer: true, arms: ['a_arm_lower_' + k, 'a_arm_upper_' + k], shocks: ['shock_' + k] });
+  return {
+    file: q.file, kind: 'atv', comX: q.comX,
+    paint: ['body_paint'], accent: ['accent_paint', 'rim_paint'],
+    steerGroup: 'handlebars', steerPivot: q.steerPivot, steerAxisTo: q.steerAxisTo,
+    corners: { fl: corner('FL'), fr: corner('FR') },
+    rearAxle: { group: 'swingarm', pivot: q.rearPivot, wheels: ['wheel_RL', 'wheel_RR'], shock: 'shock_R' },
+    attach: q.attach,
+  };
+}
+
 export const MODELS = {
   // the user's long-travel side-by-side, split into wheels by tools/bake-sxs.py
   // the user's buggy in three looks, by tools/bake-buggy.py (wheels split, the real steering wheel)
@@ -155,17 +168,9 @@ export const MODELS = {
     swingarm: 'swingarm', swingPivot: [-0.176, 0.488, 0], shock: null,
     attach: { seat: [-0.25, 1.0, 0], pegL: [-0.077, 0.40, -0.15], pegR: [-0.077, 0.40, 0.15], gripL: [0.255, 1.175, -0.31], gripR: [0.255, 1.175, 0.31] },
   },
-  quad: {
-    file: 'models/pro_450r_quad.glb', kind: 'atv', comX: 0.0,
-    paint: ['plastic_yellow'], accent: ['shock_spring_red'],
-    steerGroup: 'handlebars', steerPivot: [0.27, 0.98, 0], steerAxisTo: [0.48, 0.33, 0],
-    corners: {
-      fl: { wheel: 'wheel_FL', carry: ['knuckle_FL', 'tie_rod_FL'], steer: true, arms: ['a_arm_lower_FL', 'a_arm_upper_FL'], shocks: ['shock_FL'] },
-      fr: { wheel: 'wheel_FR', carry: ['knuckle_FR', 'tie_rod_FR'], steer: true, arms: ['a_arm_lower_FR', 'a_arm_upper_FR'], shocks: ['shock_FR'] },
-    },
-    rearAxle: { group: 'swingarm', pivot: [-0.11, 0.30, 0], wheels: ['wheel_RL', 'wheel_RR'], shock: 'shock_R' },
-    attach: { seat: [-0.26, 0.90, 0], pegL: [-0.02, 0.33, -0.36], pegR: [-0.02, 0.33, 0.36], gripL: [0.23, 1.04, -0.39], gripR: [0.23, 1.04, 0.39] },
-  },
+  // the quads: the ATV Garage pack, one model per quad (tools/bake-quads.mjs -> quadModels.js)
+  ...Object.fromEntries(Object.entries(QUAD_MODELS).map(([id, q]) => ['q_' + id, quadModel(q)])),
+
   // the Vipers: the user's dune buggy, three versions (tools/bake-viper.mjs groups the
   // wheels and steering wheel). dy: how much higher the chassis sits than the Turbo's
   utv: viperModel('models/viper_turbo.glb', 0),
@@ -252,6 +257,18 @@ const ATV_BASE = {
   radius: 0.75, halfWidth: 0.6, halfLength: 1.1,
   audio: { kind: 'atv' },
 };
+// a quad's physics shaped like its model (quadModels.js): wheel positions and tyre sizes,
+// and the body crash points / size scaled from the Pro 450R's (a pit quad's nose is much
+// closer than a full-size one's). f: per-wheel tweaks on top
+function quadShape(id, f = (w) => w) {
+  const q = QUAD_MODELS[id], w = q.wheels, ref = QUAD_MODELS.atv450;
+  const kl = q.size.length / ref.size.length, kw = q.size.width / ref.size.width, kh = (w.rF + w.rR) / (ref.wheels.rF + ref.wheels.rR);
+  return {
+    wheels: ATV_BASE.wheels.map((b) => f(b.z > 0 ? { ...b, z: w.zF, x: Math.sign(b.x) * w.xF, r: w.rF } : { ...b, z: w.zR, x: Math.sign(b.x) * w.xR, r: w.rR })),
+    probes: ATV_BASE.probes.map((pr) => ({ ...pr, p: [pr.p[0] * kw, pr.p[1] * kh, pr.p[2] * kl], r: pr.r * Math.min(kl, kw) })),
+    radius: ATV_BASE.radius * kl, halfWidth: ATV_BASE.halfWidth * kw, halfLength: ATV_BASE.halfLength * kl,
+  };
+}
 
 // side-by-side: heavy, long travel, seated driver inside a roll cage
 const UTV_BASE = {
@@ -348,7 +365,7 @@ export const VEHICLES = [
   },
   {
     ...ATV_BASE,
-    id: 'atv450', name: 'Pro 450R', paint: 'yellow', tier: 'Starter',
+    id: 'atv450', modelKey: 'q_atv450', ...quadShape('atv450'), name: 'Pro 450R', paint: 'yellow', tier: 'Starter',
     desc: 'A race-bred sport quad. Planted on four wheels, slides the rear when you ask it to.',
     stats: { speed: 8, accel: 7, handling: 8, stability: 8, suspension: 7 },
     mass: 285, inertia: [88, 106, 48],
@@ -357,7 +374,7 @@ export const VEHICLES = [
   },
   {
     ...ATV_BASE,
-    id: 'atv700', name: 'Pro 700 Brute', paint: 'orange', tier: 'Pro',
+    id: 'atv700', modelKey: 'q_atv700', ...quadShape('atv700'), name: 'Pro 700 Brute', paint: 'orange', tier: 'Pro',
     desc: 'Big-bore torque monster. Heavy and stable, pulls hard everywhere, a handful in tight turns.',
     stats: { speed: 9, accel: 8, handling: 6, stability: 10, suspension: 8 },
     mass: 350, inertia: [112, 136, 62],
@@ -444,7 +461,7 @@ export const VEHICLES = [
   // ---- more quads ----
   {
     ...ATV_BASE,
-    id: 'atv250', name: 'Sport 250', paint: 'green', tier: 'Starter',
+    id: 'atv250', modelKey: 'q_atv250', ...quadShape('atv250'), name: 'Sport 250', paint: 'green', tier: 'Starter',
     desc: 'A light, nimble sport quad. Not much top end, but it turns on a dime and flicks into the air.',
     stats: { speed: 6, accel: 6, handling: 9, stability: 7, suspension: 6 },
     mass: 255, inertia: [78, 94, 42],
@@ -454,7 +471,7 @@ export const VEHICLES = [
   },
   {
     ...ATV_BASE,
-    id: 'atv1000', name: 'Mud Pro 1000', paint: 'black', tier: 'Works',
+    id: 'atv1000', modelKey: 'q_atv1000', ...quadShape('atv1000'), name: 'Mud Pro 1000', paint: 'black', tier: 'Works',
     desc: 'A twin-cylinder brute. Huge torque everywhere and the most stable quad on the hill - heavy in the air.',
     stats: { speed: 10, accel: 9, handling: 5, stability: 10, suspension: 9 },
     mass: 390, inertia: [125, 150, 70],
@@ -513,23 +530,23 @@ export const VEHICLES = [
   },
   {
     ...ATV_BASE,
-    id: 'atv90', name: 'Pit Quad 90', paint: 'pink', tier: 'Starter',
+    id: 'atv90', modelKey: 'q_atv90', ...quadShape('atv90'), name: 'Pit Quad 90', paint: 'pink', tier: 'Starter',
     desc: 'A little pit quad. Slow but impossible to fall off - perfect for learning the jumps.',
     stats: { speed: 4, accel: 5, handling: 9, stability: 9, suspension: 5 },
     mass: 210, inertia: [64, 78, 35],
+    crash: { ...ATV_BASE.crash, impact: ATV_BASE.crash.impact * 1.35 }, // forgiving landings: it is the learner's quad
     steer: { ...ATV_BASE.steer, rate: 3.6 },
     air: { ...ATV_BASE.air, flipRate: 4.2, spinRate: 4.5 },
     engine: engine({ idle: 1800, redline: 10000, torque: [[1000, 11], [3000, 17], [6000, 23], [8000, 24], [9500, 21], [10500, 17]], gearSpeeds: [8, 12, 16, 19.5, 23], reverseSpeed: 3 }),
   },
   {
     ...ATV_BASE,
-    id: 'atv450w', name: 'Pro 450R Works', paint: 'purple', tier: 'Works',
+    id: 'atv450w', modelKey: 'q_atv450w', ...quadShape('atv450w', (w) => ({ ...w, freq: w.freq * 1.06, mu: w.mu * 1.04 })), name: 'Pro 450R Works', paint: 'purple', tier: 'Works',
     desc: 'The factory race quad: more power, race shocks and wider grip. The quickest quad around a track.',
     stats: { speed: 9, accel: 9, handling: 9, stability: 8, suspension: 9 },
     mass: 278, inertia: [86, 102, 46],
     damping: { bump: 0.46, rebound: 0.7 },
     steer: { ...ATV_BASE.steer, rate: 3.2 },
-    wheels: ATV_BASE.wheels.map((w) => ({ ...w, freq: w.freq * 1.06, mu: w.mu * 1.04 })),
     air: { ...ATV_BASE.air, flipRate: 3.9, spinRate: 4.1 },
     engine: engine({ idle: 1600, redline: 10500, torque: [[1000, 25], [3000, 40], [6000, 53], [7500, 55], [9000, 49], [10500, 38]], gearSpeeds: [10.5, 16, 21.5, 27, 32], reverseSpeed: 4 }),
   },
