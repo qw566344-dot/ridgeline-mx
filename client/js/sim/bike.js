@@ -236,7 +236,7 @@ export class BikeController {
         // The longer you hold, the further it goes; let go and a spring brings it
         // back upright and lined up with where you are flying, ready to land.
         const holding = Math.abs(inp.steer) > 0.15; // the key itself: the smoothed ground steering kept whipping after you let go
-        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 2.8) : Math.max(0, (this.whipAmt || 0) - dt * 9);
+        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 4.2) : Math.max(0, (this.whipAmt || 0) - dt * 9);
         // the swing spring keeps the bike lined up for the landing - but never in the middle of a flip
         // (a normal jump tips the nose down ~50 degrees - that is not a flip; pointing near vertical it is)
         const flipping = Math.abs(tr.pitch) > 2.0 || Math.abs(inp.lean) > 0.1 || Math.abs(pitchW) > 2.2;
@@ -244,19 +244,19 @@ export class BikeController {
         if (holding) this.whipSide = Math.sign(inp.steer);
         const amt = this.whipAmt * late;
         const side = this.whipSide || 0;
-        const rollT = -side * A.whip * DEG * amt;          // lay it over
-        const yawT = side * 55 * DEG * amt;                 // rear kicks well out, nose into the whip
+        const rollT = -side * Math.min(95, A.whip * 1.25) * DEG * amt; // lay it over (up to flat sideways)
+        const yawT = side * 72 * DEG * amt;                 // rear kicks well out, nose into the whip
         // how far the bike points away from the direction it is flying (+ = nose to the left)
         let yawOff = 0;
         const hx = fwd.x, hz = fwd.z, vx = v.vel.x, vz = v.vel.z;
         if (vx * vx + vz * vz > 4 && hx * hx + hz * hz > 0.01) yawOff = Math.atan2(vz * hx - vx * hz, vx * hx + vz * hz);
         // roll around the bike's own lengthwise axis (that keeps it pointing where it points)
-        v.torque.addScaledVector(fwd, ((rollT - roll) * (holding ? 20 : 75) - rollW * (holding ? 6 : 14)) * I[2]);
+        v.torque.addScaledVector(fwd, ((rollT - roll) * (holding ? 30 : 75) - rollW * (holding ? 7 : 14)) * I[2]);
         // turn around the true vertical (not the tilted bike), so the swing never fights the roll.
         // Damp the HEADING rate only: with the nose down, rolling back out of a whip spins the
         // bike about world-y too, and damping that stopped it ever lining back up (crooked landings)
         const headW = v.angVel.y - rollW * fwd.y;
-        addAccel(v, _p.set(0, 1, 0), ((yawT - yawOff) * (holding ? 16 : 40) - headW * (holding ? 7.5 : 11)) * swingK);
+        addAccel(v, _p.set(0, 1, 0), ((yawT - yawOff) * (holding ? 22 : 40) - headW * (holding ? 8.5 : 11)) * swingK);
         // scrub: whipping hard right off the lip keeps the bike low and fast
         tr.whip = Math.max(tr.whip, Math.abs(roll)); // only real whips count, not the wobble of a spin
         if (v.airTime < 0.35 && Math.abs(roll) > 25 * DEG) { tr.scrub = true; v.force.y -= c.mass * 9.81 * 0.3 * Math.min(1, Math.abs(roll) / (45 * DEG)); }

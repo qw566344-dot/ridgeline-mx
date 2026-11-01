@@ -26,6 +26,7 @@ try {
   await up();
   let r = await api(null, 'register', { name: 'SaveTester', password: pw });
   ok(r.token && r.profile.coins === 500, 'register gives a token and 500 coins');
+  for (const bad of ['FuckBoy', 'big_ass', 'S_h_i_t']) { const b = await api(null, 'register', { name: bad, password: pw }); ok(/not allowed/.test(b.error || ''), `bad name "${bad}" is refused`); }
   r = await api(null, 'register', { name: 'savetester', password: pw });
   ok(r.error && /taken/.test(r.error), 'same name (any case) is refused');
   r = await api(null, 'register', { name: 'ab', password: pw });

@@ -7,6 +7,7 @@
 //  browser instead, with the password hashed. Guests also save locally.
 // =====================================================================
 import { serverBase } from './config.js';
+import { hasBadWords } from '/shared/badwords.js';
 import { STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel } from '/shared/shop.js';
 
 const LS = {
@@ -224,6 +225,7 @@ export class Account {
   }
 
   async register(name, password) {
+    if (hasBadWords(String(name)) || hasBadWords(String(name).replace(/[_.-]+/g, ' '))) return 'That name is not allowed - pick another';
     try {
       const r = await this.api('register', { name, password });
       if (r.error) return r.error;

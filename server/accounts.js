@@ -24,6 +24,7 @@ import { Friends } from './friends.js';
 import { Chat } from './chat.js';
 import { cloudEnabled, cloudLoad, cloudSave } from './store.js';
 import { Casino } from './casino.js';
+import { hasBadWords } from '../shared/badwords.js';
 import { Admin, ADMINS } from './admin.js';
 
 const splitKey = (k) => { const [s, ...rest] = String(k).split(':'); return [s, rest.join(':')]; };
@@ -233,6 +234,7 @@ export class Accounts {
   register(name, password, ip, restore, dev) {
     name = String(name || '').trim();
     if (!NAME_RE.test(name)) return { error: 'Names are 3-16 letters, numbers, spaces, _ . or -' };
+    if (hasBadWords(name) || hasBadWords(name.replace(/[_.-]+/g, ' '))) return { error: 'That name is not allowed - pick another' };
     if (String(password || '').length < 4) return { error: 'Password must be at least 4 characters' };
     if (this.throttle(ip)) return { error: 'Too many tries - wait a minute' };
     if (this.deviceBan(dev)) return { error: 'This device is banned - it can not make new accounts', banned: true };
