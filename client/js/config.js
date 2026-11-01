@@ -13,7 +13,8 @@
 export const PUBLIC_SERVER = 'https://ridgeline-mx.onrender.com';
 
 export const REGIONS = [
-  { id: 'na', name: 'North America', place: 'Oregon, USA', url: 'https://ridgeline-mx.onrender.com' },
+  { id: 'na', name: 'North America West', place: 'Oregon, USA', url: 'https://ridgeline-mx.onrender.com' },
+  { id: 'central', name: 'North America Central', place: 'Ohio, USA', url: 'https://ridgeline-mx-central.onrender.com' },
   { id: 'eu', name: 'Europe', place: 'Frankfurt, Germany', url: 'https://ridgeline-mx-eu.onrender.com' },
   { id: 'asia', name: 'Asia', place: 'Singapore', url: 'https://ridgeline-mx-asia.onrender.com' },
 ];
