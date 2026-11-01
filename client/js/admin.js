@@ -94,14 +94,21 @@ export class AdminPanel {
 
   // ban popup: a reason (they see it) and whether their devices are banned too
   banDialog(name) {
-    const n = escapeHtml(name);
-    this.ui.modal(`<h2>Ban ${n}?</h2>
+    const reasons = ['Cheating', 'Spamming chat', 'Bad language', 'Harassment', 'Exploiting bugs', 'Other'];
+    const box = this.ui.modal(`<h2>Ban</h2>
       <p class="hint">They are logged out within a few seconds and see a ban message.</p>
-      <label class="field col-field">Reason (they see this) <input type="text" id="ban-reason" maxlength="140" placeholder="e.g. cheating, spamming chat"></label>
+      <label class="field col-field">Reason (they see this) <select id="ban-pick">${reasons.map((r) => `<option>${r}</option>`).join('')}</select></label>
+      <label class="field col-field" id="ban-other-row" hidden>Other reason <input type="text" id="ban-reason" maxlength="140" placeholder="Type the reason"></label>
       <label class="field"><input type="checkbox" id="ban-devices" checked> Also ban their devices (no new accounts from them)</label>`, [
       ['Cancel', null, ''],
-      ['Ban', (box) => { this.act('ban', { name, on: true, reason: box.querySelector('#ban-reason').value, devices: box.querySelector('#ban-devices').checked }); }, 'danger'],
+      ['Ban', (b) => {
+        const pick = b.querySelector('#ban-pick').value;
+        const reason = pick === 'Other' ? (b.querySelector('#ban-reason').value.trim() || 'Other') : pick;
+        this.act('ban', { name, on: true, reason, devices: b.querySelector('#ban-devices').checked });
+      }, 'danger'],
     ]);
+    const pick = box.querySelector('#ban-pick'), row = box.querySelector('#ban-other-row');
+    pick.onchange = () => { row.hidden = pick.value !== 'Other'; if (!row.hidden) box.querySelector('#ban-reason').focus(); };
   }
 
   // XP popup: quick amounts or type one; their level follows
