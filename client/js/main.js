@@ -200,12 +200,18 @@ window.addEventListener('keydown', () => audio.unlock());
 // ---- frame loop
 let last = performance.now();
 const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits']);
+// the screen's refresh interval, measured from every animation frame (ms)
+let lastTick = 0, tickMs = 16.7, tickN = 0;
 function loop(now) {
+  if (lastTick) { const d = now - lastTick; if (d > 2 && d < 50) tickMs += (d - tickMs) * 0.05; }
+  lastTick = now;
   // frame cap: riding at the chosen limit (60 by default, so 120/144 Hz screens don't burn
-  // twice the battery), menus and the pause screen at 30. Hidden tabs get no frames at all.
+  // twice the battery), menus and the pause screen at 30. Frames are skipped evenly (every 2nd
+  // or 3rd screen refresh), never unevenly - that stuttered (a 144 Hz screen got a jerky 48 fps).
   const riding = game.state === 'running' && !game.paused && !STAGE_SCREENS.has(ui.screen);
   const cap = riding ? Number(settings.get('maxFps')) || 0 : 30;
-  if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(loop); return; }
+  const every = cap ? Math.max(1, Math.floor(1000 / tickMs / (cap * 0.9))) : 1;
+  if (++tickN % every !== 0) { requestAnimationFrame(loop); return; }
   const raw = (now - last) / 1000;
   const dt = Math.min(0.1, raw);
   game.rawDt = raw;
