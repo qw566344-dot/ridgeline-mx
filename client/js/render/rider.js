@@ -195,6 +195,14 @@ function setBone(bone, a, b, hint) {
 }
 
 const V = () => new THREE.Vector3();
+// a damped spring toward target (w = stiffness in rad/s, z = damping ratio); the speed lives in s[key + 'V']
+function spring(s, key, target, w, z, dt) {
+  if (!(dt > 0)) return;
+  dt = Math.min(dt, 0.05);
+  const vk = key + 'V';
+  s[vk] = (s[vk] || 0) + ((target - s[key]) * w * w - 2 * z * w * (s[vk] || 0)) * dt;
+  s[key] += s[vk] * dt;
+}
 
 export class Rider {
   constructor(scheme) {
@@ -430,7 +438,7 @@ export class Rider {
     const lat = Math.max(-0.5, Math.min(0.5, veh.lean || 0));
     s.leanBody += (lat * 0.6 - s.leanBody) * Math.min(1, dt * 5);
     const compAvg = veh.wheels ? veh.wheels.reduce((a, w) => a + w.comp / w.cfg.travel, 0) / veh.wheels.length : 0.3;
-    s.crouch += (Math.max(0, compAvg - 0.35) * 0.6 - s.crouch) * Math.min(1, dt * 10);
+    spring(s, 'crouch', Math.max(0, compAvg - 0.35) * 0.6, 13, 0.35, dt); // bounces in the seat over bumps
     J.pelvis.copy(A.seat).add(t.c.set(0, 0.1 - s.crouch * 0.05, 0.06));
     const recline = 0.26;
     t.up.set(Math.sin(s.leanBody) * 0.5, Math.cos(recline), -Math.sin(recline)).normalize();
@@ -489,8 +497,14 @@ export class Rider {
     let fore = (inp.lean || 0) * 0.8 + (inp.brake || 0) * -0.25 + (inp.throttle || 0) * 0.2;
     if (air) fore = (inp.lean || 0) * 1.0;
     const k = Math.min(1, dt * 6);
-    s.stand += (stand - s.stand) * Math.min(1, dt * 3.5);
-    s.crouch += (Math.min(0.6, crouch) - s.crouch) * Math.min(1, dt * 12);
+    // springs, not plain easing: the body has weight. Landings push the rider down into the bike
+    // and they spring back up past level and settle; standing up / sitting down overshoots a touch.
+    const landed = !air && s.wasAir;
+    s.wasAir = air;
+    if (landed && dt > 0) s.crouchV = (s.crouchV || 0) + Math.min(4.5, 1.2 + (veh.lastLanding || 0.5) * 2.4);
+    spring(s, 'stand', stand, 7.5, 0.82, dt);
+    spring(s, 'crouch', Math.min(0.6, crouch), 15, 0.4, dt);
+    s.crouch = Math.max(-0.12, Math.min(0.85, s.crouch));
     s.fore += (Math.max(-1, Math.min(1, fore)) - s.fore) * k;
     // on the ground lean with the vehicle; in the air counter the whip and tuck for flips
     const airRoll = air && veh.controller ? veh.controller.airRoll || 0 : 0;

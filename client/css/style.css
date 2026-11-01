@@ -764,3 +764,6 @@ button.primary:hover:not(:disabled) { background: linear-gradient(135deg, #ff8a5
 /* first person on a bike: the edge of the goggles (a soft dark frame, rounded like the lens) */
 #goggles { position: fixed; inset: 0; pointer-events: none; z-index: 0;
   background: radial-gradient(ellipse 78% 74% at 50% 46%, transparent 62%, rgba(8, 10, 14, 0.35) 80%, rgba(8, 10, 14, 0.85) 100%); }
+
+/* riding: a soft darkening toward the corners pulls the eye to the middle (static, costs nothing) */
+#hud::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 85% 80% at 50% 45%, transparent 62%, rgba(4, 6, 10, 0.32) 100%); }
