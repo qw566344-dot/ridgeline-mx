@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { box, cyl, sphere, torus, merge, colorize, clean, place, roundBox } from './geo.js';
 import { heightAt } from '/shared/terrain.js';
-import { helmetModel, helmetMaterial, SKIN_GLSL, skinUniforms, patterned } from './modelRig.js';
+import { helmetModel, helmetMaterial, riderModel, SKIN_GLSL, skinUniforms, patterned } from './modelRig.js';
 
 const B = { root: 0, pelvis: 1, torso: 2, head: 3, uaL: 4, faL: 5, hL: 6, uaR: 7, faR: 8, hR: 9, thL: 10, shL: 11, ftL: 12, thR: 13, shR: 14, ftR: 15 };
 const BONES = 16;
@@ -125,6 +125,68 @@ function partGeo(scheme) {
   return merge(geos);
 }
 
+// ---- the rider model (models/rider_body.glb) on the game's bones -----------
+// Its armature's bones map onto the 16 rider bones; the skin weights move
+// across with them (so elbows, knees and the waist still bend smoothly), and
+// the bones' rest pose is laid out from the model's own joints so the mesh
+// starts exactly where it was modelled. The head is left out: the helmet
+// model covers it. Jersey and pants keep zones 1 / 2 for skin patterns.
+const MODEL_BONES = {
+  hips: B.pelvis, spine: B.torso, chest: B.torso, neck: B.torso, clavicle_L: B.torso, clavicle_R: B.torso, head: B.head, head_end: B.head,
+  upper_arm_L: B.uaL, forearm_L: B.faL, hand_L: B.hL, hand_end_L: B.hL, upper_arm_R: B.uaR, forearm_R: B.faR, hand_R: B.hR, hand_end_R: B.hR,
+  thigh_L: B.thL, shin_L: B.shL, foot_L: B.ftL, toe_L: B.ftL, thigh_R: B.thR, shin_R: B.shR, foot_R: B.ftR, toe_R: B.ftR,
+};
+let modelRest = null; // inverse rest matrices of the 16 bones, for the model
+function modelRestInverses(M) {
+  if (modelRest) return modelRest;
+  const P = (n) => (M.joints[n] || new THREE.Vector3()).clone();
+  const j = {
+    pelvis: P('hips'), neck: P('neck'), head: P('neck').add(new THREE.Vector3(0, 0.04, 0)),
+    shL: P('upper_arm_L'), elL: P('forearm_L'), haL: P('hand_L'), shR: P('upper_arm_R'), elR: P('forearm_R'), haR: P('hand_R'),
+    hipL: P('thigh_L'), knL: P('shin_L'), anL: P('foot_L'), toeL: P('toe_L'), hipR: P('thigh_R'), knR: P('shin_R'), anR: P('foot_R'), toeR: P('toe_R'),
+  };
+  const bones = Array.from({ length: BONES }, () => new THREE.Bone());
+  Rider.prototype.applyBones.call({ j, bones, tmp: { a: V(), b: V(), c: V() } }, new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1));
+  modelRest = bones.map((b) => { b.updateMatrix(); return b.matrix.clone().invert(); });
+  return modelRest;
+}
+function modelGeo(scheme, M) {
+  const [jersey, pants, accent] = scheme.gear;
+  const COLORS = { jersey: [jersey, 1], pants: [pants, 2], trim: [accent, 0], boot: [0x1d1f24, 0], body: [0x2a2d33, 0] };
+  const geos = M.parts.map((p) => {
+    const g = p.geometry.clone();
+    const n = g.attributes.position.count;
+    const si = new Uint16Array(n * 4), sw = new Float32Array(n * 4), isHead = new Uint8Array(n);
+    const acc = new Float32Array(BONES);
+    for (let v = 0; v < n; v++) {
+      acc.fill(0);
+      let top = '', topW = -1;
+      for (let k = 0; k < 4; k++) {
+        const name = p.names[v * 4 + k], w = p.weights[v * 4 + k];
+        acc[MODEL_BONES[name] !== undefined ? MODEL_BONES[name] : B.torso] += w;
+        if (w > topW) { topW = w; top = name; }
+      }
+      isHead[v] = top === 'head' || top === 'head_end';
+      const order = [...acc.keys()].sort((a, b) => acc[b] - acc[a]).slice(0, 4);
+      const sum = order.reduce((s, i) => s + acc[i], 0) || 1;
+      order.forEach((bi, k) => { si[v * 4 + k] = bi; sw[v * 4 + k] = acc[bi] / sum; });
+    }
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    const [col, zone] = COLORS[p.name] || [accent, 0];
+    colorize(g, col);
+    g.setAttribute('zone', new THREE.Float32BufferAttribute(new Float32Array(n).fill(zone), 1));
+    // the head goes: the helmet sits there
+    if (g.index) {
+      const idx = g.index.array, keep = [];
+      for (let t = 0; t < idx.length; t += 3) if (!(isHead[idx[t]] && isHead[idx[t + 1]] && isHead[idx[t + 2]])) keep.push(idx[t], idx[t + 1], idx[t + 2]);
+      g.setIndex(keep);
+    }
+    return g.index ? g.toNonIndexed() : g;
+  });
+  return merge(geos);
+}
+
 function roundBoxC(w, h, d, r, color, pos) {
   return place(colorize(clean(roundBox(w, h, d, r)), color), pos);
 }
@@ -162,8 +224,9 @@ const V = () => new THREE.Vector3();
 
 export class Rider {
   constructor(scheme) {
-    const key = scheme.id;
-    if (!geoCache.has(key)) geoCache.set(key, partGeo(scheme));
+    const M = riderModel(); // the rider model if it loaded, else the built-in one
+    const key = (M ? 'model:' : '') + scheme.id;
+    if (!geoCache.has(key)) geoCache.set(key, M ? modelGeo(scheme, M) : partGeo(scheme));
     this.group = new THREE.Group();
     this.group.name = 'rider';
     this.bones = [];
@@ -178,7 +241,7 @@ export class Rider {
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
     this.group.add(this.mesh);
-    this.mesh.bind(new THREE.Skeleton(this.bones, this.bones.map(() => new THREE.Matrix4())), new THREE.Matrix4());
+    this.mesh.bind(new THREE.Skeleton(this.bones, M ? modelRestInverses(M).map((m) => m.clone()) : this.bones.map(() => new THREE.Matrix4())), new THREE.Matrix4());
     const hm = helmetModel();
     if (hm) {
       this.helmet = new THREE.Mesh(hm.geometry, helmetMaterial(scheme));

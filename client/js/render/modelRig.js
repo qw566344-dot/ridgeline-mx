@@ -60,6 +60,10 @@ export async function preloadModels(onProgress = () => {}) {
     const g = await loadFile(HELMET_FILE);
     if (g) { try { helmet = buildHelmet(g.scene); } catch (e) { console.warn('Helmet failed', e); } }
   }
+  if (!riderBody) {
+    const g = await loadFile(RIDER_FILE);
+    if (g) { try { riderBody = buildRiderBody(g.scene); } catch (e) { console.warn('Rider model failed', e); } }
+  }
   return templates;
 }
 
@@ -89,6 +93,37 @@ function buildHelmet(root) {
   return { geometry: g, box: g.boundingBox.clone(), hasLens: !!lens };
 }
 export function helmetModel() { return helmet; }
+
+// ---------------------------------------------------------------- rider body
+// The rider model (client/models/rider_body.glb): a skinned body with a dirt
+// bike outfit (jersey, trim, pants, boots) on its own armature. rider.js moves
+// its skin weights onto the game's procedural rider bones. Everything comes
+// out in the model's rest pose (metres, y up, facing +z, feet at y = 0):
+// each part's positions + normals, its 4 bone names and weights per vertex,
+// and where every armature joint sits.
+const RIDER_FILE = 'models/rider_body.glb';
+let riderBody = null;
+function buildRiderBody(root) {
+  root.updateMatrixWorld(true);
+  const parts = [], joints = {};
+  root.traverse((o) => {
+    if (!o.isSkinnedMesh) return;
+    const sk = o.skeleton, g = o.geometry;
+    // joints at bind time, from the inverse bind matrices
+    sk.bones.forEach((b, i) => { if (!joints[b.name]) joints[b.name] = new THREE.Vector3().setFromMatrixPosition(sk.boneInverses[i].clone().invert()).applyMatrix4(o.matrixWorld); });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', g.attributes.position.clone().applyMatrix4(o.matrixWorld));
+    geo.setAttribute('normal', g.attributes.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(o.matrixWorld)));
+    if (g.index) geo.setIndex(g.index.clone());
+    const si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+    const names = [], weights = [];
+    for (let v = 0; v < si.count; v++) for (let k = 0; k < 4; k++) { names.push(sk.bones[si.getComponent(v, k)].name); weights.push(sw.getComponent(v, k)); }
+    parts.push({ name: (o.material && o.material.name) || o.name, geometry: geo, names, weights });
+  });
+  if (!parts.length) throw new Error('rider model has no skinned meshes');
+  return { parts, joints };
+}
+export function riderModel() { return riderBody; }
 
 const HELMET_GLSL = `
 uniform vec3 hA; uniform vec3 hB; uniform vec3 hC; uniform vec3 hMin; uniform vec3 hMax;
