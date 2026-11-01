@@ -209,12 +209,16 @@ export class Accounts {
     const D = this.db.bannedDevices || {}, I = this.db.bannedIps || {};
     if (dev.id && D[dev.id]) return D[dev.id];
     if (dev.ip && I[dev.ip]) return I[dev.ip];
-    if (dev.flagged) return 'this browser';
+    // the browser's own "banned" note counts unless an admin unbanned this browser / address
+    const C = this.db.unbannedDevices || {};
+    if (dev.flagged && !(dev.id && C[dev.id]) && !(dev.ip && C[dev.ip])) return 'this browser';
     return null;
   }
   // ban / unban everything this rider has logged in from (never an address an admin uses)
   banDevices(u, on) {
     const D = this.db.bannedDevices || (this.db.bannedDevices = {}), I = this.db.bannedIps || (this.db.bannedIps = {});
+    const C = this.db.unbannedDevices || (this.db.unbannedDevices = {});
+    for (const v of [...(u.devices || []), ...(u.ips || [])]) if (on) delete C[v]; else C[v] = u.name;
     if (on) {
       const adminIps = new Set(Object.values(this.db.users).filter((x) => this.admin.isAdmin(x)).flatMap((x) => x.ips || []));
       for (const d of u.devices || []) D[d] = u.name;
@@ -400,6 +404,7 @@ export class Accounts {
       if (['register', 'login', 'revive'].includes(r)) {
         const out = r === 'register' ? this.register(m.name, m.password, ip, m.restore, dev) : r === 'login' ? this.login(m.name, m.password, ip, dev) : this.revive(m, ip, dev);
         if (out.token) this.track(this.user(out.token), dev);
+        if (out.token && dev.flagged) out.clearBan = true; // unbanned: the browser can drop its "banned" note
         return send(200, out);
       }
       if (r === 'info') return send(200, { ok: true, accounts: Object.keys(this.db.users).length });

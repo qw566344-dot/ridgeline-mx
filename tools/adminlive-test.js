@@ -76,6 +76,10 @@ await A.post('admin/ban', { name: 'Cheater', on: false }, owner.token);
 const back = await C.post('login', { name: 'Cheater', password: 'cheatpw1' });
 const newAcc = await E.post('register', { name: 'Cheater4', password: 'cheatpw1' });
 check('unban frees the account and its devices', !!back.token && !!newAcc.token);
+const cFlag = await browser(dev('c'), '10.0.0.2', true).post('login', { name: 'Cheater', password: 'cheatpw1' });
+check('unban also frees their browser that kept the "banned" note (and tells it to drop it)', !!cFlag.token && cFlag.clearBan === true);
+const sFlag = await flagged.post('register', { name: 'Sneaky', password: 'sneakypw' });
+check('an unrelated browser with the "banned" note is still refused', sFlag.banned);
 
 srv.kill();
 const bad = results.filter((x) => !x).length;

@@ -40,6 +40,7 @@ function deviceId() {
   return id;
 }
 const bannedHere = () => LS.get('mx.banned', false) || /(?:^|; )mxb=1/.test(document.cookie);
+function unmarkBanned() { LS.set('mx.banned', false); try { document.cookie = 'mxb=; max-age=0; path=/; SameSite=Lax'; } catch { /* ignore */ } }
 function markBanned() { LS.set('mx.banned', true); try { document.cookie = `mxb=1; max-age=${60 * 60 * 24 * 3650}; path=/; SameSite=Lax`; } catch { /* ignore */ } }
 
 function freshProfile(name) {
@@ -192,6 +193,7 @@ export class Account {
       body: body ? JSON.stringify(body) : undefined,
     });
     let r = await res.json();
+    if (r && r.clearBan) { unmarkBanned(); this.bannedShown = false; }
     // the server was wiped while you were playing: put the account back and try again
     if (r && r.error === 'Please log in again' && path !== 'revive' && !this.reviving && this.mode === 'online') {
       this.reviving = true;
