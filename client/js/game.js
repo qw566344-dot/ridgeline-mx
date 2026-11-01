@@ -243,10 +243,25 @@ export class Game {
       this.phase = 'go';
       this.scenery.dropGate(true);
     }
+    this.scenery.forceUpdate(this.R.camera);
+    await this.warmShaders();
     this.state = 'running';
     this.ui.hideLoading();
     this.ui.showHud(this);
-    this.scenery.forceUpdate(this.R.camera);
+  }
+
+  // compile every shader the session can use before it starts (hidden things too: dust, far-away
+  // copies, the finish fireworks...). Otherwise the first time each one shows up the game froze
+  // for a moment while the graphics driver compiled it - the main cause of hitches mid-race.
+  async warmShaders() {
+    const R = this.R, sc = R.scene, hidden = [];
+    sc.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+    try {
+      const r = R.renderer;
+      if (r.compileAsync) await Promise.race([r.compileAsync(sc, R.camera), new Promise((ok) => setTimeout(ok, 5000))]);
+      else r.compile(sc, R.camera);
+    } catch (e) { console.warn('shader warm-up', e); }
+    for (const o of hidden) o.visible = false;
   }
 
   // ------------------------------------------------------------------ frame
@@ -660,6 +675,7 @@ export class Game {
         r.vis.root.quaternion.copy(quat);
         this.groundScaled(r, quat, v.cfg.rideHeight);
         r.vis.camDist = this.R.camera.position.distanceTo(pos);
+        if (r.rider) r.rider.setDetail(r.vis.camDist);
         r.vis.update({ lean: v.lean, steer: v.steerAngle, hand: v.steerHand, wheels: v.wheels });
         crashed = v.crashed;
         if (dt > 0) this.effects.vehicle(v, dt, r.key);
@@ -670,6 +686,7 @@ export class Game {
         r.vis.root.quaternion.copy(st.quat);
         this.groundScaled(r, st.quat, getVehicle(r.vehicleId).rideHeight);
         r.vis.camDist = this.R.camera.position.distanceTo(st.pos);
+        if (r.rider) r.rider.setDetail(r.vis.camDist);
         r.vis.update(st.visual);
         crashed = st.crashed;
         others.push({ key: r.key, pos: r.vis.root.position, rpm: st.rpm, thr: st.thr, crashed, kind: getVehicle(r.vehicleId).audio.kind });
@@ -693,7 +710,7 @@ export class Game {
       } : { pos: focus.vis.root.position, quat: focus.vis.root.quaternion, vel: focus.remote.state.vel, speed: focus.remote.state.vel.length(), grounded: true, trackS: 0 };
       let head = null;
       if (this.cam.mode === 2 && focus.rider.attached) {
-        head = focus.rider.j.head.clone().add(_v.set(0, 0.15, 0.12)).applyMatrix4(focus.vis.model.matrixWorld);
+        head = (this._head || (this._head = new THREE.Vector3())).copy(focus.rider.j.head).add(_v.set(0, 0.15, 0.12)).applyMatrix4(focus.vis.model.matrixWorld);
       }
       if (dt > 0) this.cam.update(dt, target, this.world, head);
       focus.vis.root.visible = true;

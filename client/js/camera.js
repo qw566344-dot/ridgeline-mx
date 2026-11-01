@@ -14,6 +14,7 @@ export const CAMERA_MODES = ['Chase', 'Close Chase', 'Helmet', 'Trackside'];
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion();
 const _e = new THREE.Vector3(), _f = new THREE.Vector3(), _u = new THREE.Vector3(), _m = new THREE.Matrix4(), _qi = new THREE.Quaternion();
+const _w = new THREE.Vector3(), _h = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _l = new THREE.Vector3(); // scratch (no garbage per frame)
 
 export class CameraRig {
   constructor(camera) {
@@ -59,7 +60,7 @@ export class CameraRig {
     const fwd = _v.set(0, 0, 1).applyQuaternion(target.quat);
     const vel = _v2.copy(target.vel);
     vel.y *= 0.25;
-    const want = spd > 3 ? vel.normalize().lerp(fwd, 0.35) : fwd.clone();
+    const want = spd > 3 ? vel.normalize().lerp(fwd, 0.35) : _w.copy(fwd);
     want.y = Math.max(-0.5, Math.min(0.5, want.y));
     want.normalize();
     const turnRate = (target.grounded ? 3.2 : 1.4) * this.sensitivity;
@@ -87,21 +88,21 @@ export class CameraRig {
       const close = mode === 'Close Chase';
       const dist = (close ? 3.6 : 5.6) + Math.min(close ? 1.0 : 2.2, spd * (close ? 0.04 : 0.08)) + this.airPull * fx * (close ? 0.8 : 1.4);
       const height = (close ? 1.45 : 2.2) + Math.min(0.6, spd * 0.02);
-      const h = this.heading.clone();
+      const h = _h.copy(this.heading);
       // mouse orbit
       h.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.orbitYaw);
-      const desired = target.pos.clone().addScaledVector(h, -dist);
+      const desired = _d.copy(target.pos).addScaledVector(h, -dist);
       desired.y = target.pos.y + height + this.orbitPitch * 3 - h.y * dist * 0.5;
       // never inside the ground (check along the line to the bike too)
       for (let i = 0; i <= 4; i++) {
-        const p = target.pos.clone().lerp(desired, i / 4);
+        const p = _p.copy(target.pos).lerp(desired, i / 4);
         const gy = heightAt(world, p.x, p.z) + 0.6 + (i / 4) * 0.6;
         if (desired.y < gy) desired.y = gy;
       }
       const follow = this.snapNext ? 1 : Math.min(1, dt * (target.grounded ? 9 : 5) * this.sensitivity);
       this.pos.lerp(desired, follow);
       // vertical: softer so landings don't jerk the view
-      const look = target.pos.clone().addScaledVector(h, close ? 3 : 5 + spd * 0.15);
+      const look = _l.copy(target.pos).addScaledVector(h, close ? 3 : 5 + spd * 0.15);
       look.y = target.pos.y + (close ? 0.75 : 0.9);
       this.look.lerp(look, this.snapNext ? 1 : Math.min(1, dt * 10));
       cam.position.copy(this.pos);
@@ -112,7 +113,7 @@ export class CameraRig {
       // first person from the rider's eyes. The head bounces with the riding animation, so the
       // eye point is smoothed in the vehicle's own frame (bumps still come through, the jitter
       // does not), and the view direction is smoothed too so jumps and whoops don't whip it around.
-      const eye = riderHead ? riderHead.clone() : target.pos.clone().add(_v2.set(0, 0.9, 0));
+      const eye = riderHead ? _p.copy(riderHead) : _p.copy(target.pos).add(_v2.set(0, 0.9, 0));
       _qi.copy(target.quat).invert();
       _e.copy(eye).sub(target.pos).applyQuaternion(_qi);               // eye in the vehicle's frame
       // a little behind the head so the bars and your arms come into view (in a car: the wheel and your hands)
@@ -150,7 +151,7 @@ export class CameraRig {
       this.tvTimer -= dt;
       cam.position.copy(this.tvPoint);
       cam.up.set(0, 1, 0);
-      this.look.lerp(target.pos.clone().add(_v2.set(0, 0.6, 0)), this.snapNext ? 1 : Math.min(1, dt * 8));
+      this.look.lerp(_l.copy(target.pos).add(_v2.set(0, 0.6, 0)), this.snapNext ? 1 : Math.min(1, dt * 8));
       cam.lookAt(this.look);
       const d = this.tvPoint.distanceTo(target.pos);
       fovTarget = Math.max(14, Math.min(60, 1400 / Math.max(10, d)));

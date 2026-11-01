@@ -48,6 +48,10 @@ const UP_TEXT = {
 };
 const STATS = [['speed', 'Top speed'], ['accel', 'Acceleration'], ['handling', 'Handling'], ['stability', 'Stability'], ['suspension', 'Suspension']];
 
+// HUD text: only touch the page when it actually changes (every write makes the browser redo its layout)
+const setHtml = (el, v) => { if (el && el._h !== v) { el._h = v; el.innerHTML = v; } };
+const setText = (el, v) => { if (el && el._t !== v) { el._t = v; el.textContent = v; } };
+
 export class UI {
   constructor(settings) {
     this.settings = settings;
@@ -1024,7 +1028,7 @@ export class UI {
     $('hud-standings').hidden = !ranked;
     $('hud-board').hidden = !ranked;
     $('hud-center').textContent = '';
-    $('hud-trick').textContent = '';
+    setText($('hud-trick'), '');
     $('trick-pop').innerHTML = '';
     $('name-tags').innerHTML = ''; this.nameTagEls = new Map();
     $('toasts').innerHTML = '';
@@ -1042,7 +1046,7 @@ export class UI {
   updateHud(game, dt) {
     const S = this.settings;
     $('hud-fps').hidden = !S.get('showFps');
-    if (S.get('showFps')) $('hud-fps').textContent = `${Math.round(game.fps || 0)} FPS`;
+    if (S.get('showFps')) setText($('hud-fps'), `${Math.round(game.fps || 0)} FPS`);
     if ($('hud').hidden) return;
     const p = game.player;
     if (!p || !p.veh) return;
@@ -1055,7 +1059,7 @@ export class UI {
     // what you are doing in the air right now
     const tr = v.controller && v.controller.trick;
     const wr = v.controller && v.controller.wheelieUp ? v.controller.wheelieRun || 0 : 0;
-    $('hud-trick').textContent = !v.grounded && tr ? liveTrick(tr) : wr > 0.6 ? `WHEELIE ${wr.toFixed(1)} s` : '';
+    setText($('hud-trick'), !v.grounded && tr ? liveTrick(tr) : wr > 0.6 ? `WHEELIE ${wr.toFixed(1)} s` : '');
     const c = $('hud-center');
     if (game.phase === 'countdown') {
       const n = Math.ceil(game.countdown - 1);
@@ -1073,40 +1077,40 @@ export class UI {
     const best = S.bestLap(game.trackId, p.vehicleId);
     if (mode === 'freeride') {
       const sec = game.world.T.sections.find((x) => v.trackS >= x.s0 && v.trackS < x.s1);
-      $('hud-lap').textContent = 'FREE RIDE';
-      $('hud-time').textContent = sec ? sec.name : '';
-      $('hud-sub').innerHTML = `Lap ${L.laps}${L.lastLap ? ' &bull; last ' + fmtTime(L.lastLap) : ''}${game.trickScore ? `<br>Tricks ${game.trickScore.toLocaleString()} pts` : ''}`;
+      setText($('hud-lap'), 'FREE RIDE');
+      setText($('hud-time'), sec ? sec.name : '');
+      setHtml($('hud-sub'), `Lap ${L.laps}${L.lastLap ? ' &bull; last ' + fmtTime(L.lastLap) : ''}${game.trickScore ? `<br>Tricks ${game.trickScore.toLocaleString()} pts` : ''}`);
     } else if (mode === 'freestyle') {
       const F = game.fs;
       const left = F.limit ? Math.max(0, F.limit - (game.phase === 'go' ? now : 0)) : null;
-      $('hud-lap').textContent = 'FREESTYLE';
-      $('hud-time').textContent = (game.trickScore || 0).toLocaleString() + ' pts';
-      $('hud-sub').innerHTML = `${left != null ? `Time left <b>${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</b>` : 'No time limit'}${game.combo > 1 ? `<br>Combo x${game.combo}` : ''}<br>Best ${(F.best || 0).toLocaleString()}`;
+      setText($('hud-lap'), 'FREESTYLE');
+      setText($('hud-time'), (game.trickScore || 0).toLocaleString() + ' pts');
+      setHtml($('hud-sub'), `${left != null ? `Time left <b>${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</b>` : 'No time limit'}${game.combo > 1 ? `<br>Combo x${game.combo}` : ''}<br>Best ${(F.best || 0).toLocaleString()}`);
     } else if (mode === 'practice') {
       const P = game.practice;
-      $('hud-lap').textContent = 'PRACTICE: ' + P.sec.name.toUpperCase();
-      $('hud-time').textContent = P.timing !== null ? fmtTime(now - P.timing) : P.last !== null ? fmtTime(P.last) : '0:00.000';
-      $('hud-sub').innerHTML = `Best ${fmtTime(P.best)} &bull; Y retry`;
+      setText($('hud-lap'), 'PRACTICE: ' + P.sec.name.toUpperCase());
+      setText($('hud-time'), P.timing !== null ? fmtTime(now - P.timing) : P.last !== null ? fmtTime(P.last) : '0:00.000');
+      setHtml($('hud-sub'), `Best ${fmtTime(P.best)} &bull; Y retry`);
     } else {
       const total = mode === 'race' ? game.laps : null;
       const cur = Math.min(L.laps + 1, total || 99);
-      $('hud-lap').textContent = mode === 'race' ? `LAP ${cur}/${total}` : L.lapStart === null ? 'OUT LAP' : `LAP ${L.laps + 1}`;
+      setText($('hud-lap'), mode === 'race' ? `LAP ${cur}/${total}` : L.lapStart === null ? 'OUT LAP' : `LAP ${L.laps + 1}`);
       const t = L.currentLapTime(now);
-      $('hud-time').textContent = mode === 'race' ? fmtTime(game.phase === 'countdown' ? 0 : now) : fmtTime(t || 0);
-      $('hud-sub').innerHTML = `Lap ${fmtTime(t)}<br>Last ${fmtTime(L.lastLap)}<br>Best ${fmtTime(L.bestLap)}${mode === 'timetrial' ? '<br>Record ' + fmtTime(best) : ''}`;
+      setText($('hud-time'), mode === 'race' ? fmtTime(game.phase === 'countdown' ? 0 : now) : fmtTime(t || 0));
+      setHtml($('hud-sub'), `Lap ${fmtTime(t)}<br>Last ${fmtTime(L.lastLap)}<br>Best ${fmtTime(L.bestLap)}${mode === 'timetrial' ? '<br>Record ' + fmtTime(best) : ''}`);
     }
     if (!$('hud-pos').hidden) {
       const st = game.net && game.net.standings ? game.net.orderedRiders(game) : game.standings();
       const me = st.indexOf(p) + 1;
-      $('hud-pos').innerHTML = `P${me}<small>/${st.length}</small>`;
+      setHtml($('hud-pos'), `P${me}<small>/${st.length}</small>`);
       const score = (r) => (mode === 'freestyle' && game.net ? ' ' + ((game.net.standings || []).find((x) => x.id === r.id) || {}).score || '' : '');
-      $('hud-standings').innerHTML = st.slice(0, 8).map((r, i) => `<li class="${r === p ? 'me' : ''}">${i + 1}. ${escapeHtml(r.name)}${r.finished ? ' &#127937;' : ''}${score(r)}</li>`).join('');
+      setHtml($('hud-standings'), st.slice(0, 8).map((r, i) => `<li class="${r === p ? 'me' : ''}">${i + 1}. ${escapeHtml(r.name)}${r.finished ? ' &#127937;' : ''}${score(r)}</li>`).join(''));
     }
     const net = $('hud-net');
     if (game.net && game.net.connected !== undefined) {
       net.hidden = false;
       const ping = game.net.ping;
-      net.innerHTML = `<span>Party ${game.net.code || ''}</span><span class="ping ${pingCls(ping)}">${game.net.connected ? (ping != null ? ping + ' ms' : 'online') : 'reconnecting...'}</span>`;
+      setHtml(net, `<span>Party ${game.net.code || ''}</span><span class="ping ${pingCls(ping)}">${game.net.connected ? (ping != null ? ping + ' ms' : 'online') : 'reconnecting...'}</span>`);
     } else net.hidden = true;
   }
 

@@ -6,6 +6,12 @@ import { mergeGeometries } from '../../vendor/addons/utils/BufferGeometryUtils.j
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 
+// segment scale: low-detail copies (far riders, shadows) are built from the same parts with fewer segments
+let SEG = 1;
+export function segScale(k) { SEG = k; }
+export function segs(n, min) { return sg(n, min); }
+const sg = (n, min) => Math.max(min, Math.round(n * SEG));
+
 export function colorize(geo, color) {
   const c = new THREE.Color(color);
   const n = geo.attributes.position.count;
@@ -38,7 +44,8 @@ export function box(w, h, d, color, pos, rot, bevel = 0) {
 
 // a box with rounded edges (looks much less "blocky" than a BoxGeometry)
 export function roundBox(w, h, d, r, seg = 2) {
-  const g = new THREE.BoxGeometry(w, h, d, 4, 4, 4);
+  const n = SEG < 1 ? 2 : 4;
+  const g = new THREE.BoxGeometry(w, h, d, n, n, n);
   const p = g.attributes.position;
   const hx = w / 2 - r, hy = h / 2 - r, hz = d / 2 - r;
   const v = new THREE.Vector3();
@@ -54,7 +61,7 @@ export function roundBox(w, h, d, r, seg = 2) {
 }
 
 export function cyl(rTop, rBot, h, color, pos, rot, seg = 10) {
-  return place(colorize(clean(new THREE.CylinderGeometry(rTop, rBot, h, seg, 1)), color), pos, rot);
+  return place(colorize(clean(new THREE.CylinderGeometry(rTop, rBot, h, sg(seg, 6), 1)), color), pos, rot);
 }
 
 // cylinder from point a to point b
@@ -62,7 +69,7 @@ export function tube(a, b, r, color, seg = 8, r2 = r) {
   const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
   const d = new THREE.Vector3().subVectors(B, A);
   const len = d.length();
-  const g = clean(new THREE.CylinderGeometry(r2, r, len, seg, 1));
+  const g = clean(new THREE.CylinderGeometry(r2, r, len, sg(seg, 5), 1));
   colorize(g, color);
   _q.setFromUnitVectors(UP, d.normalize());
   _m.compose(A.add(B).multiplyScalar(0.5), _q, _s.set(1, 1, 1));
@@ -71,7 +78,7 @@ export function tube(a, b, r, color, seg = 8, r2 = r) {
 }
 
 export function sphere(r, color, pos, scale = [1, 1, 1], ws = 12, hs = 8) {
-  const g = clean(new THREE.SphereGeometry(r, ws, hs));
+  const g = clean(new THREE.SphereGeometry(r, sg(ws, 6), sg(hs, 4)));
   return place(colorize(g, color), pos, [0, 0, 0], scale);
 }
 
@@ -80,13 +87,13 @@ export function cone(r, h, color, pos, seg = 8, rot) {
 }
 
 export function torus(r, t, color, pos, rot, rs = 8, ts = 24, arc = Math.PI * 2) {
-  return place(colorize(clean(new THREE.TorusGeometry(r, t, rs, ts, arc)), color), pos, rot);
+  return place(colorize(clean(new THREE.TorusGeometry(r, t, sg(rs, 4), sg(ts, 8), arc)), color), pos, rot);
 }
 
 // tube along a smooth path of points
 export function pipe(points, r, color, seg = 24, radial = 8) {
   const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)));
-  return colorize(clean(new THREE.TubeGeometry(curve, seg, r, radial, false)), color);
+  return colorize(clean(new THREE.TubeGeometry(curve, sg(seg, 6), r, sg(radial, 4), false)), color);
 }
 
 // extruded flat shape (side panels, plates)

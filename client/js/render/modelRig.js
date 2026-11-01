@@ -17,13 +17,15 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../../vendor/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from '../../vendor/addons/libs/meshopt_decoder.module.js';
 import { MeshoptSimplifier } from '../../vendor/addons/libs/meshopt_simplifier.module.js';
-import { mergeGeometries } from '../../vendor/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices, toCreasedNormals } from '../../vendor/addons/utils/BufferGeometryUtils.js';
 import { MODELS } from '/shared/vehicles.js';
 
 const templates = new Map(); // model key -> template
 const loMap = new WeakMap();  // full-detail geometry -> simplified geometry
+const midMap = new WeakMap(); // full-detail geometry -> lightly simplified geometry (middle distance)
 const paintCache = new Map();
-const LOD_DIST = 45;          // metres: beyond this the simplified meshes are used
+const LOD_DIST = 22;          // metres: beyond this the simplified meshes are used (a bike there is ~80 px tall)
+const MID_DIST = 8;           // metres: beyond this the lightly simplified ones
 
 const V = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 
@@ -231,25 +233,115 @@ function mergeGroup(group) {
     mesh.name = 'merged_' + (mat.name || 'mat');
     mesh.castShadow = true; mesh.receiveShadow = true;
     group.add(mesh);
-    loMap.set(geo, simplify(geo));
+    loMap.set(geo, simplifyWeld(geo, 0.045));
+    midMap.set(geo, simplifyWeld(geo, 0.014)); // looks the same from a few bike lengths away
   }
 }
 
-function simplify(geo) {
+// far-away copies by vertex clustering: every corner snaps to a grid cell (cell metres) and
+// triangles that collapse are dropped. Unlike edge collapsing this also melts away the many small
+// separate parts (spokes, bolts, cables) these models are made of, which meshopt could not touch
+// (and the models are mostly flat-shaded, so their triangles share no corners to collapse)
+function simplifyWeld(geo, cell) {
+  if (!geo.index || geo.index.count < 600) return geo;
+  const pos = geo.attributes.position, idx = geo.index.array, uv = geo.attributes.uv;
+  const rep = new Int32Array(pos.count), cells = new Map();
+  const sum = [], cnt = [];
+  for (let v = 0; v < pos.count; v++) {
+    const x = pos.getX(v), y = pos.getY(v), z = pos.getZ(v);
+    const key = Math.floor(x / cell) + ',' + Math.floor(y / cell) + ',' + Math.floor(z / cell);
+    let r = cells.get(key);
+    if (r === undefined) { r = cnt.length; cells.set(key, r); sum.push(0, 0, 0); cnt.push(0); }
+    rep[v] = r; sum[r * 3] += x; sum[r * 3 + 1] += y; sum[r * 3 + 2] += z; cnt[r]++;
+  }
+  const out = [], seen = new Set(), firstV = new Int32Array(cnt.length).fill(-1);
+  for (let v = 0; v < pos.count; v++) if (firstV[rep[v]] < 0) firstV[rep[v]] = v;
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = rep[idx[t]], b = rep[idx[t + 1]], c = rep[idx[t + 2]];
+    if (a === b || b === c || a === c) continue;
+    // the same triangle (same corners, same winding) only once
+    const k = a < b && a < c ? a + ',' + b + ',' + c : b < c ? b + ',' + c + ',' + a : c + ',' + a + ',' + b;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(a, b, c);
+  }
+  if (out.length > idx.length * 0.85) return geo;
+  const P = new Float32Array(cnt.length * 3);
+  for (let r = 0; r < cnt.length; r++) { P[r * 3] = sum[r * 3] / cnt[r]; P[r * 3 + 1] = sum[r * 3 + 1] / cnt[r]; P[r * 3 + 2] = sum[r * 3 + 2] / cnt[r]; }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(P, 3));
+  if (uv) { const U = new Float32Array(cnt.length * 2); for (let r = 0; r < cnt.length; r++) { U[r * 2] = uv.getX(firstV[r]); U[r * 2 + 1] = uv.getY(firstV[r]); } g.setAttribute('uv', new THREE.BufferAttribute(U, 2)); }
+  g.setIndex(out);
+  const res = toCreasedNormals(g, Math.PI / 5);
+  res.boundingSphere = geo.boundingSphere;
+  return res;
+}
+
+export function simplify(geo, keep = 0.2, lockBorder = false, err = 0.02) {
+  if (!geo.index) return geo;
   const idx = geo.index.array;
   if (idx.length < 600) return geo;
   const pos = geo.attributes.position.array;
-  const target = Math.max(60, Math.floor((idx.length / 3) * 0.2) * 3);
+  const target = Math.max(60, Math.floor((idx.length / 3) * keep) * 3);
   try {
-    const [out] = MeshoptSimplifier.simplify(new Uint32Array(idx), pos, 3, target, 0.02, ['LockBorder']);
+    const [out] = MeshoptSimplifier.simplify(new Uint32Array(idx), pos, 3, target, err, lockBorder ? ['LockBorder'] : []); // locking borders kept nearly everything on models with UV seams
     if (!out || out.length < 3) return geo;
     const lo = new THREE.BufferGeometry();
-    lo.setAttribute('position', geo.attributes.position);
-    lo.setAttribute('normal', geo.attributes.normal);
+    for (const [k, at] of Object.entries(geo.attributes)) lo.setAttribute(k, at); // same vertices (uv, skin weights...), fewer triangles
     lo.setIndex(new THREE.BufferAttribute(out, 1));
     lo.boundingSphere = geo.boundingSphere;
     return lo;
   } catch { return geo; }
+}
+
+// SHADOW-ONLY stand-ins: a cheap low-detail copy casts the shadow and the detailed mesh casts none.
+// It is skipped in the normal pass (it draws nothing there: its draw range is zeroed just before)
+// and drawn into the shadow map, which renders it without that hook. In a race, half the
+// triangles were vehicles and riders drawn a second time, in full detail, into the shadow map.
+const proxyMat = new THREE.MeshBasicMaterial();
+function hideInMainPass(o) {
+  o.onBeforeRender = (r, sc, cam, geo) => { geo.drawRange.count = 0; };
+  o.onAfterRender = (r, sc, cam, geo) => { geo.drawRange.count = Infinity; };
+}
+export function shadowProxy(mesh, geo) {
+  mesh.castShadow = false;
+  // its own geometry object (sharing the buffers), so zeroing its draw range touches nothing else
+  const g = new THREE.BufferGeometry();
+  for (const [k, at] of Object.entries(geo.attributes)) g.setAttribute(k, at);
+  g.setIndex(geo.index); g.boundingSphere = geo.boundingSphere;
+  const p = mesh.isSkinnedMesh ? new THREE.SkinnedMesh(g, proxyMat) : new THREE.Mesh(g, proxyMat);
+  if (mesh.isSkinnedMesh) { p.bind(mesh.skeleton, mesh.bindMatrix); p.frustumCulled = false; }
+  p.name = 'shadow_proxy';
+  p.castShadow = true; p.receiveShadow = false;
+  hideInMainPass(p);
+  return p;
+}
+// one merged, simplified copy of a whole vehicle at rest (wheels spinning or the bars turning make
+// no visible difference to a shadow): one shadow draw instead of ~25 detailed ones
+function shadowGeometry(root) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), m = new THREE.Matrix4();
+  const parts = [];
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', o.geometry.attributes.position.clone());
+    if (o.geometry.index) g.setIndex(o.geometry.index.clone());
+    g.applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld));
+    parts.push(g);
+  });
+  if (!parts.length) return null;
+  return shadowSimplify(mergeGeometries(parts, false), 0.1);
+}
+// position-only copy, welded (UV / normal seams split vertices) and simplified hard: shadows are soft blobs
+export function shadowSimplify(geo, keep = 0.1) {
+  let g = new THREE.BufferGeometry();
+  g.setAttribute('position', geo.attributes.position);
+  if (geo.index) g.setIndex(geo.index);
+  g = mergeVertices(g, 1e-4);
+  const lo = simplify(g, keep, false, 0.05);
+  lo.computeBoundingSphere();
+  return lo;
 }
 
 function buildTemplate(key, scene) {
@@ -338,7 +430,7 @@ function buildTemplate(key, scene) {
   let draws = 0, tris = 0;
   root.traverse((o) => { if (o.isMesh) { draws++; tris += o.geometry.index.count / 3; } });
   meta.draws = draws; meta.tris = tris | 0;
-  return { root, meta, M };
+  return { root, meta, M, shadowGeo: shadowGeometry(root) };
 }
 
 // ---------------------------------------------------------------- instances
@@ -529,10 +621,18 @@ export function createModelInstance(key, scheme) {
     if (scheme && scheme.native) { /* stock paint on a model with its own colours: leave them */ }
     else if (T.M.paint.includes(n)) o.material = paintMaterial(o.material, scheme, 'body', key);
     else if (T.M.accent.includes(n)) o.material = paintMaterial(o.material, scheme, 'accent', key);
-    meshes.push({ mesh: o, hi: o.geometry, lo: loMap.get(o.geometry) || o.geometry });
+    meshes.push({ mesh: o, hi: o.geometry, mid: midMap.get(o.geometry) || o.geometry, lo: loMap.get(o.geometry) || o.geometry });
   });
+  // the shadow comes from one merged low-detail copy (see shadowProxy)
+  if (T.shadowGeo) {
+    for (const m of meshes) m.mesh.castShadow = false;
+    const sp = new THREE.Mesh(T.shadowGeo, proxyMat);
+    sp.name = 'shadow_proxy'; sp.castShadow = true; sp.receiveShadow = false;
+    hideInMainPass(sp);
+    root.add(sp);
+  }
   const get = (n) => root.getObjectByName(n);
-  const inst = { key, root, meta: T.meta, M: T.M, meshes, lod: false, groups: {} };
+  const inst = { key, root, meta: T.meta, M: T.M, meshes, lod: 0, groups: {} };
   root.traverse((o) => { if (o.name && o.name.startsWith('rig_')) inst.groups[o.name] = o; });
   inst.rest = {};
   for (const [n, g] of Object.entries(inst.groups)) inst.rest[n] = { p: g.position.clone(), q: g.quaternion.clone() };
@@ -549,10 +649,12 @@ export const wheelTurn = (state) => (state.hand != null ? state.hand * 2.3 : Mat
 export function updateModelInstance(inst, state, cfg, camDist = 0) {
   const G = inst.groups, R = inst.rest, meta = inst.meta;
   // level of detail
-  const lod = camDist > LOD_DIST;
-  if (lod !== inst.lod) {
+  // (a little hysteresis so a rider right at the edge doesn't flick between levels)
+  const cur = inst.lod | 0, h = 1.5;
+  const lod = camDist > LOD_DIST + (cur === 2 ? -h : h) ? 2 : camDist > MID_DIST + (cur >= 1 ? -h : h) ? 1 : 0;
+  if (lod !== cur) {
     inst.lod = lod;
-    for (const m of inst.meshes) { m.mesh.geometry = lod ? m.lo : m.hi; m.mesh.castShadow = !lod; }
+    for (const m of inst.meshes) m.mesh.geometry = lod === 2 ? m.lo : lod === 1 ? m.mid : m.hi;
   }
   const W = cfg.wheels;
   const dy = (i) => {

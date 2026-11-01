@@ -53,7 +53,9 @@ void main() {
 export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    // MSAA on a sharp screen (phones, retina laptops) multiplies an already big pixel count for edges
+    // you can barely see there: only plain screens get it
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: (window.devicePixelRatio || 1) < 1.5, powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
@@ -145,6 +147,7 @@ export class Renderer {
     const r = this.renderer;
     this.resScale = q.resolution;
     r.shadowMap.enabled = q.shadows !== 'off';
+    r.shadowMap.type = q.shadows === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; // soft filtering costs ~3x per pixel
     const size = q.shadows === 'high' ? 2048 : 1024;
     if (this.sun.shadow.mapSize.x !== size) {
       this.sun.shadow.mapSize.set(size, size);
@@ -159,8 +162,13 @@ export class Renderer {
     this.scene.fog.far = q.viewDistance;
     this.camera.far = Math.max(q.viewDistance * 1.2, 800) + 1500;
     this.camera.updateProjectionMatrix();
-    // materials compiled for shadows need an update when the toggle changes
-    this.scene.traverse((o) => { if (o.material && o.material.needsUpdate !== undefined) o.material.needsUpdate = true; });
+    // materials compiled for shadows need an update when shadows go on / off or change filter -
+    // and ONLY then (recompiling every shader froze the game when auto quality lowered the resolution)
+    const shadowKey = r.shadowMap.enabled + ':' + r.shadowMap.type;
+    if (shadowKey !== this.shadowKey) {
+      if (this.shadowKey !== undefined) this.scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });
+      this.shadowKey = shadowKey;
+    }
     this.resize();
   }
 

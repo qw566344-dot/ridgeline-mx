@@ -11,14 +11,50 @@
 //   - on a crash the rider comes off and tumbles to a stop (ragdoll-lite)
 // =====================================================================
 import * as THREE from 'three';
-import { box, cyl, sphere, torus, merge, colorize, clean, place, roundBox } from './geo.js';
+import { box, cyl, sphere, torus, merge, colorize, clean, place, roundBox, segScale, segs } from './geo.js';
 import { heightAt } from '/shared/terrain.js';
-import { helmetModel, helmetMaterial, SKIN_GLSL, skinUniforms, patterned } from './modelRig.js';
+import { helmetModel, helmetMaterial, SKIN_GLSL, skinUniforms, patterned, simplify, shadowProxy, shadowSimplify } from './modelRig.js';
 
 const B = { root: 0, pelvis: 1, torso: 2, head: 3, uaL: 4, faL: 5, hL: 6, uaR: 7, faR: 8, hR: 9, thL: 10, shL: 11, ftL: 12, thR: 13, shR: 14, ftR: 15 };
 const BONES = 16;
 const LEN = { ua: 0.29, fa: 0.27, th: 0.44, sh: 0.43, torso: 0.52 };
-const geoCache = new Map();
+const geoCache = new Map(), loBody = new Map();
+// far away riders use simplified copies (and every rider's shadow comes from one, see shadowProxy)
+const loCache = new WeakMap();
+const shCache = new WeakMap();
+const shadowOf = (geo) => { if (!shCache.has(geo)) shCache.set(geo, shadowSimplify(geo, 0.08)); return shCache.get(geo); };
+const midCache = new WeakMap();
+function midOf(geo) {
+  if (!midCache.has(geo)) {
+    // simplify each material group on its own (helmet shell / lens) so the groups survive
+    let m = geo;
+    if (geo.index && geo.groups.length) {
+      const idx = [], groups = [];
+      for (const g of geo.groups) {
+        const sub = new THREE.BufferGeometry();
+        sub.setAttribute('position', geo.attributes.position);
+        sub.setIndex(new THREE.BufferAttribute(geo.index.array.slice(g.start, g.start + Math.min(g.count, geo.index.count - g.start)), 1));
+        const lo = simplify(sub, 0.4, false, 0.012);
+        groups.push([idx.length, lo.index.count, g.materialIndex]);
+        for (let i = 0; i < lo.index.count; i++) idx.push(lo.index.array[i]);
+      }
+      m = new THREE.BufferGeometry();
+      for (const [k, at] of Object.entries(geo.attributes)) m.setAttribute(k, at);
+      m.setIndex(idx); m.boundingSphere = geo.boundingSphere;
+      for (const [st, n, mi] of groups) m.addGroup(st, n, mi);
+    } else m = simplify(geo, 0.4, false, 0.012);
+    midCache.set(geo, m);
+  }
+  return midCache.get(geo);
+}
+function loOf(geo, keep) {
+  if (!loCache.has(geo)) {
+    const lo = simplify(geo, keep); // the built-in rider has no index: weld identical vertices first
+    if (lo !== geo && geo.groups.length) lo.addGroup(0, lo.index.count, 0); // one material for the far copy
+    loCache.set(geo, lo);
+  }
+  return loCache.get(geo);
+}
 let riderMat = null;
 const patternMats = new Map();
 
@@ -47,7 +83,7 @@ function riderMaterial(scheme) {
 }
 
 function capsule(r, len, color) {
-  const g = clean(new THREE.CapsuleGeometry(r, Math.max(0.001, len - 2 * r), 6, 14));
+  const g = clean(new THREE.CapsuleGeometry(r, Math.max(0.001, len - 2 * r), segs(6, 3), segs(14, 6)));
   g.translate(0, len / 2, 0);
   return colorize(g, color);
 }
@@ -179,12 +215,19 @@ export class Rider {
     this.mesh.receiveShadow = true;
     this.group.add(this.mesh);
     this.mesh.bind(new THREE.Skeleton(this.bones, this.bones.map(() => new THREE.Matrix4())), new THREE.Matrix4());
+    this.hiGeo = this.mesh.geometry;
+    if (!loBody.has(key)) { segScale(0.4); try { loBody.set(key, partGeo(scheme)); } finally { segScale(1); } } // same parts, fewer segments
+    this.loGeo = loBody.get(key);
+    this.group.add(shadowProxy(this.mesh, this.loGeo));  // skinned: keeps its skin weights, so the welded copy can't be used
     const hm = helmetModel();
     if (hm) {
       this.helmet = new THREE.Mesh(hm.geometry, helmetMaterial(scheme));
-      this.helmet.castShadow = true;
+      this.helmetHi = hm.geometry; this.helmetLo = loOf(hm.geometry, 0.15); this.helmetMid = midOf(hm.geometry);
       this.bones[B.head].add(this.helmet);
+      this.helmetShadow = shadowProxy(this.helmet, shadowOf(hm.geometry));
+      this.bones[B.head].add(this.helmetShadow);
     }
+    this.lv = 0;
     // pose state
     this.j = {
       pelvis: V(), neck: V(), head: V(), shL: V(), shR: V(), elL: V(), elR: V(), haL: V(), haR: V(),
@@ -540,6 +583,17 @@ export class Rider {
     b[B.head].scale.setScalar(fp); b[B.torso].scale.setScalar(fp);
     b[B.uaL].scale.setScalar(fp); b[B.uaR].scale.setScalar(fp); // no upper arms poking into view: forearms and gloves only
     if (this.helmet) this.helmet.visible = !this.firstPerson;
+    if (this.helmetShadow) this.helmetShadow.visible = !this.firstPerson;
+  }
+
+  // level of detail: simplified body and helmet as the rider gets further from the camera
+  setDetail(dist) {
+    const lv = dist > 16 ? 2 : dist > 7 ? 1 : 0;
+    if (lv === this.lv) return;
+    this.lv = lv;
+    this.mesh.geometry = lv === 2 ? this.loGeo : this.hiGeo;
+    if (this.helmet) this.helmet.geometry = lv === 2 ? this.helmetLo : lv === 1 ? this.helmetMid : this.helmetHi;
+    if (this.numberMesh) this.numberMesh.visible = lv < 2;
   }
 
   // race number printed on the back of the jersey (a small curved decal on the torso bone)

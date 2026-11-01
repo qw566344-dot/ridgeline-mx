@@ -195,7 +195,7 @@ export class TerrainMesh {
         const x0 = start + ci * CHUNK, z0 = start + cj * CHUNK;
         const lod = new THREE.LOD();
         lod.position.set(x0 + CHUNK / 2, 0, z0 + CHUNK / 2);
-        const levels = [[1, 0], [2, 150], [4, 300]];
+        const levels = [[1, 0], [2, 95], [4, 210]]; // full detail only near the camera: 2 m / 4 m grid further out looks the same
         for (const [sp, dist] of levels) {
           const m = new THREE.Mesh(this.buildChunkGeometry(x0, z0, sp), this.material);
           m.receiveShadow = true;
