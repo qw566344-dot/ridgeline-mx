@@ -17,6 +17,7 @@ const DEFAULTS = {
   ...PRESETS.medium,
   autoQuality: true,
   showFps: false,
+  maxFps: 60,             // frame cap while riding (0 = no cap); menus and pause run at 30 to save battery
   cameraSensitivity: 1.0,
   mouseSensitivity: 1.0,
   cameraShake: 1.0,

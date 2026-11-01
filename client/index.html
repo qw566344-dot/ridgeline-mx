@@ -213,12 +213,10 @@
     <!-- LEADERBOARD -->
     <section id="leaderboard" class="screen overlay" hidden>
       <div class="sheet wide">
-        <div class="sheet-head"><h2>Leaderboard</h2><span id="lb-note" class="hint">Top 10 riders on this server</span></div>
-        <div class="lb-cols">
-          <div class="lb-col"><h4>Coins</h4><ol id="lb-coins" class="lb-list"></ol></div>
-          <div class="lb-col"><h4>Level</h4><ol id="lb-levels" class="lb-list"></ol></div>
-          <div class="lb-col"><h4>Wins</h4><ol id="lb-wins" class="lb-list"></ol></div>
-        </div>
+        <div class="sheet-head"><h2>Leaderboard</h2><span id="lb-note" class="hint">Trick points - land tricks in any mode to climb</span></div>
+        <div id="lb-podium" class="lb-podium"></div>
+        <ol id="lb-tricks" class="lb-list"></ol>
+        <div id="lb-mine" class="lb-mine" hidden></div>
         <div class="row end"><button data-go="home">Back</button></div>
       </div>
     </section>
@@ -324,6 +322,7 @@
     </section>
 
     <!-- HUD -->
+    <div id="goggles" hidden></div>
     <div id="hud" hidden>
       <div id="name-tags"></div>
       <div id="hud-trick" class="hud-trick"></div>

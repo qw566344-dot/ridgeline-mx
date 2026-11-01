@@ -27,6 +27,10 @@ try {
   let r = await api(null, 'register', { name: 'SaveTester', password: pw });
   ok(r.token && r.profile.coins === 500, 'register gives a token and 500 coins');
   for (const bad of ['FuckBoy', 'big_ass', 'S_h_i_t']) { const b = await api(null, 'register', { name: bad, password: pw }); ok(/not allowed/.test(b.error || ''), `bad name "${bad}" is refused`); }
+  { const tk = (await api(null, 'register', { name: 'TrickTester', password: pw })).token; await api(tk, 'reward', { kind: 'trick', amount: 100 });
+    const lb = await (await fetch(BASE + '/api/leaderboard')).json(), tg = await (await fetch(BASE + '/api/tags')).json();
+    ok(lb.tricks && lb.tricks[0].name === 'TrickTester' && lb.tricks[0].v === 500, 'trick coins add trick points to the leaderboard');
+    ok(tg.tags.TrickTester && tg.tags.TrickTester[0][0] === '#1 LEADERBOARD', 'the top rider gets the #1 LEADERBOARD tag'); }
   r = await api(null, 'register', { name: 'savetester', password: pw });
   ok(r.error && /taken/.test(r.error), 'same name (any case) is refused');
   r = await api(null, 'register', { name: 'ab', password: pw });

@@ -340,6 +340,13 @@ export class Accounts {
     if (!Number.isFinite(amount) || amount <= 0) return { error: 'Bad amount' };
     amount = Math.min(MAX_REWARD, amount);
     const now = Date.now();
+    // trick points for the leaderboard: the game pays 1 coin per 5 trick points, so the points
+    // come from the coins asked for (before the coin cap), with their own cap per 10 min
+    if (kind === 'trick') {
+      u.tpLog = (u.tpLog || []).filter((r) => now - r[0] < 600_000);
+      const tp = Math.min(amount * 5, Math.max(0, 250_000 - u.tpLog.reduce((a, r) => a + r[1], 0)));
+      if (tp > 0) { u.stats.tp = (u.stats.tp || 0) + tp; u.tpLog.push([now, tp]); this.lbCache = null; this.save(); }
+    }
     u.rewardLog = (u.rewardLog || []).filter((r) => now - r[0] < 600_000);
     const recent = u.rewardLog.reduce((a, r) => a + r[1], 0);
     const allowed = Math.max(0, 6000 - recent);
@@ -358,13 +365,12 @@ export class Accounts {
     return { profile: this.profile(u), added: amount + bonus };
   }
 
-  // top 10 riders by coins, level and wins (cached for 30 s)
+  // top 25 riders by trick points (cached for 30 s)
   leaderboard() {
     const now = Date.now();
     if (this.lbCache && now - this.lbCache.at < 30_000) return this.lbCache.data;
     const users = Object.values(this.db.users).filter((u) => !u.banned);
-    const top = (f) => users.map((u) => ({ name: u.name, v: f(u) })).filter((r) => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 10);
-    const data = { coins: top((u) => u.coins || 0), levels: top((u) => levelInfo(u.xp || 0).level), wins: top((u) => (u.stats && u.stats.wins) || 0) };
+    const data = { tricks: users.map((u) => ({ name: u.name, v: (u.stats && u.stats.tp) || 0, level: levelInfo(u.xp || 0).level })).filter((r) => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 25) };
     this.lbCache = { at: now, data };
     return data;
   }

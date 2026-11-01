@@ -5,10 +5,12 @@ export const STAFF_TAGS = { lmkk: [['DEV', 'dev'], ['CREATOR', 'creator']] };
 const BASE_TAGS = { ...STAFF_TAGS };
 // riders an admin gave the DEV tag (from the server's /api/tags); the built-in ones stay
 export function setStaffTags(map) {
-  for (const k of Object.keys(STAFF_TAGS)) if (!BASE_TAGS[k]) delete STAFF_TAGS[k];
+  for (const k of Object.keys(STAFF_TAGS)) { if (BASE_TAGS[k]) STAFF_TAGS[k] = BASE_TAGS[k]; else delete STAFF_TAGS[k]; }
   for (const [name, list] of Object.entries(map || {})) {
     const k = name.toLowerCase();
-    if (!BASE_TAGS[k]) STAFF_TAGS[k] = list.map((l) => [l, l.toLowerCase()]);
+    // a tag is "DEV" (class dev) or [label, class] (the leaderboard's #1 / #2 / #3)
+    const tags = list.map((l) => (Array.isArray(l) ? l : [l, l.toLowerCase()])).filter(([, c]) => !BASE_TAGS[k] || !BASE_TAGS[k].some((b) => b[1] === c));
+    STAFF_TAGS[k] = [...(BASE_TAGS[k] || []), ...tags];
   }
 }
 export function staffTags(name) {

@@ -50,6 +50,7 @@ export class AtvController {
     const v = this.v, c = v.cfg, inp = v.input;
     const rate = c.steer.rate * (Math.sign(inp.steer) !== Math.sign(this.steer) ? 1.5 : 1);
     this.steer += clamp(inp.steer - this.steer, -rate * dt, rate * dt);
+    v.steerHand = this.steer; // how far the bars / steering wheel are turned (-1..1), for the 3D model
     const spd = Math.abs(v.fwdSpeed);
     const t = clamp(spd / c.steer.highSpeed, 0, 1);
     const maxDeg = c.steer.maxLow + (c.steer.maxHigh - c.steer.maxLow) * Math.sqrt(t);

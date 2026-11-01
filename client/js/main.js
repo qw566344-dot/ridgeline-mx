@@ -201,6 +201,11 @@ window.addEventListener('keydown', () => audio.unlock());
 let last = performance.now();
 const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits']);
 function loop(now) {
+  // frame cap: riding at the chosen limit (60 by default, so 120/144 Hz screens don't burn
+  // twice the battery), menus and the pause screen at 30. Hidden tabs get no frames at all.
+  const riding = game.state === 'running' && !game.paused && !STAGE_SCREENS.has(ui.screen);
+  const cap = riding ? Number(settings.get('maxFps')) || 0 : 30;
+  if (cap && now - last < 1000 / cap - 2) { requestAnimationFrame(loop); return; }
   const raw = (now - last) / 1000;
   const dt = Math.min(0.1, raw);
   game.rawDt = raw;

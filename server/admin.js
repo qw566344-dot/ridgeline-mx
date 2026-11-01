@@ -170,6 +170,8 @@ export class Admin {
   tags() {
     const out = {};
     for (const k of this.A.db.devs || []) { const t = this.A.db.users[k]; if (t) out[t.name] = ['DEV']; }
+    // the top 3 on the trick points leaderboard
+    (this.A.leaderboard().tricks || []).slice(0, 3).forEach((r, i) => { (out[r.name] = out[r.name] || []).push([`#${i + 1} LEADERBOARD`, `top${i + 1}`]); });
     return out;
   }
 

@@ -166,7 +166,9 @@ export class Renderer {
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2) * (this.resScale || 1);
+    // sharp screens (phones, retina laptops) draw at most 1.5x (2x on High): 3x would be 4x the pixels for little gain
+    const maxDpr = this.quality && this.quality.detail === 'high' ? 2 : 1.5;
+    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr) * (this.resScale || 1);
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(w, h, false);
     this.canvas.style.width = w + 'px';

@@ -651,16 +651,21 @@ export class UI {
 
   // ------------------------------------------------------------- leaderboard
   async renderLeaderboard() {
-    const ids = { coins: 'lb-coins', levels: 'lb-levels', wins: 'lb-wins' };
-    for (const id of Object.values(ids)) $(id).innerHTML = '<li class="hint">Loading...</li>';
+    $('lb-podium').innerHTML = ''; $('lb-tricks').innerHTML = '<li class="hint">Loading...</li>'; $('lb-mine').hidden = true;
     let d = null;
     try { d = await (await fetch(serverBase() + '/api/leaderboard')).json(); } catch { /* offline */ }
-    const me = this.account && this.account.profile ? this.account.profile.name.toLowerCase() : '';
-    for (const [k, id] of Object.entries(ids)) {
-      const rows = d && d[k];
-      $(id).innerHTML = !rows ? '<li class="hint">Can\'t reach the server</li>' : !rows.length ? '<li class="hint">Nobody yet</li>'
-        : rows.map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 1}</span><b>${escapeHtml(r.name)}</b><span class="v">${k === 'levels' ? 'Lv ' : ''}${r.v.toLocaleString()}</span></li>`).join('');
-    }
+    const P = this.account && this.account.profile, me = P ? P.name.toLowerCase() : '';
+    const rows = d && d.tricks;
+    if (!rows) { $('lb-tricks').innerHTML = '<li class="hint">Can\'t reach the server</li>'; return; }
+    if (!rows.length) { $('lb-tricks').innerHTML = '<li class="hint">Nobody yet - land some tricks!</li>'; return; }
+    const pts = (v) => `${v.toLocaleString()} <small>trick points</small>`;
+    const lv = (r) => (r.level ? `<em class="lv">Lv ${r.level}</em>` : '');
+    // the top 3 on a podium: 2nd, 1st, 3rd
+    $('lb-podium').innerHTML = [1, 0, 2].filter((i) => rows[i]).map((i) => { const r = rows[i]; return `<div class="pod p${i + 1}${r.name.toLowerCase() === me ? ' me' : ''}">
+      <div class="medal">${i + 1}</div><b>${escapeHtml(r.name)}</b>${lv(r)}<span class="v">${pts(r.v)}</span><span class="stag top${i + 1}">#${i + 1} LEADERBOARD</span><div class="step"></div></div>`; }).join('');
+    $('lb-tricks').innerHTML = rows.slice(3).map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 4}</span><b>${escapeHtml(r.name)} ${lv(r)}</b><span class="v">${pts(r.v)}</span></li>`).join('');
+    const mine = rows.findIndex((r) => r.name.toLowerCase() === me);
+    if (P && this.account.mode === 'online' && mine < 0) { $('lb-mine').hidden = false; $('lb-mine').innerHTML = `You: <b>${pts((P.stats && P.stats.tp) || 0)}</b> - the top 25 are shown`; }
   }
 
   // levels on other riders' name tags (asked for in one batch, remembered)
@@ -940,6 +945,7 @@ export class UI {
       seg('detail', 'Scenery detail', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']]);
       seg('tireMarks', 'Tyre marks', [[true, 'On'], [false, 'Off']]);
       seg('autoQuality', 'Auto-lower effects when FPS drops', [[true, 'On'], [false, 'Off']]);
+      seg('maxFps', 'Frame rate limit (lower saves battery)', [[30, '30'], [60, '60'], [120, '120'], [0, 'No limit']]);
       seg('showFps', 'FPS counter', [[true, 'On'], [false, 'Off']]);
       rows.push(`<div class="setting"><span>Display</span><div class="seg"><button id="fullscreen-btn">${document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen'}</button></div><span class="val"></span></div>`);
     } else if (this.settingsTab === 'Audio') {

@@ -542,7 +542,10 @@ export function createModelInstance(key, scheme) {
 
 const _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _y = new THREE.Vector3(0, 1, 0);
 
-// state: { steer, wheels: [{comp, spin, steer}] }  cfg: prepared vehicle config
+// how far a steering wheel is turned (radians): from the driver's input when we have it (the road
+// wheels barely turn at speed, so following them left the wheel almost still), else from the road wheels
+export const wheelTurn = (state) => (state.hand != null ? state.hand * 2.3 : Math.max(-2.3, Math.min(2.3, (state.steer || 0) * 10)));
+// state: { steer, hand, wheels: [{comp, spin, steer}] }  cfg: prepared vehicle config
 export function updateModelInstance(inst, state, cfg, camDist = 0) {
   const G = inst.groups, R = inst.rest, meta = inst.meta;
   // level of detail
@@ -587,7 +590,7 @@ export function updateModelInstance(inst, state, cfg, camDist = 0) {
   }
   if (G.rig_wheel) {
     const ax = _a.fromArray(meta.wheelAxis);
-    G.rig_wheel.quaternion.copy(R.rig_wheel.q).premultiply(_q.setFromAxisAngle(ax, -state.steer * 5));
+    G.rig_wheel.quaternion.copy(R.rig_wheel.q).premultiply(_q.setFromAxisAngle(ax, -wheelTurn(state)));
   }
   const ids = ['fl', 'fr', 'rl', 'rr'];
   for (let i = 0; i < W.length; i++) {

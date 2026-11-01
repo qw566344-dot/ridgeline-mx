@@ -117,13 +117,13 @@ export class CameraRig {
       _e.copy(eye).sub(target.pos).applyQuaternion(_qi);               // eye in the vehicle's frame
       // a little behind the head so the bars and your arms come into view (in a car: the wheel and your hands)
       const car = target.type === 'car';
-      _e.y += car ? 0.05 : 0.12; _e.z -= car ? 0.14 : 0.42;
+      _e.y += car ? 0.05 : 0.2; _e.z -= car ? 0.14 : 0.55;
       if (!this.eyeLocal || this.snapNext) this.eyeLocal = _e.clone();
       this.eyeLocal.lerp(_e, Math.min(1, dt * 7));
       cam.position.copy(this.eyeLocal).applyQuaternion(target.quat).add(target.pos);
       // look where the bike points, eased toward where it is going; level-ish horizon
       _f.copy(fwd).lerp(this.heading, 0.25);
-      _f.y = Math.max(-0.45, Math.min(0.35, _f.y)) - (car ? 0.08 : 0.2); // only a slight tilt down: bars / wheel and arms at the bottom edge
+      _f.y = Math.max(-0.45, Math.min(0.35, _f.y)) - (car ? 0.08 : 0.3); // only a slight tilt down: bars / wheel and arms at the bottom edge
       _f.normalize();
       _f.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.orbitYaw);    // mouse look
       _u.set(0, 1, 0);

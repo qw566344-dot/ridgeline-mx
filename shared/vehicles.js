@@ -299,7 +299,7 @@ const UTV_BASE = {
   ],
   damping: { bump: 0.42, rebound: 0.7 },
   progressive: 5,
-  steer: { maxLow: 34, maxHigh: 14, highSpeed: 30, rate: 4.0, airYaw: 0.5, latAcc: 11.0 }, // quicker, more lock at speed: they used to plough straight on
+  steer: { maxLow: 38, maxHigh: 18, highSpeed: 34, rate: 5.2, airYaw: 0.5, latAcc: 13.0 }, // quicker, more lock at speed: they used to plough straight on
   antiRoll: 30000,
   rollCentre: 0.55,
   riderLean: 0, riderBalance: 6000, axleScrub: 0,
@@ -410,7 +410,7 @@ export const VEHICLES = [
     desc: 'Race-built Viper: bigger turbo, stiffer shocks and a quicker steering rack. The fastest thing on four small wheels.',
     stats: { speed: 10, accel: 9, handling: 8, stability: 9, suspension: 10 },
     damping: { bump: 0.48, rebound: 0.78 },
-    steer: { ...UTV_BASE.steer, rate: 4.4, latAcc: 11.6 },
+    steer: { ...UTV_BASE.steer, rate: 5.6, latAcc: 13.6 },
     mass: 780,
     engine: engine({ idle: 1200, redline: 8200, torque: [[1000, 130], [3000, 200], [5500, 235], [7000, 225], [8500, 190]], gearSpeeds: [12.5, 21, 29.5, 37], engineBrake: 30, shiftTime: 0.07, reverseSpeed: 5 }),
   },
@@ -468,7 +468,7 @@ export const VEHICLES = [
     mass: 720, rideHeight: 0.7,
     wheels: UTV_BASE.wheels.map((w) => ({ ...w, z: Math.sign(w.z) * 1.043, x: Math.sign(w.x) * (w.z > 0 ? 0.852 : 0.925), r: 0.37, travel: w.travel * 1.1 })),
     halfLength: 1.7, halfWidth: 0.85,
-    steer: { ...UTV_BASE.steer, rate: 4.2 },
+    steer: { ...UTV_BASE.steer, rate: 5.4 },
     engine: engine({ idle: 1200, redline: 8500, torque: [[1000, 115], [3000, 170], [5500, 200], [7000, 192], [8500, 160]], gearSpeeds: [12, 20, 28, 36], engineBrake: 28, shiftTime: 0.08, reverseSpeed: 5 }),
   },
   // ---- more quads ----
@@ -582,7 +582,7 @@ export const VEHICLES = [
     mass: 735, rideHeight: 0.7,
     wheels: UTV_BASE.wheels.map((w) => ({ ...w, z: Math.sign(w.z) * 1.043, x: Math.sign(w.x) * (w.z > 0 ? 0.852 : 0.925), r: 0.37, travel: w.travel * 1.1 })),
     halfLength: 1.7, halfWidth: 0.85,
-    steer: { ...UTV_BASE.steer, rate: 4.2 },
+    steer: { ...UTV_BASE.steer, rate: 5.4 },
     engine: engine({ idle: 1200, redline: 8800, torque: [[1000, 128], [3000, 196], [5500, 232], [7000, 224], [8800, 186]], gearSpeeds: [12.5, 21, 29.5, 38], engineBrake: 28, shiftTime: 0.07, reverseSpeed: 5 }),
   },
   {
@@ -593,7 +593,7 @@ export const VEHICLES = [
     mass: 728, rideHeight: 0.736,
     wheels: UTV_BASE.wheels.map((w) => ({ ...w, z: Math.sign(w.z) * 1.043, x: Math.sign(w.x) * (w.z > 0 ? 0.852 : 0.925), r: 0.406, travel: w.travel * 1.18 })),
     halfLength: 1.7, halfWidth: 0.85,
-    steer: { ...UTV_BASE.steer, rate: 4.2 },
+    steer: { ...UTV_BASE.steer, rate: 5.4, latAcc: 13.4 },
     engine: engine({ idle: 1200, redline: 8800, torque: [[1000, 128], [3000, 196], [5500, 232], [7000, 224], [8800, 186]], gearSpeeds: [12.5, 21, 29.5, 38], engineBrake: 28, shiftTime: 0.07, reverseSpeed: 5 }),
   },
 ];

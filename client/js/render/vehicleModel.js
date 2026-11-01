@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../../vendor/addons/loaders/GLTFLoader.js';
 import { box, cyl, tube, sphere, torus, pipe, plate, merge, colorize, clean, place, roundBox } from './geo.js';
 import { prepareVehicle, MODELS } from '/shared/vehicles.js';
-import { createModelInstance, updateModelInstance } from './modelRig.js';
+import { createModelInstance, updateModelInstance, wheelTurn } from './modelRig.js';
 
 const DEG = Math.PI / 180;
 const loader = new GLTFLoader();
@@ -613,8 +613,8 @@ export class VehicleVisual {
       return this.mv([_v.x + pivotP[0], _v.y + pivotP[1], _v.z + pivotP[2]], out);
     };
     if (M.steerWheel) {
-      turn(at.gripL, M.wheelCentre, meta.wheelAxis, -state.steer * 5, A.gripL);
-      turn(at.gripR, M.wheelCentre, meta.wheelAxis, -state.steer * 5, A.gripR);
+      turn(at.gripL, M.wheelCentre, meta.wheelAxis, -wheelTurn(state), A.gripL);
+      turn(at.gripR, M.wheelCentre, meta.wheelAxis, -wheelTurn(state), A.gripR);
     } else {
       const up = [-meta.axisDown[0], -meta.axisDown[1], -meta.axisDown[2]];
       const k = this.isBike ? 1 : 0.9;

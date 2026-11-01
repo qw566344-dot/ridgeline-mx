@@ -378,6 +378,7 @@ export class Account {
     if (kind === 'lap') this.profile.stats.laps++;
     if (kind === 'win') this.profile.stats.wins++;
     if (kind === 'trick') this.profile.stats.tricks++;
+    if (kind === 'trick') this.profile.stats.tp = (this.profile.stats.tp || 0) + amount * 5;
     this.profile.xp = (this.profile.xp || 0) + xpFor(kind, amount);
     this.profile.level = levelInfo(this.profile.xp).level;
     this.persistLocal();

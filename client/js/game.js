@@ -660,7 +660,7 @@ export class Game {
         r.vis.root.quaternion.copy(quat);
         this.groundScaled(r, quat, v.cfg.rideHeight);
         r.vis.camDist = this.R.camera.position.distanceTo(pos);
-        r.vis.update({ lean: v.lean, steer: v.steerAngle, wheels: v.wheels });
+        r.vis.update({ lean: v.lean, steer: v.steerAngle, hand: v.steerHand, wheels: v.wheels });
         crashed = v.crashed;
         if (dt > 0) this.effects.vehicle(v, dt, r.key);
         if (!r.isPlayer) others.push({ key: r.key, pos: r.vis.root.position, engine: v.engine, input: v.input, crashed, kind: v.cfg.audio.kind });
@@ -700,6 +700,9 @@ export class Game {
       // helmet cam: our own rider loses the head and chest (see rider.js), keeps the arms
       focus.rider.mesh.visible = true;
       for (const r of this.riders) if (r.rider) r.rider.firstPerson = this.cam.mode === 2 && r === focus && r.rider.attached;
+      // goggles: a soft frame around the first-person view on bikes and quads (not in cars)
+      const gog = this.cam.mode === 2 && focus.rider.attached && v && v.cfg.type !== 'car';
+      if (gog !== this.gogOn) { this.gogOn = gog; const g = document.getElementById('goggles'); if (g) g.hidden = !gog; }
       this.R.followShadow(focus.vis.root.position);
       if (this.player === focus && v) this.audio.player(v, cam);
     }
@@ -719,7 +722,8 @@ export class Game {
     const avg = this.fpsSamples.reduce((a, b) => a + b, 0) / this.fpsSamples.length;
     this.fps = 1 / avg;
     if (!this.settings.get('autoQuality') || this.mode === 'menu') return;
-    if (this.fps < 42) this.lowFpsTime += dt; else this.lowFpsTime = Math.max(0, this.lowFpsTime - dt);
+    const capped = Number(this.settings.get('maxFps')) || 0;
+    if (this.fps < (capped ? Math.min(42, capped * 0.8) : 42)) this.lowFpsTime += dt; else this.lowFpsTime = Math.max(0, this.lowFpsTime - dt);
     if (this.lowFpsTime > 4) {
       this.lowFpsTime = 0;
       const q = this.settings;
@@ -733,6 +737,7 @@ export class Game {
   // back to the lobby: nothing on track, the menus draw the 3D stage instead
   stop() {
     this.state = 'idle';
+    if (this.gogOn) { this.gogOn = false; const g = document.getElementById('goggles'); if (g) g.hidden = true; }
     this.mode = 'none';
     this.paused = false;
     this.net = null;
