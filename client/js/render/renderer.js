@@ -14,6 +14,7 @@ void main() {
 }`;
 const SKY_FRAG = `
 uniform vec3 uTop; uniform vec3 uHorizon; uniform vec3 uGround; uniform vec3 uSunDir; uniform vec3 uSunColor;
+uniform float uClouds; uniform float uStars; uniform float uSunSize;
 varying vec3 vDir;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vnoise(vec2 p) {
@@ -31,9 +32,15 @@ void main() {
   vec3 col = mix(uHorizon, uTop, pow(clamp(h, 0.0, 1.0), 0.55));
   col = mix(col, uGround, smoothstep(0.0, -0.08, h));
   float s = max(dot(d, uSunDir), 0.0);
-  col += uSunColor * (pow(s, 900.0) * 6.0 + pow(s, 12.0) * 0.25 + pow(s, 3.0) * 0.08);
+  col += uSunColor * (pow(s, 900.0) * 6.0 + pow(s, 12.0) * 0.25 + pow(s, 3.0) * 0.08) * uSunSize;
+  // stars (night and moon tracks)
+  if (uStars > 0.0 && h > 0.0) {
+    vec2 sp = d.xz / (h + 0.35) * 260.0;
+    float st = step(0.9965, hash(floor(sp))) * (0.5 + 0.5 * hash(floor(sp) + 7.0));
+    col += vec3(st) * uStars * smoothstep(0.0, 0.15, h);
+  }
   // soft fair-weather clouds
-  if (h > 0.01) {
+  if (h > 0.01 && uClouds > 0.0) {
     vec2 cp = d.xz / (h + 0.12) * 1.4;
     float c = smoothstep(0.52, 0.8, clouds(cp + vec2(3.0, 7.0)));
     c *= smoothstep(0.01, 0.12, h);
@@ -83,6 +90,7 @@ export class Renderer {
       uTop: { value: new THREE.Color(0x3b78c8) }, uHorizon: { value: new THREE.Color(0xcfe0ec) },
       uGround: { value: new THREE.Color(0x8c9a8a) }, uSunDir: { value: this.sunDir },
       uSunColor: { value: new THREE.Color(0xfff2d8) },
+      uClouds: { value: 1 }, uStars: { value: 0 }, uSunSize: { value: 1 },
     };
     const mat = new THREE.ShaderMaterial({
       vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, uniforms: this.skyUniforms,
@@ -111,11 +119,23 @@ export class Renderer {
   }
 
   // per-track sky / fog colours (tracks.js "look")
+  // venue tracks also change the light: 'arena' (indoors under the roof lights),
+  // 'night' (floodlit stadium), 'moon' (black starry sky, hard low sun)
   setLook(look = {}) {
     const fog = new THREE.Color(look.fog ?? 0xc9d8e4);
     this.scene.fog.color.copy(fog);
     this.skyUniforms.uTop.value.set(look.skyTop ?? 0x3b78c8);
     this.skyUniforms.uHorizon.value.set(look.horizon ?? 0xcfe0ec);
+    const V = {
+      arena: { sun: [0.12, 1, 0.08], sunI: 2.2, sunC: 0xfff4e0, hemi: [0xfff1dd, 0x4a4036, 1.15], clouds: 0, stars: 0, sunSize: 0, exposure: 1.05 },
+      night: { sun: [-0.25, 0.9, 0.3], sunI: 1.15, sunC: 0xe8f0ff, hemi: [0x5d6f9a, 0x2a2420, 0.42], clouds: 0, stars: 1, sunSize: 0, exposure: 0.9 },
+      moon: { sun: [-0.7, 0.42, -0.5], sunI: 3.0, sunC: 0xffffff, hemi: [0x5a6070, 0x2a2a2e, 0.35], clouds: 0, stars: 1, sunSize: 1, exposure: 1.0 },
+    }[look.venue] || { sun: [-0.45, 0.72, -0.35], sunI: 3.1, sunC: 0xfff1dc, hemi: [0xcfe3ff, 0x6b5a40, 0.85], clouds: 1, stars: 0, sunSize: 1, exposure: 1.0 };
+    this.sunDir.set(...V.sun).normalize();
+    this.sun.intensity = V.sunI; this.sun.color.set(V.sunC);
+    this.hemi.color.set(V.hemi[0]); this.hemi.groundColor.set(V.hemi[1]); this.hemi.intensity = V.hemi[2];
+    this.skyUniforms.uClouds.value = V.clouds; this.skyUniforms.uStars.value = V.stars; this.skyUniforms.uSunSize.value = V.sunSize;
+    this.renderer.toneMappingExposure = V.exposure;
     if (this.envMap) this.envMap.dispose();
     this.envMap = this.makeEnvironment();
   }

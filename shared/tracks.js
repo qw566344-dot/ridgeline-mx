@@ -1,4 +1,5 @@
 import { MORE_TRACKS } from './tracksMore.js';
+import { VENUE_TRACKS } from './tracksVenues.js';
 // =====================================================================
 //  TRACK LAYOUTS
 //  Each track is drawn "turtle style": a list of straights and turns.
@@ -402,7 +403,7 @@ TRACKS.push(...[
   },
 ]);
 
-TRACKS.push(...MORE_TRACKS);
+TRACKS.push(...MORE_TRACKS, ...VENUE_TRACKS);
 
 export const DIFFICULTY_ORDER = ['Easy', 'Medium', 'Hard', 'Expert', 'Freestyle'];
 TRACKS.sort((a, b) => DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty));

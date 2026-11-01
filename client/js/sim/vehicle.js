@@ -138,7 +138,7 @@ export class Vehicle {
     this.left.set(1, 0, 0).applyQuaternion(this.quat);
     this.fwdSpeed = this.vel.dot(this.fwd);
     this.speed = this.vel.length();
-    this.force.set(0, -cfg.mass * GRAVITY * (this.gravityScale || 1), 0);
+    this.force.set(0, -cfg.mass * GRAVITY * (this.gravityScale || (this.world.def && this.world.def.gravity) || 1), 0);
     this.torque.set(0, 0, 0);
 
     if (this.crashed) { this.input.throttle = 0; this.input.brake = 0.3; this.input.steer = 0; this.input.lean = 0; this.input.rearBrake = 0.5; }

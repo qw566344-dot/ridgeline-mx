@@ -18,6 +18,11 @@ export function makeBaseFn(def) {
       const dx = x - b.x, dz = z - b.z;
       h += b.h * Math.exp(-(dx * dx + dz * dz) / (b.r * b.r));
     }
+    // craters (moon tracks): a bowl d deep with a raised rim around it
+    for (const c of t.craters || []) {
+      const q = Math.hypot(x - c.x, z - c.z) / c.r;
+      if (q < 1.6) h += q < 1 ? -c.d * (1 - q * q) + c.d * 0.35 * q ** 6 : c.d * 0.35 * Math.exp(-((q - 1) ** 2) / 0.06);
+    }
     // surrounding hills / quarry walls
     const d = Math.pow(Math.pow(Math.abs(x), 4) + Math.pow(Math.abs(z), 4), 0.25);
     if (t.rimSharp) {

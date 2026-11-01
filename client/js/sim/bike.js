@@ -22,7 +22,7 @@ import { newTrick, scoreTricks, trackPose, wheelieAssist, trackWheelie } from '.
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 const g0 = { h: 0, nx: 0, ny: 1, nz: 0 };
-const _n = new THREE.Vector3(), _d = new THREE.Vector3(), _c = new THREE.Vector3(), _p = new THREE.Vector3();
+const _n = new THREE.Vector3(), _d = new THREE.Vector3(), _c = new THREE.Vector3(), _p = new THREE.Vector3(), _lv = new THREE.Vector3();
 const _ax = new THREE.Vector3(), _qi = new THREE.Quaternion();
 
 // add the torque that gives exactly this angular acceleration (rad/s^2) about a world axis -
@@ -208,17 +208,20 @@ export class BikeController {
       ap += -inp.throttle * A.gyro * 0.4 + inp.rearBrake * A.gyro;   // throttle lifts the nose, rear brake drops it
       const spinning = Math.abs(tr.pitch) > 1.2;
       const desiredDir = this.landingDirection(); // also measures time until we land
+      // pitch is measured and pushed around a LEVEL axis square to the heading (= left when the
+      // bike is level): with the bike laid over in a whip, the tilted side axis turned yaw into
+      // pitch, and long whips nose-dived
+      const lvl = _lv.set(fwd.z, 0, -fwd.x);
+      if (lvl.lengthSq() > 0.05 && Math.abs(tr.pitch) < 2.0) lvl.normalize(); else lvl.copy(left);
       if (Math.abs(inp.lean) < 0.1 && v.airTime > 0.08) {
         _c.crossVectors(fwd, desiredDir);
-        const e = Math.atan2(_c.dot(left), fwd.dot(desiredDir));
+        const e = Math.atan2(_c.dot(lvl), fwd.dot(desiredDir));
+        const pitchW = v.angVel.dot(lvl);
         // mid-flip and still far from wheels-down: let it keep rotating
         if (spinning && Math.abs(e) > 1.1) ap = (inp.lean * A.flipRate - pitchW) * 0.35;
         else if (v.assist.landing > 0) ap += (e * 14 - pitchW * 3) * v.assist.landing;
       }
-      // pitch around a LEVEL axis: with the bike laid over in a whip, the tilted axis would twist it sideways
-      _c.set(fwd.z, 0, -fwd.x); // level and square to the heading (= left when the bike is level)
-      if (_c.lengthSq() > 0.05 && Math.abs(tr.pitch) < 2.0) _c.normalize(); else _c.copy(left);
-      addAccel(v, _c, ap);
+      addAccel(v, lvl, ap);
       const roll = Math.asin(clamp(left.y, -1, 1)); // + = leaning right (stays 0 during a flip)
       this.airRoll = roll;
       const late = v.assist.landing > 0 ? Math.min(1, Math.max(0, (this.timeToLand - 0.15) / 0.35)) : 1;
@@ -232,13 +235,13 @@ export class BikeController {
         // sideways while the back wheel swings out (the nose points into the whip).
         // The longer you hold, the further it goes; let go and a spring brings it
         // back upright and lined up with where you are flying, ready to land.
-        const holding = Math.abs(this.steer) > 0.15;
+        const holding = Math.abs(inp.steer) > 0.15; // the key itself: the smoothed ground steering kept whipping after you let go
         this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 2.8) : Math.max(0, (this.whipAmt || 0) - dt * 9);
         // the swing spring keeps the bike lined up for the landing - but never in the middle of a flip
         // (a normal jump tips the nose down ~50 degrees - that is not a flip; pointing near vertical it is)
         const flipping = Math.abs(tr.pitch) > 2.0 || Math.abs(inp.lean) > 0.1 || Math.abs(pitchW) > 2.2;
         const swingK = flipping ? 0 : clamp((0.985 - Math.abs(fwd.y)) / 0.12, 0, 1);
-        if (holding) this.whipSide = Math.sign(this.steer);
+        if (holding) this.whipSide = Math.sign(inp.steer);
         const amt = this.whipAmt * late;
         const side = this.whipSide || 0;
         const rollT = -side * A.whip * DEG * amt;          // lay it over
@@ -249,8 +252,11 @@ export class BikeController {
         if (vx * vx + vz * vz > 4 && hx * hx + hz * hz > 0.01) yawOff = Math.atan2(vz * hx - vx * hz, vx * hx + vz * hz);
         // roll around the bike's own lengthwise axis (that keeps it pointing where it points)
         v.torque.addScaledVector(fwd, ((rollT - roll) * (holding ? 20 : 75) - rollW * (holding ? 6 : 14)) * I[2]);
-        // turn around the true vertical (not the tilted bike), so the swing never fights the roll
-        addAccel(v, _p.set(0, 1, 0), ((yawT - yawOff) * (holding ? 16 : 36) - v.angVel.y * (holding ? 7.5 : 11)) * swingK);
+        // turn around the true vertical (not the tilted bike), so the swing never fights the roll.
+        // Damp the HEADING rate only: with the nose down, rolling back out of a whip spins the
+        // bike about world-y too, and damping that stopped it ever lining back up (crooked landings)
+        const headW = v.angVel.y - rollW * fwd.y;
+        addAccel(v, _p.set(0, 1, 0), ((yawT - yawOff) * (holding ? 16 : 40) - headW * (holding ? 7.5 : 11)) * swingK);
         // scrub: whipping hard right off the lip keeps the bike low and fast
         tr.whip = Math.max(tr.whip, Math.abs(roll)); // only real whips count, not the wobble of a spin
         if (v.airTime < 0.35 && Math.abs(roll) > 25 * DEG) { tr.scrub = true; v.force.y -= c.mass * 9.81 * 0.3 * Math.min(1, Math.abs(roll) / (45 * DEG)); }
@@ -265,7 +271,7 @@ export class BikeController {
     _p.copy(v.pos); _d.copy(v.vel);
     let i = 0;
     for (; i < 60; i++) {
-      _p.addScaledVector(_d, 0.05); _d.y -= 9.81 * 0.05;
+      _p.addScaledVector(_d, 0.05); _d.y -= 9.81 * (v.gravityScale || (W.def && W.def.gravity) || 1) * 0.05;
       groundAt(W, _p.x, _p.z, g0);
       if (_p.y - v.cfg.rideHeight * 0.8 <= g0.h) break;
     }

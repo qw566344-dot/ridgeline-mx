@@ -194,6 +194,7 @@ export class Scenery {
     this.buildFences();
     this.buildStartFinish();
     this.buildPaddock();
+    this.buildVenue();
     this.buildSpectators();
     this.buildTrees();
     this.buildRocksAndBushes();
@@ -505,6 +506,168 @@ export class Scenery {
     this.disposables.push(all);
   }
 
+  // --- venue tracks (tracks look.venue): what makes each one a different place
+  //   arena: walls, a steel roof with trusses and rows of lights, grandstands
+  //   night: floodlight towers round the track
+  //   moon:  a moon base - habitat domes, modules, solar panels, a dish
+  //   yard:  a construction yard - container stacks, tower cranes, barriers, pipes
+  buildVenue() {
+    const W = this.world, T = W.T, r = this.r;
+    const venue = (W.def.look || {}).venue;
+    if (!venue) return;
+    const solid = [], lamps = [];
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (let i = 0; i < T.xs.length; i++) { x0 = Math.min(x0, T.xs[i]); x1 = Math.max(x1, T.xs[i]); z0 = Math.min(z0, T.zs[i]); z1 = Math.max(z1, T.zs[i]); }
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const y0 = heightAt(W, cx, cz);
+    // somewhere off the track for a prop of radius rad (tries random spots in a ring round the track)
+    const spot = (rad, near = 30, far = 70) => {
+      for (let t = 0; t < 200; t++) {
+        const a = r() * Math.PI * 2, d = near + r() * (far - near);
+        const x = cx + Math.cos(a) * ((x1 - x0) / 2 + d), z = cz + Math.sin(a) * ((z1 - z0) / 2 + d);
+        if (this.isFree(x, z, rad, 4)) { this.occupy(x, z, rad); return { x, z, y: heightAt(W, x, z), yaw: r() * Math.PI * 2 }; }
+      }
+      return null;
+    };
+    if (venue === 'arena') {
+      const m = 16, X0 = x0 - m, X1 = x1 + m, Z0 = z0 - m, Z1 = z1 + m, H = 20, wx = X1 - X0, wz = Z1 - Z0;
+      const fy = y0 - 2;
+      // walls: dark lower band, team-colour stripe, lighter upper wall
+      for (const [px, pz, w, d] of [[cx, Z0, wx, 1], [cx, Z1, wx, 1], [X0, cz, 1, wz], [X1, cz, 1, wz]]) {
+        solid.push(box(w, 5, d, 0x2b2f38, [px, fy + 2.5, pz]));
+        solid.push(box(w + 0.02, 1.2, d + 0.02, 0xe0663a, [px, fy + 5.6, pz]));
+        solid.push(box(w, H - 6.2, d, 0x5b6170, [px, fy + 6.2 + (H - 6.2) / 2, pz]));
+      }
+      // grandstands along the long walls: stepped rows
+      for (const side of [-1, 1]) {
+        const long = wx > wz, len = (long ? wx : wz) - 30;
+        for (let k = 0; k < 6; k++) {
+          const off = 2 + k * 1.3, hgt = 1 + k * 0.9;
+          const col = k % 2 ? 0x3d4452 : 0x4a5263;
+          if (long) solid.push(box(len, hgt, 1.3, col, [cx, fy + hgt / 2, (side > 0 ? Z1 - off : Z0 + off)]));
+          else solid.push(box(1.3, hgt, len, col, [(side > 0 ? X1 - off : X0 + off), fy + hgt / 2, cz]));
+        }
+      }
+      // roof, steel trusses and rows of lights under them
+      solid.push(box(wx + 2, 0.6, wz + 2, 0x23262d, [cx, fy + H + 0.3, cz]));
+      const along = wx > wz;
+      const n = Math.floor((along ? wx : wz) / 14);
+      for (let i = 1; i < n; i++) {
+        const t = (along ? X0 : Z0) + i * ((along ? wx : wz) / n);
+        const span = along ? wz : wx;
+        const tp = along ? [t, fy + H - 1.2, cz] : [cx, fy + H - 1.2, t];
+        solid.push(box(along ? 0.5 : span, 0.4, along ? span : 0.5, 0x8a909c, tp));
+        solid.push(box(along ? 0.5 : span, 0.4, along ? span : 0.5, 0x8a909c, [tp[0], fy + H - 2.6, tp[2]]));
+        for (let k = -3; k <= 3; k++) {
+          const q = (k / 3.5) * span * 0.45;
+          const lp = along ? [t, fy + H - 3.0, cz + q] : [cx + q, fy + H - 3.0, t];
+          solid.push(box(2.4, 0.5, 1.2, 0x30343c, [lp[0], lp[1] + 0.3, lp[2]]));
+          lamps.push(box(2.1, 0.12, 0.9, 0xfff3d6, lp));
+        }
+      }
+      // big screen over the start straight
+      const p = pointAt(T, T.finishS - 20, 0);
+      solid.push(box(14, 6, 0.8, 0x15171c, [p.x, fy + H - 7, p.z], [0, Math.atan2(p.tx, p.tz), 0]));
+      lamps.push(box(12.6, 4.8, 0.2, 0x3b82c4, [p.x, fy + H - 7, p.z], [0, Math.atan2(p.tx, p.tz), 0]));
+    }
+    if (venue === 'night') {
+      const n = 10;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        let x = cx + Math.cos(a) * ((x1 - x0) / 2 + 22), z = cz + Math.sin(a) * ((z1 - z0) / 2 + 22);
+        for (let t = 0; t < 12 && !this.isFree(x, z, 2, 3); t++) { x += Math.cos(a) * 4; z += Math.sin(a) * 4; }
+        const y = heightAt(W, x, z), yaw = Math.atan2(cx - x, cz - z);
+        const g = [cyl(0.35, 0.55, 26, 0x6b7280, [0, 13, 0], [0, 0, 0], 8), box(7, 3.2, 0.6, 0x2d3139, [0, 27, 0.2])];
+        const l = [];
+        for (let a2 = 0; a2 < 3; a2++) for (let b = 0; b < 2; b++) l.push(box(1.8, 1.1, 0.2, 0xf4f7ff, [-2.2 + a2 * 2.2, 26.4 + b * 1.3, 0.55]));
+        solid.push(place(merge(g), [x, y, z], [0, yaw, 0]));
+        lamps.push(place(merge(l), [x, y, z], [0, yaw, 0]));
+        this.occupy(x, z, 3);
+      }
+    }
+    if (venue === 'moon') {
+      for (let i = 0; i < 5; i++) {
+        const s = spot(9, 18, 50); if (!s) continue;
+        const g = [sphere(7, 0xe8eaee, [0, 0, 0], [1, 0.75, 1], 20, 10), cyl(7.2, 7.2, 0.8, 0x9aa0aa, [0, 0.4, 0], [0, 0, 0], 20), box(3, 3, 5, 0xd5d8de, [0, 1.5, 8])];
+        l0(g, s);
+        lamps.push(place(merge([box(2, 0.6, 0.1, 0x9fd8ff, [0, 2.2, 10.55]), box(14, 0.18, 0.1, 0x9fd8ff, [0, 3.6, 0], [0, 0, 0])]), [s.x, s.y, s.z], [0, s.yaw, 0]));
+      }
+      for (let i = 0; i < 6; i++) {
+        const s = spot(7, 12, 60); if (!s) continue;
+        const g = [box(10, 0.15, 5, 0x1e3a8a, [0, 3, 0], [-0.5, 0, 0]), cyl(0.15, 0.15, 3, 0x9aa0aa, [0, 1.5, 0])];
+        for (let k = -2; k <= 2; k++) g.push(box(0.06, 0.16, 5.02, 0xb8c0cc, [k * 2, 3, 0], [-0.5, 0, 0]));
+        l0(g, s);
+      }
+      for (let i = 0; i < 3; i++) {
+        const s = spot(6, 20, 60); if (!s) continue;
+        const g = [cyl(0.4, 0.6, 8, 0xc8ccd4, [0, 4, 0]), sphere(4, 0xf1f2f4, [0, 9, 0], [1, 0.35, 1], 16, 8), cyl(0.1, 0.1, 3, 0x9aa0aa, [0, 10.5, 0])];
+        l0(g, s);
+        lamps.push(place(sphere(0.3, 0xff4d4d, [0, 12, 0]), [s.x, s.y, s.z], [0, 0, 0]));
+      }
+      for (let i = 0; i < 8; i++) {
+        const s = spot(5, 10, 55); if (!s) continue;
+        l0([box(9, 3.2, 3.6, 0xdfe2e8, [0, 1.6, 0], [0, 0, 0], 0.3), box(9.1, 0.4, 3.7, 0xe0663a, [0, 2.4, 0])], s);
+      }
+    }
+    if (venue === 'yard') {
+      const cols = [0xc2410c, 0x1d4ed8, 0x15803d, 0xb91c1c, 0xca8a04, 0x6b7280, 0x0f766e, 0xf1f1ee];
+      for (let i = 0; i < 26; i++) {
+        const s = spot(8, 8, 60); if (!s) continue;
+        const stack = 1 + Math.floor(r() * 3), g = [];
+        for (let k = 0; k < stack; k++) {
+          const c = cols[Math.floor(r() * cols.length)];
+          g.push(box(12, 2.6, 2.45, c, [0, 1.3 + k * 2.6, (r() - 0.5) * 0.3]));
+          for (let q = -5; q <= 5; q++) g.push(box(0.12, 2.3, 2.5, new THREE.Color(c).multiplyScalar(0.78).getHex(), [q * 1.05, 1.3 + k * 2.6, 0]));
+        }
+        l0(g, s);
+      }
+      for (let i = 0; i < 2; i++) {
+        const s = spot(10, 25, 60); if (!s) continue;
+        const g = [], Hc = 46;
+        for (let k = 0; k < Hc / 4; k++) {
+          g.push(box(2.2, 0.25, 0.25, 0xeab308, [0, k * 4 + 2, 1]), box(2.2, 0.25, 0.25, 0xeab308, [0, k * 4 + 2, -1]));
+          g.push(box(0.25, 0.25, 2.2, 0xeab308, [1, k * 4 + 2, 0]), box(0.25, 0.25, 2.2, 0xeab308, [-1, k * 4 + 2, 0]));
+        }
+        for (const [px, pz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) g.push(box(0.3, Hc, 0.3, 0xeab308, [px, Hc / 2, pz]));
+        g.push(box(48, 1.6, 1.6, 0xeab308, [12, Hc + 1, 0]), box(4, 3, 3, 0x374151, [0, Hc + 3, 0]), box(6, 3, 3, 0x6b7280, [-9, Hc + 0.5, 0]));
+        g.push(box(0.08, 18, 0.08, 0x111111, [28, Hc - 8, 0]), box(1.4, 1, 1.4, 0xeab308, [28, Hc - 17.5, 0]));
+        l0(g, s);
+        lamps.push(place(sphere(0.35, 0xff4d4d, [0, Hc + 5, 0]), [s.x, s.y, s.z], [0, 0, 0]));
+      }
+      for (let i = 0; i < 10; i++) {
+        const s = spot(4, 6, 45); if (!s) continue;
+        const g = [];
+        for (let k = 0; k < 6; k++) g.push(cyl(0.55, 0.55, 8, 0x9ca3af, [(k % 3 - 1) * 1.15, 0.55 + Math.floor(k / 3) * 1.0, 0], [0, 0, Math.PI / 2], 10));
+        l0(g, s);
+      }
+      // concrete barriers just outside the fences
+      for (let s = 0; s < T.L; s += 9) for (const side of [-1, 1]) {
+        if (r() < 0.45) continue;
+        const p = pointAt(T, s, (this.fenceU(s, side) + 3) * side);
+        if (!this.isFree(p.x, p.z, 1.6, 0.5)) continue;
+        solid.push(place(merge([box(3.6, 0.5, 0.9, 0xb8b4ac, [0, 0.25, 0]), box(3.6, 0.6, 0.5, 0xc4c0b8, [0, 0.8, 0])]), [p.x, heightAt(W, p.x, p.z), p.z], [0, Math.atan2(p.tx, p.tz) + Math.PI / 2, 0]));
+      }
+    }
+    function l0(g, s) { solid.push(place(merge(g), [s.x, s.y - 0.1, s.z], [0, s.yaw, 0])); }
+    if (solid.length) {
+      const g = merge(solid);
+      const mesh = new THREE.Mesh(g, this.matSmooth);
+      mesh.receiveShadow = true;
+      mesh.castShadow = venue !== 'arena'; // the roof would put the whole arena in shadow
+      mesh.matrixAutoUpdate = false;
+      this.group.add(mesh);
+      this.disposables.push(g);
+    }
+    if (lamps.length) {
+      const g = merge(lamps);
+      const mat = new THREE.MeshBasicMaterial({ vertexColors: true, fog: false });
+      const mesh = new THREE.Mesh(g, mat);
+      mesh.matrixAutoUpdate = false;
+      this.group.add(mesh);
+      this.disposables.push(g, mat);
+    }
+  }
+
   // --- people standing on the hillsides by the big jumps
   buildSpectators() {
     const T = this.world.T, W = this.world, r = this.r;
@@ -619,7 +782,7 @@ export class Scenery {
     const q = this.quality;
     // tufts per 100 m^2 (mostly buried on snowy tracks)
     const lk = this.world.def.look || {};
-    const density = q.grass * (1 - (lk.snow || 0) * 0.8) * (1 - (lk.sand || 0) * 0.95);
+    const density = lk.floor ? 0 : q.grass * (1 - (lk.snow || 0) * 0.8) * (1 - (lk.sand || 0) * 0.95); // no grass on a venue floor
     this.grassRange = q.detail === 'low' ? 35 : q.detail === 'high' ? 70 : 52;
     this.grassCell = 12;
     const cap = Math.ceil(((Math.PI * this.grassRange * this.grassRange) / 100) * density * 1.3) + 50;

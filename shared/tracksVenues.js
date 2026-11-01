@@ -1,0 +1,137 @@
+// =====================================================================
+//  VENUE TRACKS: places that are not just another dirt field. Each one
+//  has look.venue, which the renderer (light, sky) and scenery (buildings)
+//  turn into its own world:
+//   arena - indoors: walls, steel roof, rows of lights, grandstands
+//   night - a floodlit stadium under the stars
+//   moon  - a moon base: grey dust, craters, black sky, low gravity
+//   yard  - a construction yard: container stacks, tower cranes, barriers
+//  look.floor is the plain ground colour off the track (no grass).
+//  gravity (moon) scales the pull for every rider on the track.
+// =====================================================================
+export const VENUE_TRACKS = [
+  {
+    id: 'dome', recommend: ['Dirt Bikes', 'Quads'],
+    name: 'Steel Dome Arenacross', difficulty: 'Hard',
+    desc: 'Indoors under the lights: a packed-dirt arenacross inside a steel dome. Tight 180s, rhythm doubles, a triple and a long whoop lane.',
+    worldSize: 300,
+    seed: 7101,
+    start: { x: -47, z: 49, heading: 0 },
+    defaultWidth: 9,
+    look: { venue: 'arena', dirt: [0.78, 0.62, 0.5], floor: [0.2, 0.2, 0.22], trees: 0, rocks: 0, fog: 0x1b1d22, skyTop: 0x101216, horizon: 0x1b1d22 },
+    terrain: { hills: 0, hillScale: 100, rim: 0, rimStart: 140, bumps: [] },
+    segments: [
+      { len: 70, w: 12, free: true, name: 'Start Straight' },
+      { turn: 180, r: 13, berm: 1 },
+      { len: 62, name: 'Rhythm Section', features: [
+        { at: 6, keep: true, type: 'double', h: 1.4, face: 5.5, gap: 4, h2: 1.2, land: 6 },
+        { at: 32, keep: true, type: 'double', h: 1.4, face: 5.5, gap: 4, h2: 1.2, land: 6 },
+      ] },
+      { turn: -180, r: 13, berm: 1 },
+      { len: 62, name: 'Triple Lane', features: [{ at: 16, type: 'triple', h: 1.6, face: 7, gap: 5.5, h2: 1.4, land: 8 }] },
+      { turn: 90, r: 13, berm: 1 },
+      { len: 22, name: 'Tunnel Corner' },
+      { turn: 90, r: 13, berm: 1 },
+      { len: 96, name: 'Whoop Lane', features: [{ at: 16, type: 'whoops', n: 13, len: 4, h: 0.55 }] },
+      { turn: 90, r: 13, berm: 1 },
+      { len: 60, free: true, name: 'Finish Straight', features: [{ at: 14, type: 'table', h: 1.5, face: 6.5, top: 5, land: 7 }] },
+      { turn: 90, r: 13, berm: 1 },
+    ],
+    gateAt: 12,
+    finishAt: 60,
+  },
+  {
+    id: 'midnight', recommend: ['Dirt Bikes', 'Quads', 'Side-by-Sides'],
+    name: 'Midnight Lights', difficulty: 'Medium',
+    desc: 'A fast, flowing night race under floodlight towers and a sky full of stars: long sweepers, lit-up tables and a triple on the back straight.',
+    worldSize: 560,
+    seed: 7202,
+    start: { x: -122, z: 111, heading: 0 },
+    defaultWidth: 12,
+    look: { venue: 'night', dirt: [0.86, 0.74, 0.62], grass: [0.36, 0.46, 0.42], trees: 0.35, pines: 0.6, rocks: 0.4, fog: 0x0d1322, skyTop: 0x050a18, horizon: 0x16213a },
+    terrain: { hills: 3, hillScale: 140, rim: 20, rimStart: 220, bumps: [] },
+    segments: [
+      { len: 130, w: 14, free: true, name: 'Start Straight' },
+      { turn: 140, r: 28, berm: 1 },
+      { len: 108, name: 'Lit Tables', features: [
+        { at: 12, type: 'table', h: 1.7, face: 7, top: 7, land: 9 },
+        { at: 55, type: 'table', h: 1.9, face: 7.5, top: 8, land: 10 },
+      ] },
+      { turn: -50, r: 34 },
+      { len: 70, name: 'Night Rollers', features: [{ at: 10, type: 'rollers', n: 4, len: 10, h: 0.9 }] },
+      { turn: 150, r: 22, berm: 1 },
+      { len: 120, free: true, name: 'Floodlight Straight', features: [{ at: 30, type: 'triple', h: 1.8, face: 7.5, gap: 6.5, h2: 1.6, land: 9 }] },
+      { turn: -40, r: 40 },
+      { len: 60, name: 'Shadow Whoops', features: [{ at: 8, type: 'whoops', n: 10, len: 4.4, h: 0.5 }] },
+      { turn: 160, r: 26, berm: 1 },
+    ],
+    gateAt: 16,
+    finishAt: 110,
+  },
+  {
+    id: 'lunar', recommend: ['Dirt Bikes', 'Quads'],
+    name: 'Lunar Base One', difficulty: 'Medium',
+    desc: 'Racing on the Moon: grey dust, craters, a black starry sky and low gravity - every jump floats. Past the habitat domes and the radio dishes.',
+    worldSize: 600,
+    seed: 7303,
+    start: { x: -85, z: 119, heading: 0 },
+    defaultWidth: 13,
+    gravity: 0.55,
+    look: { venue: 'moon', dirt: [0.72, 0.72, 0.8], floor: [0.27, 0.27, 0.29], trees: 0, rocks: 2.2, fog: 0x07080c, skyTop: 0x000000, horizon: 0x0a0b10 },
+    terrain: {
+      hills: 4, hillScale: 120, rim: 28, rimStart: 230, bumps: [],
+      craters: [
+        { x: 0, z: 190, r: 30, d: 8 }, { x: -205, z: 40, r: 24, d: 6 }, { x: 195, z: -60, r: 36, d: 10 },
+        { x: -110, z: -200, r: 22, d: 6 }, { x: 165, z: 170, r: 20, d: 5 }, { x: -195, z: -140, r: 26, d: 7 },
+      ],
+    },
+    segments: [
+      { len: 140, w: 15, free: true, name: 'Launch Straight' },
+      { turn: 90, r: 30, berm: 1 },
+      { len: 98, name: 'Moon Hops', features: [
+        { at: 10, type: 'table', h: 1.6, face: 7, top: 10, land: 12 },
+        { at: 50, type: 'rollers', n: 3, len: 11, h: 1.0 },
+      ] },
+      { turn: 90, r: 26, berm: 1 },
+      { len: 110, name: 'Crater Rim', features: [{ at: 20, type: 'step', h: 1.4, face: 6.5, gap: 6, h2: 2.2, top: 9, land: 11 }] },
+      { turn: -70, r: 34 },
+      { len: 60, name: 'Dust Whoops', features: [{ at: 8, type: 'whoops', n: 9, len: 5, h: 0.6 }] },
+      { turn: 160, r: 24, berm: 1 },
+      { len: 120, free: true, name: 'Low-G Table', features: [{ at: 30, type: 'table', h: 2.2, face: 9, top: 14, land: 14 }] },
+      { turn: 90, r: 30, berm: 1 },
+    ],
+    gateAt: 16,
+    finishAt: 120,
+  },
+  {
+    id: 'steelyard', recommend: ['Dirt Bikes', 'Quads'],
+    name: 'Steel Yard', difficulty: 'Hard',
+    desc: 'A construction yard turned race track: square corners between container stacks, step-ups, a gap under the tower crane and gravel everywhere.',
+    worldSize: 480,
+    seed: 7404,
+    start: { x: -99, z: 70, heading: 0 },
+    defaultWidth: 11,
+    look: { venue: 'yard', dirt: [0.82, 0.72, 0.62], floor: [0.34, 0.33, 0.31], trees: 0, rocks: 0.5, fog: 0xc9c4ba, skyTop: 0x5d84b5, horizon: 0xd9d2c4 },
+    terrain: { hills: 0.6, hillScale: 90, rim: 10, rimStart: 190, bumps: [] },
+    segments: [
+      { len: 110, w: 13, free: true, name: 'Start Straight' },
+      { turn: 90, r: 12, berm: 1 },
+      { len: 50, name: 'Container Row', features: [{ at: 8, type: 'double', h: 1.5, face: 6, gap: 5, h2: 1.3, land: 7 }] },
+      { turn: 90, r: 12, berm: 1 },
+      { len: 56, name: 'Crane Gap', features: [{ at: 6, type: 'step', h: 1.3, face: 6, gap: 5, h2: 2.0, top: 7, land: 8 }] },
+      { turn: -90, r: 12, berm: 1 },
+      { len: 40, name: 'Loading Bay' },
+      { turn: 90, r: 12, berm: 1 },
+      { len: 75, name: 'Rebar Whoops', features: [{ at: 10, type: 'whoops', n: 11, len: 4.2, h: 0.5 }] },
+      { turn: 90, r: 12, berm: 1 },
+      { len: 60, free: true, name: 'Scaffold Straight', features: [{ at: 12, type: 'table', h: 1.6, face: 7, top: 6, land: 8 }] },
+      { turn: -90, r: 12, berm: 1 },
+      { len: 40, name: 'Pipe Stack' },
+      { turn: 90, r: 12, berm: 1 },
+      { len: 50, free: true, name: 'Gravel Run', features: [{ at: 8, type: 'rollers', n: 3, len: 8, h: 0.8 }] },
+      { turn: 90, r: 12, berm: 1 },
+    ],
+    gateAt: 14,
+    finishAt: 95,
+  },
+];

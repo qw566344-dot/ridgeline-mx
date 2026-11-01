@@ -28,17 +28,20 @@ function terrainMaterial(renderer, look = {}) {
     sh.uniforms.uGrassTint = { value: new THREE.Vector3(...(look.grass || [1, 1, 1])) };
     sh.uniforms.uSnow = { value: look.snow || 0 };
     sh.uniforms.uSand = { value: look.sand || 0 };
+    // venue tracks (arena, moon, yard): a plain floor colour instead of grass off the track
+    sh.uniforms.uFloor = { value: new THREE.Vector4(...(look.floor || [0, 0, 0]), look.floor ? 1 : 0) };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec3 splat;\nvarying vec3 vSplat;\nvarying vec3 vWPos;')
       .replace('#include <common>', '#include <common>\nvarying float vSlope;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSplat = splat;\nvWPos = (modelMatrix * vec4(position, 1.0)).xyz;\nvSlope = 1.0 - normalize(mat3(modelMatrix) * normal).y;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D tGrass; uniform sampler2D tDirt; uniform sampler2D tRock; uniform vec3 uDirtTint; uniform vec3 uGrassTint; uniform float uSnow; uniform float uSand;\nvarying vec3 vSplat;\nvarying vec3 vWPos;\nvarying float vSlope;')
+      .replace('#include <common>', '#include <common>\nuniform sampler2D tGrass; uniform sampler2D tDirt; uniform sampler2D tRock; uniform vec3 uDirtTint; uniform vec3 uGrassTint; uniform float uSnow; uniform float uSand; uniform vec4 uFloor;\nvarying vec3 vSplat;\nvarying vec3 vWPos;\nvarying float vSlope;')
       .replace('#include <color_fragment>', `#include <color_fragment>
         vec2 wuv = vWPos.xz;
         float big = texture2D(tGrass, wuv * 0.011).g;
         vec3 grass = texture2D(tGrass, wuv * 0.17).rgb * (0.78 + big * 0.55) * uGrassTint;
         grass = mix(grass, texture2D(tGrass, wuv * 0.043).rgb, 0.35);
+        if (uFloor.w > 0.5) grass = uFloor.rgb * 0.5 * (0.82 + texture2D(tDirt, wuv * 0.09).r * 0.3 + big * 0.12);
         vec3 dirt = texture2D(tDirt, wuv * 0.21).rgb * uDirtTint;
         dirt = mix(dirt, texture2D(tDirt, wuv * 0.05).rgb, 0.3);
         dirt = mix(dirt, dirt * vec3(0.66, 0.6, 0.55), vSplat.z);
@@ -235,7 +238,9 @@ export class TerrainMesh {
       const gt = W.def.look && W.def.look.grass ? W.def.look.grass : [1, 1, 1];
       const sn = (W.def.look && W.def.look.snow) || 0, sd = (W.def.look && W.def.look.sand) || 0;
       const k = 1 - sn - sd;
-      col.push((0.33 + t * 0.2) * gt[0] * k + 0.82 * sn + 0.74 * sd, (0.45 + t * 0.12) * gt[1] * k + 0.86 * sn + 0.6 * sd, (0.27 + t * 0.2) * gt[2] * k + 0.92 * sn + 0.4 * sd);
+      const fl = W.def.look && W.def.look.floor;
+      if (fl) col.push(fl[0] * 0.55, fl[1] * 0.55, fl[2] * 0.55);
+      else col.push((0.33 + t * 0.2) * gt[0] * k + 0.82 * sn + 0.74 * sd, (0.45 + t * 0.12) * gt[1] * k + 0.86 * sn + 0.6 * sd, (0.27 + t * 0.2) * gt[2] * k + 0.92 * sn + 0.4 * sd);
     }
     for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) {
       const a = map[j * n + i], b = map[j * n + i + 1], c = map[(j + 1) * n + i], d = map[(j + 1) * n + i + 1];

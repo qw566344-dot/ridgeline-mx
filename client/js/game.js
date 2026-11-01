@@ -308,7 +308,8 @@ export class Game {
         // admin cheats (set from the admin panel; only admins can open it)
         const C = this.adminCheats();
         const ev = this.liveEvent();
-        v.noCrash = !!C.god; v.gravityScale = C.moon || ev === 'moon' ? 0.35 : 1; v.boost = C.hyper ? 18 : C.turbo || ev === 'turbo' ? 7 : 0;
+        // moon tracks have their own gravity (tracks.js gravity)
+        v.noCrash = !!C.god; v.gravityScale = C.moon || ev === 'moon' ? 0.35 : this.world.def.gravity || 1; v.boost = C.hyper ? 18 : C.turbo || ev === 'turbo' ? 7 : 0;
         // auto reset after a crash
         if (v.crashed && v.crashTime > GAME.resetDelay) this.resetRider(r);
         if (!v.crashed && v.offTrack > 0.9) { this.resetRider(r); this.toast('Out of bounds - back on the track', 1.6); }
