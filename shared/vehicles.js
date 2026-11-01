@@ -96,6 +96,19 @@ export const BIKE_COLORS = [
   { id: 'storm', name: 'Lightning Storm', pattern: 'bolt', body: 0x3b0764, accent: 0xfde047, gear: [0x3b0764, 0xfde047, 0xffffff] },
   { id: 'limehex', name: 'Lime Hex', pattern: 'hex', body: 0x84cc16, accent: 0x111111, gear: [0x84cc16, 0x111111, 0xffffff] },
   { id: 'goldcheck', name: 'Gold Checker', pattern: 'checker', body: 0xd4a017, accent: 0x111111, gear: [0x111111, 0xd4a017, 0xfff4cc] },
+  // designed liveries (modelRig.js skinDesign)
+  { id: 'factoryred', name: 'Factory Red', pattern: 'livery', body: 0xc8102e, accent: 0xf5f5f0, third: 0x111111, gear: [0xc8102e, 0xf5f5f0, 0x111111] },
+  { id: 'factoryblue', name: 'Factory Blue', pattern: 'livery', body: 0x1f3a93, accent: 0xf5f5f0, third: 0xf2b21b, gear: [0x1f3a93, 0xf5f5f0, 0xf2b21b] },
+  { id: 'heritage', name: 'Heritage', pattern: 'livery', body: 0xefe6d2, accent: 0x1e4d3a, third: 0xb5862b, gear: [0xefe6d2, 0x1e4d3a, 0xb5862b] },
+  { id: 'greatwave', name: 'Great Wave', pattern: 'wave', body: 0x1b3b6f, accent: 0x2e6aa6, third: 0xf1ede4, gear: [0x1b3b6f, 0x2e6aa6, 0xf1ede4] },
+  { id: 'sandwave', name: 'Dune Wave', pattern: 'wave', body: 0xc49a6c, accent: 0x8a6240, third: 0xf3e6cf, gear: [0xc49a6c, 0x8a6240, 0xf3e6cf] },
+  { id: 'circuit', name: 'Circuit Board', pattern: 'circuit', body: 0x0f2a1d, accent: 0x2f8f5b, third: 0xd4af37, gear: [0x0f2a1d, 0x2f8f5b, 0xd4af37] },
+  { id: 'risingsun', name: 'Rising Sun', pattern: 'sunrise', body: 0xf3ede2, accent: 0xc8102e, third: 0xc8102e, gear: [0xf3ede2, 0xc8102e, 0xc8102e] },
+  { id: 'duskrays', name: 'Dusk Rays', pattern: 'sunrise', body: 0x2b1d3f, accent: 0x5a3a6e, third: 0xf2a65a, gear: [0x2b1d3f, 0x5a3a6e, 0xf2a65a] },
+  { id: 'shards', name: 'Low Poly', pattern: 'shards', body: 0x35506b, accent: 0x7aa2c4, third: 0xf4f1ea, gear: [0x35506b, 0x7aa2c4, 0xf4f1ea] },
+  { id: 'emberglass', name: 'Ember Glass', pattern: 'shards', body: 0x5a1e12, accent: 0xc2562d, third: 0xf2c46d, gear: [0x5a1e12, 0xc2562d, 0xf2c46d] },
+  { id: 'topo', name: 'Topo Map', pattern: 'topo', body: 0xd9cfb8, accent: 0x8a7a5c, third: 0x5a4632, gear: [0xd9cfb8, 0x8a7a5c, 0x5a4632] },
+  { id: 'nightrun', name: 'Night Survey', pattern: 'topo', body: 0x141a24, accent: 0x3a4a5e, third: 0x7fb3d5, gear: [0x141a24, 0x3a4a5e, 0x7fb3d5] },
 ];
 export const PATTERNS = ['solid', 'stripes', 'flames', 'camo', 'galaxy', 'carbon', 'chrome', 'tiger', 'gradient', 'checker', 'hex', 'bolt', 'splatter', 'pixel', 'aurora', 'lava', 'marble', 'race'];
 

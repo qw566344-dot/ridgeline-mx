@@ -12,7 +12,7 @@
 // =====================================================================
 import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES, SPECIAL_VEHICLES, SPECIAL_CATEGORY } from '/shared/vehicles.js';
-import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop, BUNDLES, getBundle, bundlePrice } from '/shared/shop.js';
+import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop, BUNDLES, getBundle, bundlePrice, levelInfo } from '/shared/shop.js';
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
@@ -24,9 +24,9 @@ export { escapeHtml };
 import { Vector3 } from 'three';
 const $ = (id) => document.getElementById(id);
 const _tv = new Vector3();
-const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits', 'pause', 'results'];
-const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits']);
-const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', friends: 'friends', settings: 'settings', controls: 'controls' };
+const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'friends', 'settings', 'controls', 'credits', 'pause', 'results'];
+const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'friends', 'settings', 'controls', 'credits']);
+const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', leaderboard: 'leaderboard', friends: 'friends', settings: 'settings', controls: 'controls' };
 
 export const MODES = [
   { id: 'freeride', name: 'Free Ride', desc: 'Ride at your own pace. No timer, no pressure.', party: true },
@@ -125,7 +125,8 @@ export class UI {
     if (name === 'garage') { this.gView = null; this.renderGarage(); }
     if (name === 'shop') this.renderShop();
     if (name === 'casino' && this.casino) this.casino.show();
-    if (name === 'friends') { this.renderFriends(); if (this.social) this.social.refresh(); }
+    if (name === 'leaderboard') this.renderLeaderboard();
+    if (name === 'friends') { this.renderHome(); this.renderFriends(); if (this.social) this.social.refresh(); }
     if (name === 'settings') this.renderSettings();
     this.renderTop();
     this.emit('screen', name);
@@ -142,6 +143,10 @@ export class UI {
   renderTop() {
     const A = this.account;
     $('top-coins').textContent = A ? A.coins.toLocaleString() : '0';
+    const L = levelInfo((A && A.profile && A.profile.xp) || 0);
+    $('top-level').textContent = 'Lv ' + L.level;
+    $('top-xp').style.width = Math.round((L.into / L.need) * 100) + '%';
+    $('level-chip').title = `Level ${L.level} - ${L.into.toLocaleString()} / ${L.need.toLocaleString()} XP to the next level. Earn XP from laps, wins and tricks.`;
     $('profile-name').textContent = A && A.profile ? A.profile.name : 'Rider';
     $('profile-mode').textContent = !A ? '' : A.mode === 'online' ? '' : A.mode === 'guest' ? 'guest' : 'offline';
     const n = this.social ? this.social.data.incoming.length + this.social.data.invites.length : 0;
@@ -169,7 +174,7 @@ export class UI {
     const A = this.account;
     if (!A || !A.profile) return;
     const s = A.profile.stats || {};
-    $('profile-stats').innerHTML = `<b>${escapeHtml(A.profile.name)}</b><br>${A.mode === 'online' ? 'Online account' : A.mode === 'guest' ? 'Guest - progress saved in this browser' : 'Offline account (this computer)'}<br>Laps <b>${s.laps || 0}</b> &bull; Wins <b>${s.wins || 0}</b> &bull; Tricks <b>${s.tricks || 0}</b>`;
+    $('profile-stats').innerHTML = `<b>${escapeHtml(A.profile.name)}</b><br>${A.mode === 'online' ? 'Online account' : A.mode === 'guest' ? 'Guest - progress saved in this browser' : 'Offline account (this computer)'}<br>Level <b>${levelInfo(A.profile.xp || 0).level}</b> &bull; Laps <b>${s.laps || 0}</b> &bull; Wins <b>${s.wins || 0}</b> &bull; Tricks <b>${s.tricks || 0}</b>`;
     $('logout-btn').textContent = A.mode === 'guest' ? 'Log in / create account' : 'Log out';
   }
 
@@ -217,7 +222,7 @@ export class UI {
 
   // ------------------------------------------------------------- lobby
   renderHome() {
-    if (this.screen !== 'home') { this.syncStage(); return; }
+    // the party panel lives in Friends; it stays current on every screen
     const net = this.net, S = this.settings;
     const P = net && net.party;
     $('party-solo').hidden = !!P;
@@ -241,6 +246,7 @@ export class UI {
       stEl.textContent = net && net.connected ? 'Solo · online' : 'Solo';
       stEl.className = 'status';
     }
+    if (this.screen !== 'home') { this.syncStage(); return; }
     // dock: mode + track, and what the big button does
     const mode = P ? P.settings.mode : S.get('mode');
     const track = P ? P.settings.track : S.get('track');
@@ -401,14 +407,15 @@ export class UI {
     $('garage-cats').querySelectorAll('[data-cat]').forEach((b) => b.onclick = () => { this.garageCat = b.dataset.cat; this.renderGarage(); });
     const list = $('garage-vehicles');
     list.innerHTML = '';
-    const ownedHere = [...VEHICLES, ...SPECIAL_VEHICLES].filter((x) => x.category === this.garageCat && owns('vehicle', x.id));
-    if (!ownedHere.length) list.innerHTML = '<p class="hint">You have none of these yet - get one in the Shop.</p>';
-    for (const v of ownedHere) {
-      const own = true;
+    // every vehicle shows; the ones you don't own are locked with their price (buy them right here)
+    const here = [...VEHICLES, ...SPECIAL_VEHICLES].filter((x) => x.category === this.garageCat && (!SPECIAL_VEHICLES.includes(x) || owns('vehicle', x.id)))
+      .sort((a, b) => (owns('vehicle', b.id) - owns('vehicle', a.id)) || (shopItem('vehicle', a.id).price - shopItem('vehicle', b.id).price));
+    for (const v of here) {
+      const own = owns('vehicle', v.id);
       const b = document.createElement('button');
       b.className = 'vcard' + (v.id === view ? ' sel' : '') + (own ? '' : ' locked');
       b.style.setProperty('--swatch', hex(paintFor(v.id, 'stock').body));
-      const tag = v.id === cur ? '<span class="tag on">RIDING</span>' : own ? '<span class="tag">OWNED</span>' : `<span class="tag lock">${shopItem('vehicle', v.id).price.toLocaleString()}</span>`;
+      const tag = v.id === cur ? '<span class="tag on">RIDING</span>' : own ? '<span class="tag">OWNED</span>' : `<span class="tag lock"><i class="coin"></i>${shopItem('vehicle', v.id).price.toLocaleString()}</span>`;
       b.innerHTML = `<b>${v.name}</b>${tag}<small>${v.tier} &bull; ${v.category.replace(/ies$/, 'y').replace(/s$/, '')}</small>`;
       b.onclick = () => { this.gView = v.id; this.renderGarage(); this.syncStage(); };
       list.appendChild(b);
@@ -444,61 +451,13 @@ export class UI {
       if (e) this.popup(escapeHtml(e), 'bad'); else this.popup('Upgrade installed', 'good');
       this.renderGarage(); this.renderTop();
     });
-    // paint + gear (owned ones apply straight away; locked ones go to the shop)
+    // equip / buy the vehicle (sits above the skins)
     const ownV = owns('vehicle', view);
-    const sw = (el, items, slot, colorsOf, nameOf, curId) => {
-      el.innerHTML = '';
-      for (const it of items) {
-        const own = owns(slot, it.id);
-        if (!own) continue; // the garage only shows what you own
-        const b = document.createElement('button');
-        const [c1, c2] = colorsOf(it);
-        b.className = 'swatch' + (it.id === curId ? ' sel' : '') + (own ? '' : ' locked');
-        b.title = nameOf(it) + (own ? '' : ` - ${shopItem(slot, it.id).price.toLocaleString()} coins in the shop`);
-        b.style.background = `linear-gradient(135deg, ${hex(c1)} 55%, ${hex(c2)} 55%)`;
-        b.onclick = async () => {
-          if (!own) { this.openShop(slot === 'color' ? 'Paint' : 'Rider Gear', { slot, id: it.id }); return; }
-          if (A) await A.equip(slot, it.id);
-          S.set(slot, it.id);
-          this.renderGarage(); this.syncStage(); this.renderTop();
-          this.emit('garageChange');
-        };
-        el.appendChild(b);
-      }
-    };
-    const paintItems = [{ id: 'stock', name: 'Factory colours' }, ...BIKE_COLORS];
-    sw($('g-paint'), paintItems, 'color', (c) => { const p = paintFor(view, c.id); return [p.body, p.accent]; }, (c) => c.name, view === cur ? S.get('color') : 'stock');
-    const paint = paintFor(cur, S.get('color'));
-    // bundle kits show once you own them (they wear their skin's colours)
-    const kitCols = (g) => { const k = BIKE_COLORS.find((c) => c.id === g.skin); return k ? [k.body, k.accent] : [paint.gear[0], paint.gear[2]]; };
-    const gearItems = GEAR_SETS.filter((g) => !g.skin || (A && A.owns('gear', g.id)));
-    sw($('g-gear'), gearItems, 'gear', (g) => (g.skin ? kitCols(g) : g.colors ? [g.colors[0], g.colors[2]] : [paint.gear[0], paint.gear[2]]), (g) => g.name, S.get('gear') || 'match');
-    // combos: every bike skin you own with the rider matching it (Team Kit copies the
-    // skin's colours and pattern) - one click puts both on
-    const ce = $('g-combo');
-    ce.innerHTML = '';
-    for (const c of paintItems) {
-      if (!owns('color', c.id)) continue;
-      const p = paintFor(view, c.id);
-      const btn = document.createElement('button');
-      btn.className = 'swatch combo' + (S.get('color') === c.id && (S.get('gear') || 'match') === 'match' ? ' sel' : '');
-      btn.title = c.name + ' - bike and rider matching';
-      btn.style.background = `linear-gradient(135deg, ${hex(p.body)} 40%, ${hex(p.accent)} 40%, ${hex(p.accent)} 60%, ${hex(p.gear[0])} 60%)`;
-      btn.onclick = async () => {
-        if (A) { await A.equip('color', c.id); await A.equip('gear', 'match'); }
-        S.set('color', c.id); S.set('gear', 'match');
-        this.renderGarage(); this.syncStage(); this.renderTop();
-        this.emit('garageChange');
-      };
-      ce.appendChild(btn);
-    }
-    ce.style.opacity = $('g-paint').style.opacity = view === cur ? '' : '0.45';
-    ce.style.pointerEvents = $('g-paint').style.pointerEvents = view === cur ? '' : 'none';
     const act = $('g-action');
-    if (view === cur) act.innerHTML = '<button disabled class="wide">Riding this one</button>';
-    else if (ownV) act.innerHTML = `<button id="g-choose" class="primary wide">Ride the ${escapeHtml(vv.name)}</button>`;
-    else act.innerHTML = `<button id="g-shop" class="primary wide">Unlock in the shop - ${shopItem('vehicle', view).price.toLocaleString()} coins</button>`;
-    act.innerHTML += '<button id="g-shopmore" class="wide">More vehicles and skins in the Shop</button>';
+    const vPrice = shopItem('vehicle', view).price;
+    if (view === cur) act.innerHTML = '<button disabled class="wide">Equipped</button>';
+    else if (ownV) act.innerHTML = `<button id="g-choose" class="primary wide">Equip vehicle</button>`;
+    else act.innerHTML = `<button id="g-buyv" class="primary wide" ${coins >= vPrice ? '' : 'disabled'}>${coins >= vPrice ? `Buy for <i class="coin"></i>${vPrice.toLocaleString()}` : `Locked - need ${(vPrice - coins).toLocaleString()} more coins`}</button>`;
     if ($('g-choose')) $('g-choose').onclick = async () => {
       if (A) await A.equip('vehicle', view);
       S.set('vehicle', view);
@@ -507,8 +466,57 @@ export class UI {
       this.emit('garageChange');
       this.popup(`Now riding the <b>${escapeHtml(vv.name)}</b>`, 'good');
     };
-    if ($('g-shop')) $('g-shop').onclick = () => this.openShop('Vehicles', { slot: 'vehicle', id: view });
-    if ($('g-shopmore')) $('g-shopmore').onclick = () => this.show('shop');
+    if ($('g-buyv')) $('g-buyv').onclick = async () => {
+      $('g-buyv').disabled = true;
+      const e = await A.buy('vehicle', view);
+      if (e) { this.popup(escapeHtml(e), 'bad'); this.renderGarage(); return; }
+      S.set('vehicle', view);
+      this.gView = null;
+      this.popup(`Unlocked the <b>${escapeHtml(vv.name)}</b>`, 'good');
+      this.renderGarage(); this.renderTop(); this.syncStage();
+      this.emit('garageChange');
+    };
+
+    // skins: one tab at a time (bike / rider / combos), a rarity filter and pages
+    const paint = paintFor(cur, S.get('color'));
+    const paintItems = [{ id: 'stock', name: 'Factory colours' }, ...BIKE_COLORS].filter((c) => owns('color', c.id));
+    const kitCols = (g) => { const k = BIKE_COLORS.find((c) => c.id === g.skin); return k ? [k.body, k.accent] : [paint.gear[0], paint.gear[2]]; };
+    const gearItems = GEAR_SETS.filter((g) => owns('gear', g.id));
+    const TABS = [['color', 'Bike skins'], ['gear', 'Rider'], ['combo', 'Combos']];
+    const FILTERS = ['All', 'Common', 'Rare', 'Epic', 'Legendary'];
+    const tab = this.gTab || 'color', filter = this.gFilter || 'All';
+    $('g-skintabs').innerHTML = TABS.map(([id, n]) => `<button class="${id === tab ? 'sel' : ''}" data-gtab="${id}">${n}</button>`).join('');
+    $('g-filter').innerHTML = FILTERS.map((f) => `<button class="${f === filter ? 'sel' : ''}" data-gf="${f}">${f}</button>`).join('');
+    $('g-skintabs').querySelectorAll('[data-gtab]').forEach((b) => b.onclick = () => { this.gTab = b.dataset.gtab; this.gPage = 0; this.renderGarage(); });
+    $('g-filter').querySelectorAll('[data-gf]').forEach((b) => b.onclick = () => { this.gFilter = b.dataset.gf; this.gPage = 0; this.renderGarage(); });
+    const rar = (slot, id) => { const r = rarityOf(shopItem(slot, id)); return r === 'Uncommon' ? 'Common' : r; };
+    let items;
+    if (tab === 'gear') items = gearItems.map((g) => ({ slot: 'gear', id: g.id, name: g.name, cols: g.skin ? kitCols(g) : g.colors ? [g.colors[0], g.colors[2]] : [paint.gear[0], paint.gear[2]], sel: (S.get('gear') || 'match') === g.id }));
+    else items = paintItems.map((c) => { const p = paintFor(view, c.id); return { slot: tab === 'combo' ? 'combo' : 'color', id: c.id, name: c.name, cols: tab === 'combo' ? [p.body, p.accent, p.gear[0]] : [p.body, p.accent], sel: S.get('color') === c.id && (tab !== 'combo' || (S.get('gear') || 'match') === 'match') }; });
+    if (filter !== 'All') items = items.filter((x) => rar(x.slot === 'gear' ? 'gear' : 'color', x.id) === filter);
+    const PER = 20, pages = Math.max(1, Math.ceil(items.length / PER));
+    const page = Math.min(this.gPage || 0, pages - 1);
+    const el = $('g-skinlist');
+    el.innerHTML = items.length ? '' : '<p class="hint">Nothing here yet - new skins come into the Shop every hour.</p>';
+    for (const it of items.slice(page * PER, page * PER + PER)) {
+      const b = document.createElement('button');
+      b.className = 'swatch' + (it.slot === 'combo' ? ' combo' : '') + (it.sel ? ' sel' : '');
+      b.title = it.name + (it.slot === 'combo' ? ' - bike and rider matching' : '');
+      b.style.background = it.cols.length === 3 ? `linear-gradient(135deg, ${hex(it.cols[0])} 40%, ${hex(it.cols[1])} 40%, ${hex(it.cols[1])} 60%, ${hex(it.cols[2])} 60%)` : `linear-gradient(135deg, ${hex(it.cols[0])} 55%, ${hex(it.cols[1])} 55%)`;
+      b.innerHTML = `<span>${escapeHtml(it.name)}</span>`;
+      b.onclick = async () => {
+        if (it.slot === 'combo') { if (A) { await A.equip('color', it.id); await A.equip('gear', 'match'); } S.set('color', it.id); S.set('gear', 'match'); }
+        else { if (A) await A.equip(it.slot, it.id); S.set(it.slot, it.id); }
+        this.renderGarage(); this.syncStage(); this.renderTop();
+        this.emit('garageChange');
+      };
+      el.appendChild(b);
+    }
+    $('g-pager').innerHTML = pages > 1 ? `<button class="small" data-gp="-1" ${page ? '' : 'disabled'}>&lsaquo;</button><span>${page + 1} / ${pages}</span><button class="small" data-gp="1" ${page < pages - 1 ? '' : 'disabled'}>&rsaquo;</button>` : '';
+    $('g-pager').querySelectorAll('[data-gp]').forEach((b) => b.onclick = () => { this.gPage = page + Number(b.dataset.gp); this.renderGarage(); });
+    // skins go on the vehicle you ride: dim them while looking at another one
+    const off = view !== cur && tab !== 'gear';
+    el.style.opacity = off ? '0.45' : ''; el.style.pointerEvents = off ? 'none' : '';
   }
 
   // ------------------------------------------------------------- shop
@@ -522,11 +530,9 @@ export class UI {
     const left = Math.max(0, R.endsAt - Date.now());
     const mm = String(Math.floor(left / 60000)).padStart(2, '0'), ss = String(Math.floor(left / 1000) % 60).padStart(2, '0');
     const grid = $('shop-grid');
-    grid.innerHTML = `<div class="shop-head"><div><h2>Item Shop</h2><small>Skins and gear are only here while they are in the shop. Vehicles are always for sale.</small></div><div class="reset">NEW ITEMS IN <b id="shop-timer">${mm}:${ss}</b></div></div>
+    grid.innerHTML = `<div class="shop-head"><div><h2>Item Shop</h2><small>New skins and gear every hour. Vehicles are in the Garage.</small></div><div class="reset">New items in <b id="shop-timer">${mm}:${ss}</b></div></div>
       <h3 class="fsec">Featured</h3><div class="fgrid featured">${R.featured.map((x) => this.shopCard(x, true)).join('')}</div>
-      <h3 class="fsec">Bundles <small class="fsec-note">bike skin + matching rider kit, 25% off</small></h3><div class="fgrid">${BUNDLES.map((b) => this.bundleCard(b)).join('')}</div>
-      <h3 class="fsec">Daily</h3><div class="fgrid">${R.daily.map((x) => this.shopCard(x)).join('')}</div>
-      <h3 class="fsec">Vehicles</h3><div class="fgrid">${VEHICLES.map((v) => this.shopCard({ slot: 'vehicle', id: v.id })).join('')}</div>`;
+      <h3 class="fsec">Daily</h3><div class="fgrid">${R.daily.map((x) => this.shopCard(x)).join('')}</div>`;
     $('shop-tabs').innerHTML = ''; $('shop-sub').innerHTML = '';
     grid.querySelectorAll('.fcard').forEach((b) => b.onclick = () => { this.shopSel = { slot: b.dataset.slot, id: b.dataset.id }; grid.querySelectorAll('.fcard.sel').forEach((x) => x.classList.remove('sel')); grid.querySelectorAll(`.fcard[data-slot="${b.dataset.slot}"][data-id="${b.dataset.id}"]`).forEach((x) => x.classList.add('sel')); this.renderShopDetail(); this.syncStage(); });
     // count down, and swap the items when the hour turns over
@@ -639,6 +645,35 @@ export class UI {
     };
     const eq = $('shop-equip');
     if (eq) eq.onclick = async () => { if (A) { await A.equip('color', b.color); await A.equip('gear', b.gear); } S.set('color', b.color); S.set('gear', b.gear); done(); };
+  }
+
+  // ------------------------------------------------------------- leaderboard
+  async renderLeaderboard() {
+    const ids = { coins: 'lb-coins', levels: 'lb-levels', wins: 'lb-wins' };
+    for (const id of Object.values(ids)) $(id).innerHTML = '<li class="hint">Loading...</li>';
+    let d = null;
+    try { d = await (await fetch(serverBase() + '/api/leaderboard')).json(); } catch { /* offline */ }
+    const me = this.account && this.account.profile ? this.account.profile.name.toLowerCase() : '';
+    for (const [k, id] of Object.entries(ids)) {
+      const rows = d && d[k];
+      $(id).innerHTML = !rows ? '<li class="hint">Can\'t reach the server</li>' : !rows.length ? '<li class="hint">Nobody yet</li>'
+        : rows.map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 1}</span><b>${escapeHtml(r.name)}</b><span class="v">${k === 'levels' ? 'Lv ' : ''}${r.v.toLocaleString()}</span></li>`).join('');
+    }
+  }
+
+  // levels on other riders' name tags (asked for in one batch, remembered)
+  tagLevel(name, el) {
+    const c = (this.levelCache = this.levelCache || new Map());
+    const set = (lv) => { if (lv) { const i = document.createElement('em'); i.className = 'lv'; i.textContent = 'Lv ' + lv; el.prepend(i); } };
+    if (c.has(name)) return set(c.get(name));
+    (this.levelWait = this.levelWait || []).push([name, set]);
+    clearTimeout(this.levelTimer);
+    this.levelTimer = setTimeout(async () => {
+      const wait = this.levelWait; this.levelWait = [];
+      let lv = {};
+      try { lv = (await (await fetch(serverBase() + '/api/levels?names=' + encodeURIComponent([...new Set(wait.map((w) => w[0]))].join(',')))).json()).levels || {}; } catch { /* offline */ }
+      for (const [n, f] of wait) { c.set(n, lv[n] || 0); f(lv[n] || 0); }
+    }, 200);
   }
 
   // ------------------------------------------------------------- friends
@@ -1063,6 +1098,7 @@ export class UI {
         const st = staffTags(r.name);
         if (st) el.classList.add('staff');
         el.innerHTML = `${st}<i>${r.number || ''}</i>${escapeHtml(r.name)}`;
+        if (r.remote) this.tagLevel(r.name, el);
         box.appendChild(el);
         tags.set(r.key, el);
       }

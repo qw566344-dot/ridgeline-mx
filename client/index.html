@@ -50,6 +50,7 @@
         <button data-go="home">Lobby</button>
         <button data-go="garage">Garage</button>
         <button data-go="shop">Shop</button>
+        <button data-go="leaderboard">Leaderboard</button>
         <button data-go="casino">Casino</button>
         <button data-go="friends">Friends <b id="friends-badge" class="badge" hidden></b></button>
         <button data-go="settings">Settings</button>
@@ -57,6 +58,7 @@
       </nav>
       <div class="top-right">
         <button id="region-chip" class="chip" title="Server region and ping"><i class="dot"></i><span id="region-text">Offline</span></button>
+        <div class="chip level" id="level-chip" title="Your level - earn XP from laps, wins and tricks"><b id="top-level">Lv 1</b><i class="xpbar"><i id="top-xp"></i></i></div>
         <div class="chip coins" title="Coins - earn them by riding"><i class="coin"></i><b id="top-coins">0</b></div>
         <div class="profile-wrap">
           <button id="profile-chip" class="chip profile"><span id="profile-name">Rider</span> <small id="profile-mode"></small></button>
@@ -72,29 +74,6 @@
 
     <!-- LOBBY (home) -->
     <section id="home" class="screen menu-screen" hidden>
-      <aside class="card party-card">
-        <div class="card-head"><h3>Party</h3><span id="party-status" class="status">Solo</span></div>
-        <div id="party-solo">
-          <p class="hint">Ride together: make a party and send the code, or invite a friend.</p>
-          <button id="party-create" class="primary wide">Create party</button>
-          <div class="join-row">
-            <input id="party-code" class="code-input" maxlength="6" placeholder="CODE" autocomplete="off" spellcheck="false">
-            <button id="party-join">Join</button>
-          </div>
-        </div>
-        <div id="party-in" hidden>
-          <div class="party-code-row">
-            <div><small>PARTY CODE</small><b id="party-codeshow">------</b></div>
-            <button id="party-copy" class="small">Copy</button>
-          </div>
-          <ul id="party-members" class="members"></ul>
-          <div class="row tight">
-            <button id="party-invite" class="small">Invite friends</button>
-            <button id="party-leave" class="small danger">Leave</button>
-          </div>
-        </div>
-        <div id="party-error" class="error"></div>
-      </aside>
 
       <aside class="card friends-mini">
         <div class="card-head"><h3>Friends online</h3><button data-go="friends" class="link">All</button></div>
@@ -140,13 +119,12 @@
         <p id="g-desc" class="desc"></p>
         <div id="g-stats" class="stats"></div>
         <div id="g-ups" class="ups"></div>
-        <h4 title="A bike skin with the rider matching it">Combos</h4>
-        <div id="g-combo" class="swatches"></div>
-        <h4>Bike skin</h4>
-        <div id="g-paint" class="swatches"></div>
-        <h4>Rider skin</h4>
-        <div id="g-gear" class="swatches"></div>
         <div id="g-action" class="g-action"></div>
+        <div class="g-skins">
+          <div class="g-skinhead"><div class="seg" id="g-skintabs"></div><div class="seg mini" id="g-filter"></div></div>
+          <div id="g-skinlist" class="swatches"></div>
+          <div class="pager" id="g-pager"></div>
+        </div>
       </aside>
       <div class="view-hint">Drag to spin &bull; scroll to zoom</div>
     </section>
@@ -232,10 +210,46 @@
       </div>
     </div>
 
+    <!-- LEADERBOARD -->
+    <section id="leaderboard" class="screen overlay" hidden>
+      <div class="sheet wide">
+        <div class="sheet-head"><h2>Leaderboard</h2><span id="lb-note" class="hint">Top 10 riders on this server</span></div>
+        <div class="lb-cols">
+          <div class="lb-col"><h4>Coins</h4><ol id="lb-coins" class="lb-list"></ol></div>
+          <div class="lb-col"><h4>Level</h4><ol id="lb-levels" class="lb-list"></ol></div>
+          <div class="lb-col"><h4>Wins</h4><ol id="lb-wins" class="lb-list"></ol></div>
+        </div>
+        <div class="row end"><button data-go="home">Back</button></div>
+      </div>
+    </section>
+
     <!-- FRIENDS -->
     <section id="friends" class="screen overlay" hidden>
       <div class="sheet wide">
         <div class="sheet-head"><h2>Friends</h2><span id="friends-count" class="hint"></span></div>
+        <div class="card party-card">
+          <div class="card-head"><h3>Party</h3><span id="party-status" class="status">Solo</span></div>
+          <div id="party-solo">
+            <p class="hint">Ride together: make a party and send the code, or invite a friend.</p>
+            <button id="party-create" class="primary wide">Create party</button>
+            <div class="join-row">
+              <input id="party-code" class="code-input" maxlength="6" placeholder="CODE" autocomplete="off" spellcheck="false">
+              <button id="party-join">Join</button>
+            </div>
+          </div>
+          <div id="party-in" hidden>
+            <div class="party-code-row">
+              <div><small>PARTY CODE</small><b id="party-codeshow">------</b></div>
+              <button id="party-copy" class="small">Copy</button>
+            </div>
+            <ul id="party-members" class="members"></ul>
+            <div class="row tight">
+              <button id="party-invite" class="small">Invite friends</button>
+              <button id="party-leave" class="small danger">Leave</button>
+            </div>
+          </div>
+          <div id="party-error" class="error"></div>
+        </div>
         <div id="friends-off" class="notice" hidden></div>
         <div id="friends-on">
           <div class="search-row">

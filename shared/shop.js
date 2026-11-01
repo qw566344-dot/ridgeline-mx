@@ -150,6 +150,18 @@ export const SHOP = [
   { id: 'storm', slot: 'color', price: 4600, rarity: 'Epic' },
   { id: 'limehex', slot: 'color', price: 3900, rarity: 'Epic' },
   { id: 'goldcheck', slot: 'color', price: 8800, rarity: 'Legendary' },
+  { id: 'factoryred', slot: 'color', price: 3400, rarity: 'Rare' },
+  { id: 'factoryblue', slot: 'color', price: 3400, rarity: 'Rare' },
+  { id: 'heritage', slot: 'color', price: 5600, rarity: 'Epic' },
+  { id: 'greatwave', slot: 'color', price: 6400, rarity: 'Epic' },
+  { id: 'sandwave', slot: 'color', price: 3300, rarity: 'Rare' },
+  { id: 'circuit', slot: 'color', price: 5800, rarity: 'Epic' },
+  { id: 'risingsun', slot: 'color', price: 11000, rarity: 'Legendary' },
+  { id: 'duskrays', slot: 'color', price: 6000, rarity: 'Epic' },
+  { id: 'shards', slot: 'color', price: 3600, rarity: 'Rare' },
+  { id: 'emberglass', slot: 'color', price: 6200, rarity: 'Epic' },
+  { id: 'topo', slot: 'color', price: 3500, rarity: 'Rare' },
+  { id: 'nightrun', slot: 'color', price: 9600, rarity: 'Legendary' },
   // rider gear
   { id: 'match', slot: 'gear', price: 0 },
   { id: 'black', slot: 'gear', price: 700 },
@@ -276,3 +288,22 @@ export const REWARDS = {
   section: 25,             // practice section completed
 };
 export const MAX_REWARD = 1500; // the most a single reward can be worth
+
+// ---------------------------------------------------------------------
+//  PLAYER LEVELS: XP from laps, race finishes, wins and tricks.
+//  Level L needs 150 * L * (L - 1) XP in total (300 for level 2, 900 for 3...)
+// ---------------------------------------------------------------------
+export const XP = { lap: 60, race: 120, win: 300, trickPerCoin: 1, maxTrick: 400 };
+export function xpFor(kind, coins) {
+  if (kind === 'lap') return XP.lap;
+  if (kind === 'race') return XP.race;
+  if (kind === 'win') return XP.win;
+  if (kind === 'trick') return Math.min(XP.maxTrick, Math.round(coins * XP.trickPerCoin));
+  return 0;
+}
+export function levelInfo(xp = 0) {
+  let level = 1;
+  while (150 * (level + 1) * level <= xp) level++;
+  const base = 150 * level * (level - 1), next = 150 * (level + 1) * level;
+  return { level, xp, into: xp - base, need: next - base };
+}

@@ -18,7 +18,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice } from '../shared/shop.js';
+import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS, ownsSpecials } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
 import { Chat } from './chat.js';
@@ -138,7 +138,7 @@ export class Accounts {
   hash(password, salt) { return crypto.scryptSync(String(password), salt, 32).toString('hex'); }
 
   profile(u) {
-    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, admin: this.admin.isAdmin(u) };
+    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, admin: this.admin.isAdmin(u) };
   }
 
   issue(u) {
@@ -169,6 +169,7 @@ export class Accounts {
     for (const slot of ['vehicle', 'color', 'gear']) if (typeof eq[slot] === 'string' && this.has(u, slot + ':' + eq[slot])) u.equipped[slot] = eq[slot];
     const st = r.stats || {};
     u.stats = { laps: n(st.laps, 1e6), wins: n(st.wins, 1e6), tricks: n(st.tricks, 1e7) };
+    u.xp = n(r.xp, 1e8);
     // friends come back too, once both riders exist again
     u.friends = [];
     for (const fname of Array.isArray(r.friends) ? r.friends.slice(0, 100) : []) {
@@ -306,9 +307,31 @@ export class Accounts {
       if (kind === 'lap') u.stats.laps++;
       if (kind === 'win') u.stats.wins++;
       if (kind === 'trick') u.stats.tricks++;
+      u.xp = (u.xp || 0) + xpFor(kind, amount);
       this.save();
     }
     return { profile: this.profile(u), added: amount + bonus };
+  }
+
+  // top 10 riders by coins, level and wins (cached for 30 s)
+  leaderboard() {
+    const now = Date.now();
+    if (this.lbCache && now - this.lbCache.at < 30_000) return this.lbCache.data;
+    const users = Object.values(this.db.users).filter((u) => !u.banned);
+    const top = (f) => users.map((u) => ({ name: u.name, v: f(u) })).filter((r) => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 10);
+    const data = { coins: top((u) => u.coins || 0), levels: top((u) => levelInfo(u.xp || 0).level), wins: top((u) => (u.stats && u.stats.wins) || 0) };
+    this.lbCache = { at: now, data };
+    return data;
+  }
+
+  // levels for name tags: ?names=a,b,c -> { levels: { a: 3, ... } }
+  levels(names) {
+    const out = {};
+    for (const n of String(names || "").split(",").slice(0, 40)) {
+      const u = this.db.users[n.trim().toLowerCase()];
+      if (u) out[n.trim()] = levelInfo(u.xp || 0).level;
+    }
+    return { levels: out };
   }
 
   logout(token) {
@@ -337,6 +360,8 @@ export class Accounts {
       if (r === 'login') return send(200, this.login(m.name, m.password, ip));
       if (r === 'revive') return send(200, this.revive(m, ip));
       if (r === 'info') return send(200, { ok: true, accounts: Object.keys(this.db.users).length });
+      if (r === 'leaderboard') return send(200, this.leaderboard());
+      if (r === 'levels') return send(200, this.levels(url.searchParams.get('names')));
       if (r === 'tags') return send(200, { tags: this.admin.tags() }); // name tags anyone can see (DEV)
       const u = this.user(token);
       if (!u || u.banned) return send(401, { error: u ? 'This account has been banned' : 'Please log in again' });

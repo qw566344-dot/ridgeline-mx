@@ -349,7 +349,7 @@ export function skinUniforms(cols, pat) {
   return { uA: { value: new THREE.Color(cols[0]) }, uB: { value: new THREE.Color(cols[1]) }, uC: { value: new THREE.Color(cols[2] || 0x111111) }, uPat: { value: PATTERN_ID[pat] || 0 }, uTime: skinTime };
 }
 export const patterned = (pat) => !!pat && pat !== 'solid' && pat !== 'chrome';
-export const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17, zebra: 18, dots: 19, rainbow: 20, argyle: 21, holo: 22, split: 23, scales: 24, pinstripe: 25 };
+export const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17, zebra: 18, dots: 19, rainbow: 20, argyle: 21, holo: 22, split: 23, scales: 24, pinstripe: 25, livery: 26, wave: 27, circuit: 28, sunrise: 29, shards: 30, topo: 31 };
 // animated skins (aurora, lava) read this clock; main.js moves it every frame
 export const skinTime = { value: 0 };
 export const SKIN_GLSL = `
@@ -357,6 +357,7 @@ uniform vec3 uA; uniform vec3 uB; uniform vec3 uC; uniform float uPat; uniform f
 varying vec3 vPat;
 float skinHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
 vec3 skinHue(float h) { return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
+vec3 skinDesign(vec3 p);
 // zebra, polka dots, rainbow (moves), argyle, hologram (shimmers)
 vec3 skinExtra(vec3 p) {
   if (uPat < 18.5) { float v = sin(p.x * 18.0 + sin(p.y * 7.0) * 2.4 + sin(p.z * 5.0) * 1.2); return mix(uA, uB, smoothstep(0.25, 0.4, v)); }
@@ -388,10 +389,61 @@ vec3 skinExtra(vec3 p) {
     return r > 0.46 ? uB : mix(uA * shade, uC, smoothstep(0.38, 0.46, r) * 0.6);
   }
   // pinstripe: thin lines along the bike with a double accent line low down
-  float y = p.y * 7.0 + p.x * 0.25;
-  float line = step(0.94, fract(y));
-  float band = step(abs(p.y - 0.42), 0.02) + step(abs(p.y - 0.48), 0.012);
-  return mix(mix(uA, uB, line), uC, clamp(band, 0.0, 1.0));
+  if (uPat < 25.5) {
+    float y = p.y * 7.0 + p.x * 0.25;
+    float line = step(0.94, fract(y));
+    float band = step(abs(p.y - 0.42), 0.02) + step(abs(p.y - 0.48), 0.012);
+    return mix(mix(uA, uB, line), uC, clamp(band, 0.0, 1.0));
+  }
+  return skinDesign(p);
+}
+// designed liveries: factory swoosh, great wave, circuit board, rising sun, low-poly shards, topo map
+vec3 skinDesign(vec3 p) {
+  // factory: a sweeping band from the front low to the back high, outlined, with a number field
+  if (uPat < 26.5) {
+    float s = p.y - 0.45 - 0.22 * sin(p.x * 2.2 + 0.6);
+    vec3 c = s > 0.0 ? uA : uB;
+    if (abs(s) < 0.035) c = uC;
+    if (abs(s + 0.12) < 0.018) c = uC;
+    return c;
+  }
+  // great wave: layered curling crests with white foam tips
+  if (uPat < 27.5) {
+    float x = p.x * 3.0 + p.z * 0.8;
+    float v = p.y * 6.0 + 0.9 * sin(x * 2.0) + 0.35 * sin(x * 5.0 + p.y * 3.0);
+    float f = fract(v);
+    vec3 c = mix(uA, uB, step(0.5, mod(floor(v), 2.0)) * 0.55);
+    return mix(c, uC, smoothstep(0.86, 0.9, f) * (1.0 - smoothstep(0.96, 1.0, f)));
+  }
+  // circuit: right-angle traces with solder pads on a dark board
+  if (uPat < 28.5) {
+    vec2 q = vec2(p.x + p.z * 0.5, p.y) * 12.0; vec2 cell = floor(q), f = fract(q) - 0.5;
+    float h = skinHash(vec3(cell, 1.0));
+    float tr = h < 0.5 ? step(abs(f.y), 0.06) : step(abs(f.x), 0.06);
+    float pad = step(length(f), 0.18) * step(0.8, skinHash(vec3(cell, 2.0)));
+    return mix(mix(uA, uB, clamp(tr, 0.0, 1.0)), uC, pad);
+  }
+  // rising sun: rays from a sun low at the back, the sun disc in the third colour
+  if (uPat < 29.5) {
+    vec2 d = vec2(p.x + 0.6, p.y - 0.2);
+    float a = atan(d.y, d.x);
+    float ray = step(0.5, fract(a * 3.8));
+    return length(d) < 0.28 ? uC : mix(uA, uB, ray);
+  }
+  // shards: flat-shaded triangles, each a tint between the two colours
+  if (uPat < 30.5) {
+    vec2 q = vec2(p.x + p.z * 0.4, p.y) * 5.0; vec2 c = floor(q), f = fract(q);
+    float tri = step(f.x, f.y);
+    float n = skinHash(vec3(c, tri));
+    vec3 col = mix(uA, uB, n);
+    return n > 0.93 ? uC : col;
+  }
+  // topo: contour lines over a gentle height map, every fifth line bold
+  float hgt = sin(p.x * 3.1 + sin(p.y * 2.3) * 1.3) * cos(p.y * 2.7 - p.z * 1.7) + 0.4 * sin(p.x * 7.0 + p.y * 5.0);
+  float k = hgt * 9.0, fk = fract(k);
+  float ln = step(abs(fk - 0.5), 0.07);
+  float bold = step(abs(fract(k / 5.0) - 0.5), 0.04);
+  return mix(mix(uA, uB, ln * 0.85), uC, bold);
 }
 vec3 skinColor(vec3 p) {
   if (uPat < 0.5 || (uPat > 5.5 && uPat < 6.5)) return uA;
