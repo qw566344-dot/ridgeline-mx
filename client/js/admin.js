@@ -92,6 +92,31 @@ export class AdminPanel {
     if (!$('adm-log').hidden) this.loadLog();
   }
 
+  // ban popup: a reason (they see it) and whether their devices are banned too
+  banDialog(name) {
+    const n = escapeHtml(name);
+    this.ui.modal(`<h2>Ban ${n}?</h2>
+      <p class="hint">They are logged out within a few seconds and see a ban message.</p>
+      <label class="field col-field">Reason (they see this) <input type="text" id="ban-reason" maxlength="140" placeholder="e.g. cheating, spamming chat"></label>
+      <label class="field"><input type="checkbox" id="ban-devices" checked> Also ban their devices (no new accounts from them)</label>`, [
+      ['Cancel', null, ''],
+      ['Ban', (box) => { this.act('ban', { name, on: true, reason: box.querySelector('#ban-reason').value, devices: box.querySelector('#ban-devices').checked }); }, 'danger'],
+    ]);
+  }
+
+  // XP popup: quick amounts or type one; their level follows
+  xpDialog(name) {
+    const n = escapeHtml(name);
+    const give = (add) => { if (Number.isFinite(add) && add) this.act('xp', { name, add }); };
+    this.ui.modal(`<h2>Give XP to ${n}</h2>
+      <p class="hint">Level 2 needs 300 XP, level 5 needs 3,000, level 10 needs 13,500. A minus number takes XP away.</p>
+      <div class="row tight">${[500, 3000, 13500, 50000].map((v) => `<button class="small" data-xp="${v}">+${v.toLocaleString()}</button>`).join('')}</div>
+      <label class="field col-field">Or type an amount <input type="text" id="xp-amount" inputmode="numeric" placeholder="e.g. 2000"></label>`, [
+      ['Cancel', null, ''],
+      ['Give XP', (box) => give(Math.round(Number(box.querySelector('#xp-amount').value))), 'primary'],
+    ]).querySelectorAll('[data-xp]').forEach((b) => b.onclick = () => { $('modal').hidden = true; give(Number(b.dataset.xp)); });
+  }
+
   // drop into a rider (no party needed): connect to the server first, then the
   // server makes a party around them if needed and puts you in their ride
   joinRider(name) {
@@ -144,13 +169,14 @@ export class AdminPanel {
       const n = escapeHtml(u.name);
       const tags = (u.owner ? ' <small>(owner)</small>' : u.admin ? ' <small>(admin)</small>' : '') + (u.banned ? ' <small>(banned)</small>' : '') + (u.muted ? ' <small>(muted)</small>' : '');
       return `<tr class="${u.banned ? 'banned' : ''}">
-      <td><i class="pdot ${u.online ? 'online' : ''}"></i> <b>${n}</b>${tags}<br><small>${u.lastSeen ? 'seen ' + ago(Date.now() - u.lastSeen) : 'never online'}</small></td>
+      <td><i class="pdot ${u.online ? 'online' : ''}"></i> <b>${n}</b> <small class="adm-lv">Lv ${u.level || 1}</small>${tags}<br><small>${u.lastSeen ? 'seen ' + ago(Date.now() - u.lastSeen) : 'never online'}</small></td>
       <td>${u.coins.toLocaleString()}</td><td>${u.items}</td>
       <td class="adm-acts">
         <button class="small" data-a="info" data-n="${n}">${this.infoFor === u.name ? 'Hide' : 'Info'}</button>
         <button class="small" data-a="add" data-v="10000" data-n="${n}">+10K</button>
         <button class="small" data-a="add" data-v="1000000" data-n="${n}">+1M</button>
         <input class="adm-set" type="number" placeholder="add coins" title="Coins to add (a minus number takes coins away), Enter to add" data-n="${n}"><button class="small" data-a="addbox" data-n="${n}">Add</button>
+        <button class="small" data-a="xp" data-n="${n}" title="Give XP (their level goes up)">Add XP</button>
         <button class="small" data-a="unlock" data-n="${n}">Unlock all</button>
         ${u.online && !u.owner ? `<button class="small" data-a="join" data-n="${n}">Join</button><button class="small" data-a="summon" data-n="${n}" title="Bring them into your party">Summon</button>` : ''}
         <button class="small" data-a="give" data-n="${n}">Give item</button>
@@ -174,7 +200,8 @@ export class AdminPanel {
       if (a === 'give') { $('adm-give-name').value = n; $('adm-give-item').focus(); }
       if (a === 'kick' && sure()) this.act('kick', { name: n });
       if (a === 'blow') this.act('blow', { name: n });
-      if (a === 'ban' && (b.dataset.on === '0' || sure())) this.act('ban', { name: n, on: b.dataset.on === '1' });
+      if (a === 'ban') { if (b.dataset.on === '0') this.act('ban', { name: n, on: false }); else this.banDialog(n); }
+      if (a === 'xp') this.xpDialog(n);
       if (a === 'reset' && sure()) this.act('reset', { name: n });
       if (a === 'delete' && sure()) this.act('delete', { name: n });
     });

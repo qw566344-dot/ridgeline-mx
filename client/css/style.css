@@ -730,3 +730,12 @@ button.primary:hover:not(:disabled) { background: linear-gradient(135deg, #ff8a5
 .add-friend h4 { margin-top: 0; color: #a9c9ff; }
 .add-friend .hint { margin: 0 0 12px; }
 #friends .party-card { margin: 26px 0 0; }
+
+/* modal box in the middle (ban popup, admin ban dialog) */
+.modal-wrap { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(6, 8, 12, 0.7); pointer-events: auto; animation: fadein 0.2s ease-out; }
+.modal-box { width: min(420px, 100%); text-align: left; }
+.modal-box h2 { margin-bottom: 10px; }
+.modal-box label.field { display: flex; margin: 10px 0; }
+.modal-box input[type=text] { width: 100%; }
+.ban-icon { font-size: 44px; line-height: 1; margin-bottom: 10px; }
+.ban-reason { margin: 6px 0 10px; color: var(--bad); }

@@ -786,6 +786,31 @@ export class UI {
     return el;
   }
 
+  // a box in the middle of the screen that waits for a button: actions [label, f, kind]
+  // (kind 'primary' / 'danger'); f gets the box and may return false to keep it open
+  modal(html, actions) {
+    const box = $('modal-box');
+    box.innerHTML = html + '<div class="row end modal-acts"></div>';
+    const row = box.querySelector('.modal-acts');
+    for (const [label, f, kind] of actions) {
+      const b = document.createElement('button');
+      b.textContent = label;
+      if (kind) b.className = kind;
+      b.onclick = () => { if (f && f(box) === false) return; $('modal').hidden = true; };
+      row.appendChild(b);
+    }
+    $('modal').hidden = false;
+    const inp = box.querySelector('input'); if (inp) inp.focus();
+    return box;
+  }
+
+  // what a banned rider sees
+  banScreen(title, reason, done) {
+    this.modal(`<div class="ban-icon">⛔</div><h2>${escapeHtml(title)}</h2>
+      ${reason ? `<p class="ban-reason">Reason: <b>${escapeHtml(reason)}</b></p>` : ''}
+      <p class="hint">An admin banned this account, so you have been logged out. New accounts can not be made from this device. You can still ride offline as a guest.</p>`, [['OK', () => { if (done) done(); }, 'primary']]);
+  }
+
   // ------------------------------------------------------------- account
   showAccount() {
     this.show('account');

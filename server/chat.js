@@ -38,8 +38,14 @@ export class Chat {
 
   remove(id) { const list = this.list; const i = list.findIndex((m) => m.id === Number(id)); if (i < 0) return { error: 'No such message' }; list.splice(i, 1); this.A.save(); return { ok: 'Message deleted' }; }
 
-  // clearing keeps the id counting up, so riders' "after" still works
-  clear() { const list = this.list; const last = list[list.length - 1]; this.A.db.chat = []; if (last) this.A.db.chat.push({ id: last.id + 1, at: Date.now(), name: 'Server', text: 'Chat was cleared by an admin', system: true }); this.A.save(); return { ok: 'Chat cleared' }; }
+  // clearing keeps the id counting up, so riders' "after" still works; the note carries clear: true,
+  // which tells every game to wipe what it is showing (even when the list here is already empty)
+  clear() {
+    const list = this.list, last = list[list.length - 1];
+    this.A.db.chat = [{ id: last ? last.id + 1 : Date.now(), at: Date.now(), name: 'Server', text: 'Chat was cleared by an admin', system: true, clear: true }];
+    this.A.save();
+    return { ok: 'Chat cleared for everyone' };
+  }
 
   handle(route, u, m, url) {
     if (route === 'chat') return this.read(url.searchParams.get('after'));

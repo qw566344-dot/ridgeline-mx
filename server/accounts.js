@@ -44,6 +44,7 @@ export class Accounts {
     this.tokens = new Map();
     for (const u of Object.values(this.db.users)) for (const t of u.tokens || []) this.tokens.set(t, u.key);
     this.attempts = new Map();
+    this.bannedTokens = new Map(); // login tokens of riders banned since the server started -> reason (so their game hears "banned")
     this.saveTimer = null;
     this.friends = new Friends(this);
     this.casino = new Casino(this);
@@ -193,11 +194,44 @@ export class Accounts {
     }
   }
 
-  register(name, password, ip, restore) {
+  // ---- device bans: a ban also blocks the browsers and internet addresses the rider used,
+  // so they can not just make a new account. Browsers can not read real hardware ids, so a
+  // device is the random id the game keeps in that browser (client/js/account.js), plus the
+  // "banned" note it keeps there; clearing the browser's site data removes both.
+  track(u, dev) {
+    if (!u || !dev) return;
+    const add = (list, v) => (v ? [...(list || []).filter((x) => x !== v), v].slice(-8) : list || []);
+    u.devices = add(u.devices, dev.id); u.ips = add(u.ips, dev.ip);
+  }
+  // the ban that blocks this browser / address (admins are never blocked), or null
+  deviceBan(dev, u) {
+    if (!dev || (u && this.admin.isAdmin(u))) return null;
+    const D = this.db.bannedDevices || {}, I = this.db.bannedIps || {};
+    if (dev.id && D[dev.id]) return D[dev.id];
+    if (dev.ip && I[dev.ip]) return I[dev.ip];
+    if (dev.flagged) return 'this browser';
+    return null;
+  }
+  // ban / unban everything this rider has logged in from (never an address an admin uses)
+  banDevices(u, on) {
+    const D = this.db.bannedDevices || (this.db.bannedDevices = {}), I = this.db.bannedIps || (this.db.bannedIps = {});
+    if (on) {
+      const adminIps = new Set(Object.values(this.db.users).filter((x) => this.admin.isAdmin(x)).flatMap((x) => x.ips || []));
+      for (const d of u.devices || []) D[d] = u.name;
+      for (const ip of u.ips || []) if (!adminIps.has(ip)) I[ip] = u.name;
+      for (const t of u.tokens || []) this.bannedTokens.set(t, u.banReason || '');
+    } else {
+      for (const k of Object.keys(D)) if (D[k] === u.name) delete D[k];
+      for (const k of Object.keys(I)) if (I[k] === u.name) delete I[k];
+    }
+  }
+
+  register(name, password, ip, restore, dev) {
     name = String(name || '').trim();
     if (!NAME_RE.test(name)) return { error: 'Names are 3-16 letters, numbers, spaces, _ . or -' };
     if (String(password || '').length < 4) return { error: 'Password must be at least 4 characters' };
     if (this.throttle(ip)) return { error: 'Too many tries - wait a minute' };
+    if (this.deviceBan(dev)) return { error: 'This device is banned - it can not make new accounts', banned: true };
     const key = name.toLowerCase();
     if (this.db.users[key]) return { error: 'That name is taken - pick another or log in' };
     const salt = crypto.randomBytes(16).toString('hex');
@@ -213,9 +247,11 @@ export class Accounts {
   // friends - comes back by itself, with the same password, without anyone logging in again.
   seal(u) { return { salt: u.salt, hash: u.hash }; }
 
-  revive(m, ip) {
+  revive(m, ip, dev) {
     if (this.throttle(ip)) return { error: 'Too many tries - wait a minute' };
     const name = String(m.name || '').trim(), key = name.toLowerCase();
+    // a wiped server forgets its bans; the banned browser's own note still keeps it out
+    if (this.deviceBan(dev, this.db.users[key])) return { error: 'This account has been banned', banned: true };
     const token = String(m.token || ''), s = m.seal || {};
     if (!NAME_RE.test(name) || !/^[0-9a-f]{48}$/.test(token) || !/^[0-9a-f]{32}$/.test(String(s.salt)) || !/^[0-9a-f]{64}$/.test(String(s.hash))) return { error: 'Please log in again' };
     let u = this.db.users[key];
@@ -235,13 +271,14 @@ export class Accounts {
     return { token, profile: this.profile(u), revived: true, seal: this.seal(u) };
   }
 
-  login(name, password, ip) {
+  login(name, password, ip, dev) {
     if (this.throttle(ip)) return { error: 'Too many tries - wait a minute' };
     const u = this.db.users[String(name || '').trim().toLowerCase()];
     if (!u) return { error: 'No account with that name' };
     const h = this.hash(password, u.salt);
     if (!crypto.timingSafeEqual(Buffer.from(h, 'hex'), Buffer.from(u.hash, 'hex'))) return { error: 'Wrong password' };
-    if (u.banned) return { error: 'This account has been banned' };
+    if (u.banned) return { error: 'This account has been banned', banned: true, reason: u.banReason || '' };
+    if (this.deviceBan(dev, u)) return { error: 'This device is banned', banned: true };
     this.grant(u);
     return { token: this.issue(u), profile: this.profile(u), seal: this.seal(u) };
   }
@@ -346,7 +383,7 @@ export class Accounts {
   // the whole HTTP side
   handle(req, res, ip) {
     const send = (code, obj) => {
-      res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' });
+      res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Device, X-Banned', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' });
       res.end(JSON.stringify(obj));
     };
     if (req.method === 'OPTIONS') return send(204, {});
@@ -358,16 +395,26 @@ export class Accounts {
       let m = {};
       try { m = body ? JSON.parse(body) : {}; } catch { return send(400, { error: 'Bad request' }); }
       const r = url.pathname.replace('/api/', '');
-      if (r === 'register') return send(200, this.register(m.name, m.password, ip, m.restore));
-      if (r === 'login') return send(200, this.login(m.name, m.password, ip));
-      if (r === 'revive') return send(200, this.revive(m, ip));
+      // the browser's own id (X-Device) and its "this browser was banned" note (X-Banned), see bans below
+      const dev = { id: /^[0-9a-f]{32}$/.test(String(req.headers['x-device'] || '')) ? req.headers['x-device'] : '', flagged: req.headers['x-banned'] === '1', ip };
+      if (['register', 'login', 'revive'].includes(r)) {
+        const out = r === 'register' ? this.register(m.name, m.password, ip, m.restore, dev) : r === 'login' ? this.login(m.name, m.password, ip, dev) : this.revive(m, ip, dev);
+        if (out.token) this.track(this.user(out.token), dev);
+        return send(200, out);
+      }
       if (r === 'info') return send(200, { ok: true, accounts: Object.keys(this.db.users).length });
       if (r === 'leaderboard') return send(200, this.leaderboard());
       if (r === 'levels') return send(200, this.levels(url.searchParams.get('names')));
       if (r === 'tags') return send(200, { tags: this.admin.tags() }); // name tags anyone can see (DEV)
       const u = this.user(token);
-      if (!u || u.banned) return send(401, { error: u ? 'This account has been banned' : 'Please log in again' });
-      if (r === 'me') { this.grant(u); return send(200, { profile: this.profile(u), seal: this.seal(u) }); }
+      if (!u || u.banned) return send(401, { error: u || this.bannedTokens.has(token) ? 'This account has been banned' : 'Please log in again', ...(u ? { reason: u.banReason || '' } : this.bannedTokens.has(token) ? { reason: this.bannedTokens.get(token) } : {}) });
+      if (r === 'me') { this.grant(u); this.track(u, dev); return send(200, { profile: this.profile(u), seal: this.seal(u) }); }
+      // the game asks every few seconds: admin messages for this rider, and the profile again
+      // when an admin changed it (coins, items, XP) - so nobody has to refresh
+      if (r === 'inbox') {
+        const rev = u.rev || 0, seen = Number(url.searchParams.get('rev'));
+        return send(200, { admin: this.admin.takeInbox(u.key), rev, ...(seen !== rev ? { profile: this.profile(u) } : {}) });
+      }
       if (r === 'buy') return send(200, this.buy(u, m.slot, m.id));
       if (r === 'equip') return send(200, this.equip(u, m.slot, m.id));
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));

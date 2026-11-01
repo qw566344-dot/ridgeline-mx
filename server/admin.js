@@ -9,7 +9,9 @@
 //    POST /api/admin/unlock {name}       (every vehicle, skin, gear and upgrade)
 //    POST /api/admin/give   {name, item} (one item, e.g. "vehicle:mx500")
 //    POST /api/admin/reset  {name}       (back to a fresh account, keeps the password)
-//    POST /api/admin/ban    {name, on}   (banned riders cannot log in)
+//    POST /api/admin/ban    {name, on, reason, devices}  (banned riders cannot log in; devices: also
+//                                        block the browsers / addresses they used from making accounts)
+//    POST /api/admin/xp     {name, add}  (XP; their level follows)
 //    POST /api/admin/delete {name}       (removes the account for good)
 //    POST /api/admin/giftall {add}       (coins for everyone online right now)
 //    POST /api/admin/announce {text}     (a message that pops up for everyone online)
@@ -28,7 +30,7 @@
 //    POST /api/admin/dev {name, on}      (the DEV name tag - just the tag, no admin panel)
 //    GET  /api/tags (anyone)             -> {tags: {name: ['DEV']}} for name tags / chat
 // =====================================================================
-import { SHOP, STARTER, shopItem } from '../shared/shop.js';
+import { SHOP, STARTER, shopItem, levelInfo } from '../shared/shop.js';
 import { ownsSpecials } from '../shared/vehicles.js';
 import { cloudEnabled } from './store.js';
 
@@ -130,7 +132,7 @@ export class Admin {
     if (it && it.price === 0) return { error: 'Free items belong to everyone' };
     t.owned = t.owned.filter((x) => x !== k);
     if (t.equipped[slot] === id) t.equipped[slot] = STARTER.equipped[slot];
-    this.A.save();
+    this.bump(t); this.A.save();
     this.record(u, 'take', t.name, k);
     return { ok: `Took ${k} from ${t.name}` };
   }
@@ -223,7 +225,7 @@ export class Admin {
     const F = this.A.friends;
     const list = Object.values(this.A.db.users)
       .filter((u) => !q || u.key.includes(q))
-      .map((u) => ({ name: u.name, coins: u.coins, created: u.created, lastSeen: u.lastSeen || null, online: !!(F && F.online(u.key)), items: u.owned.length, banned: !!u.banned, admin: this.isAdmin(u), owner: this.isOwner(u), muted: !!this.muted(u) }))
+      .map((u) => ({ name: u.name, coins: u.coins, created: u.created, lastSeen: u.lastSeen || null, online: !!(F && F.online(u.key)), items: u.owned.length, level: levelInfo(u.xp || 0).level, banned: !!u.banned, admin: this.isAdmin(u), owner: this.isOwner(u), muted: !!this.muted(u) }))
       .sort((a, b) => (b.online - a.online) || (b.lastSeen || 0) - (a.lastSeen || 0));
     return { users: list, total: Object.keys(this.A.db.users).length };
   }
@@ -248,13 +250,25 @@ export class Admin {
   }
 
   find(name) { return this.A.db.users[String(name || '').trim().toLowerCase()] || null; }
+  // the rider's game sees the change within a few seconds (accounts.js inbox) - no refresh
+  bump(u) { u.rev = (u.rev || 0) + 1; }
+
+  xp(m) {
+    const u = this.find(m.name);
+    if (!u) return { error: 'No such rider' };
+    const v = Math.floor(Number(m.add));
+    if (!Number.isFinite(v) || !v) return { error: 'Bad amount' };
+    u.xp = Math.max(0, Math.min(1e9, (u.xp || 0) + v));
+    this.bump(u); this.A.save();
+    return { ok: `${u.name} is level ${levelInfo(u.xp).level} (${u.xp.toLocaleString()} XP)` };
+  }
 
   coins(m) {
     const u = this.find(m.name);
     if (!u) return { error: 'No such rider' };
     if (m.set !== undefined) { const v = Math.floor(Number(m.set)); if (!Number.isFinite(v) || v < 0) return { error: 'Bad amount' }; u.coins = Math.min(1e12, v); }
     else { const v = Math.floor(Number(m.add)); if (!Number.isFinite(v)) return { error: 'Bad amount' }; u.coins = Math.max(0, Math.min(1e12, u.coins + v)); }
-    this.A.save();
+    this.bump(u); this.A.save();
     return { ok: `${u.name} now has ${u.coins.toLocaleString()} coins`, user: { name: u.name, coins: u.coins } };
   }
 
@@ -262,7 +276,7 @@ export class Admin {
     const u = this.find(m.name);
     if (!u) return { error: 'No such rider' };
     u.owned = [...new Set([...u.owned, ...SHOP.filter((i) => !i.special || ownsSpecials(u.key)).map((i) => i.slot + ':' + i.id)])];
-    this.A.save();
+    this.bump(u); this.A.save();
     return { ok: `Unlocked everything for ${u.name}` };
   }
 
@@ -276,7 +290,7 @@ export class Admin {
     const k = slot + ':' + id;
     if (u.owned.includes(k)) return { ok: `${u.name} already has ${item.name || id}` };
     u.owned.push(k);
-    this.A.save();
+    this.bump(u); this.A.save();
     return { ok: `Gave ${item.name || id} to ${u.name}` };
   }
 
@@ -284,8 +298,9 @@ export class Admin {
     const u = this.find(m.name);
     if (!u) return { error: 'No such rider' };
     u.coins = STARTER.coins; u.owned = [...STARTER.owned]; u.equipped = { ...STARTER.equipped }; u.stats = { laps: 0, wins: 0, tricks: 0 };
+    u.xp = 0;
     this.A.grant(u);
-    this.A.save();
+    this.bump(u); this.A.save();
     return { ok: `Reset ${u.name}` };
   }
 
@@ -294,9 +309,14 @@ export class Admin {
     if (!u) return { error: 'No such rider' };
     if (this.isAdmin(u)) return { error: 'Admins cannot be banned' };
     u.banned = m.on !== false;
-    if (u.banned) { for (const t of u.tokens || []) this.A.tokens.delete(t); u.tokens = []; }
+    u.banReason = u.banned ? String(m.reason || '').trim().slice(0, 140) : '';
+    // their devices too (on by default), then they are logged out everywhere - their game hears
+    // "banned" within a few seconds and shows the ban popup
+    if (!u.banned || m.devices !== false) this.A.banDevices(u, u.banned);
+    if (u.banned) { for (const t of u.tokens || []) { this.A.bannedTokens.set(t, u.banReason); this.A.tokens.delete(t); } u.tokens = []; }
     this.A.save();
-    return { ok: u.banned ? `Banned ${u.name}` : `Unbanned ${u.name}` };
+    const nd = Object.values(this.A.db.bannedDevices || {}).filter((n) => n === u.name).length + Object.values(this.A.db.bannedIps || {}).filter((n) => n === u.name).length;
+    return { ok: u.banned ? `Banned ${u.name}${nd ? ` and ${nd} device${nd === 1 ? '' : 's'} / address${nd === 1 ? '' : 'es'}` : ''}` : `Unbanned ${u.name} (and their devices)` };
   }
 
   remove(m) {
@@ -316,7 +336,7 @@ export class Admin {
     if (!Number.isFinite(v) || v <= 0 || v > 1e9) return { error: 'Bad amount' };
     const F = this.A.friends;
     const on = Object.values(this.A.db.users).filter((u) => F && F.online(u.key));
-    for (const u of on) u.coins = Math.min(1e12, u.coins + v);
+    for (const u of on) { u.coins = Math.min(1e12, u.coins + v); this.bump(u); }
     if (on.length) this.A.save();
     return { ok: `Gave ${v.toLocaleString()} coins to ${on.length} rider${on.length === 1 ? '' : 's'} online` };
   }
@@ -336,7 +356,7 @@ export class Admin {
     if (!this.isAdmin(u)) return { error: 'Admins only' };
     const out = this.route(route, u, m, url);
     // everything that changes something goes in the log (the new tools log themselves)
-    const logged = { 'admin/coins': 'coins', 'admin/unlock': 'unlock', 'admin/give': 'give', 'admin/reset': 'reset', 'admin/ban': 'ban', 'admin/delete': 'delete', 'admin/giftall': 'giftall', 'admin/announce': 'announce', 'admin/chatclear': 'chatclear', 'admin/event': 'event' };
+    const logged = { 'admin/coins': 'coins', 'admin/unlock': 'unlock', 'admin/give': 'give', 'admin/xp': 'xp', 'admin/reset': 'reset', 'admin/ban': 'ban', 'admin/delete': 'delete', 'admin/giftall': 'giftall', 'admin/announce': 'announce', 'admin/chatclear': 'chatclear', 'admin/event': 'event' };
     if (out && !out.error && logged[route]) this.record(u, logged[route], m.name || '', m.add !== undefined ? String(m.add) : m.item || m.text || m.kind || (m.on !== undefined ? String(m.on) : ''));
     return out;
   }
@@ -344,7 +364,7 @@ export class Admin {
   route(route, u, m, url) {
     // owners are protected from the other admins
     const t = m && m.name ? this.find(m.name) : null;
-    if (t && this.isOwner(t) && !this.isOwner(u) && ['admin/reset', 'admin/ban', 'admin/delete', 'admin/take', 'admin/coins'].includes(route)) return { error: 'Owners can only be changed by an owner' };
+    if (t && this.isOwner(t) && !this.isOwner(u) && ['admin/reset', 'admin/ban', 'admin/delete', 'admin/take', 'admin/coins', 'admin/xp'].includes(route)) return { error: 'Owners can only be changed by an owner' };
     switch (route) {
       case 'admin/user': return this.user(url.searchParams.get('name'));
       case 'admin/log': return { log: [...this.log].reverse() };
@@ -362,6 +382,7 @@ export class Admin {
       case 'admin/coins': return this.coins(m);
       case 'admin/unlock': return this.unlock(m);
       case 'admin/give': return this.give(m);
+      case 'admin/xp': return this.xp(m);
       case 'admin/reset': return this.reset(m);
       case 'admin/ban': return this.ban(m);
       case 'admin/delete': return this.remove(m);

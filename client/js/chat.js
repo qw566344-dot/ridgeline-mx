@@ -134,7 +134,9 @@ export class ChatBox {
     if (!old && this.tab !== 'global') this.unread.global += fresh.filter((m) => m.name.toLowerCase() !== me).length;
     if (!old && !this.isOpen()) this.lobbyNew += fresh.filter((m) => m.name.toLowerCase() !== me).length;
     this.after = fresh[fresh.length - 1].id;
-    this.msgs = this.msgs.concat(fresh).slice(-60);
+    // an admin cleared the chat: everything before the "cleared" note goes, on every screen
+    const cut = fresh.map((m) => !!m.clear).lastIndexOf(true);
+    this.msgs = cut >= 0 ? fresh.slice(cut) : this.msgs.concat(fresh).slice(-60);
     this.badge();
     this.render();
   }

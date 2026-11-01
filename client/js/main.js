@@ -76,7 +76,7 @@ async function loadTags() {
 loadTags(); setInterval(loadTags, 60_000);
 account.onOutbox = (n) => ui.popup(`+${n.toLocaleString()} coins you earned while the server was away are saved now`, 'good');
 // admin tools: a private message, or a kick back to the menu
-social.onAdmin(async (list) => {
+async function onAdminMessages(list) {
   for (const a of list) {
     if (a.kind === 'boom') { if (game.state === 'running' && ui.inGame() && game.player) game.blowUp(game.player); continue; }
     if (a.kind === 'kick') {
@@ -86,7 +86,11 @@ social.onAdmin(async (list) => {
       ui.popup(`<b>You were kicked by ${escapeHtml(a.from)}</b>${a.text ? '<br>' + escapeHtml(a.text) : ''}`, 'bad', [['OK', () => {}, true]], 20);
     } else ui.popup(`<b>Message from ${escapeHtml(a.from)} (admin)</b><br>${escapeHtml(a.text)}`, '', [['OK', () => {}, true]], 25);
   }
-});
+}
+social.onAdmin(onAdminMessages);
+// the quick 4-second check (account.js) brings them too, and whatever an admin gave you
+window.addEventListener('mx-admin', (e) => onAdminMessages(e.detail));
+account.onChange(() => { if (ui.screen === 'garage') ui.renderGarage(); if (ui.screen === 'shop') ui.renderShopDetail(); });
 net.onSummoned = async (m) => {
   if (game.state === 'running' && ui.inGame() && !(game.opts && game.opts.mp)) await backToLobby();
   if (!(game.opts && game.opts.mp && game.state === 'running')) ui.show('home');
@@ -100,8 +104,13 @@ social.onEvent((ev, how) => {
   if (how.ended) ui.popup('The event has ended');
   if (how.rain) { account.init(); if (game.state === 'running' && ui.screen === 'hud') game.toast(`+${how.rain} coins (Coin Rain)`, 1.6, 'coins'); else ui.popup(`+${how.rain} coins from the Coin Rain`, 'good'); }
 });
-window.addEventListener('mx-banned', () => {
-  ui.popup('<b>You have been banned.</b><br>An admin banned this account, so you have been logged out. You can still play offline or as a guest.', 'bad', [['OK', () => { account.bannedShown = false; }, true]], 30);
+// banned: out of the race and the party, back to the log-in screen, and a ban popup in the middle
+window.addEventListener('mx-banned', async (e) => {
+  const d = e.detail || {};
+  if (game.state === 'running' && ui.inGame()) await backToLobby();
+  if (net.code) net.leave();
+  if (!account.profile) ui.showAccount();
+  ui.banScreen(/device/i.test(d.error || '') ? 'This device is banned' : 'You have been banned', d.reason || '', () => { account.bannedShown = false; });
 });
 social.onInvite((inv) => {
   ui.popup(`<b>${escapeHtml(inv.from)}</b> invited you to their party`, '', [

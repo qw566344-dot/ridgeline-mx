@@ -28,6 +28,20 @@ async function hashPassword(pw, salt) {
   return h.toString(16);
 }
 
+// This browser's id for device bans: random, kept in localStorage and a cookie (browsers
+// do not let a web page read real hardware ids). "mx.banned" is set when an account here
+// gets banned; the server then refuses new accounts from this browser even after it is wiped.
+function deviceId() {
+  let id = LS.get('mx.device', null);
+  if (!id) { const m = document.cookie.match(/(?:^|; )mxd=([0-9a-f]{32})/); id = m ? m[1] : null; }
+  if (!id) id = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
+  LS.set('mx.device', id);
+  try { document.cookie = `mxd=${id}; max-age=${60 * 60 * 24 * 3650}; path=/; SameSite=Lax`; } catch { /* ignore */ }
+  return id;
+}
+const bannedHere = () => LS.get('mx.banned', false) || /(?:^|; )mxb=1/.test(document.cookie);
+function markBanned() { LS.set('mx.banned', true); try { document.cookie = `mxb=1; max-age=${60 * 60 * 24 * 3650}; path=/; SameSite=Lax`; } catch { /* ignore */ } }
+
 function freshProfile(name) {
   return { name, coins: STARTER.coins, owned: [...STARTER.owned], equipped: { ...STARTER.equipped }, stats: { laps: 0, wins: 0, tricks: 0 } };
 }
@@ -47,6 +61,22 @@ export class Account {
     // waits in this browser and is sent as soon as the server answers again
     setInterval(() => this.flushOutbox(), 20_000);
     window.addEventListener('online', () => this.flushOutbox());
+    this.device = deviceId();
+    // every 4 s: admin messages, bans, and what an admin gave you (coins, items, XP) show up by themselves
+    this.rev = null;
+    setInterval(() => this.checkInbox(), 4000);
+  }
+
+  async checkInbox() {
+    if (this.mode !== 'online' || !this.token || this.inboxBusy || document.hidden) return;
+    this.inboxBusy = true;
+    try {
+      const r = await this.api('inbox?rev=' + (this.rev ?? -1));
+      if (!r || r.error) return;
+      if (r.profile && this.rev !== null) { this.profile = r.profile; this.persistLocal(); this.changed(); }
+      this.rev = r.rev;
+      if (r.admin && r.admin.length) window.dispatchEvent(new CustomEvent('mx-admin', { detail: r.admin }));
+    } catch { /* offline for a moment */ } finally { this.inboxBusy = false; }
   }
 
   // ---- outbox: rewards / equips made while the server was unreachable
@@ -158,7 +188,7 @@ export class Account {
   async api(path, body) {
     const res = await fetch(serverBase() + '/api/' + path, {
       method: body ? 'POST' : 'GET',
-      headers: { 'Content-Type': 'application/json', ...(this.token ? { Authorization: 'Bearer ' + this.token } : {}) },
+      headers: { 'Content-Type': 'application/json', 'X-Device': this.device || '', ...(bannedHere() ? { 'X-Banned': '1' } : {}), ...(this.token ? { Authorization: 'Bearer ' + this.token } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
     let r = await res.json();
@@ -169,10 +199,13 @@ export class Account {
       if (back) return this.api(path, body);
     }
     // banned by an admin: log out and tell the player (once)
-    if (r && r.error && /banned/i.test(r.error) && !this.bannedShown) {
-      this.bannedShown = true;
-      if (this.mode === 'online') this.logout();
-      window.dispatchEvent(new CustomEvent('mx-banned', { detail: r.error }));
+    if (r && r.error && /banned/i.test(r.error)) {
+      markBanned(); // this browser stays blocked from making accounts
+      if (!this.bannedShown) {
+        this.bannedShown = true;
+        if (this.mode === 'online') this.logout();
+        window.dispatchEvent(new CustomEvent('mx-banned', { detail: { error: r.error, reason: r.reason || '' } }));
+      }
     }
     return r;
   }
