@@ -24,6 +24,8 @@ const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 const g0 = { h: 0, nx: 0, ny: 1, nz: 0 };
 const _n = new THREE.Vector3(), _d = new THREE.Vector3(), _c = new THREE.Vector3(), _p = new THREE.Vector3(), _lv = new THREE.Vector3();
 const _ax = new THREE.Vector3(), _qi = new THREE.Quaternion();
+const _Y = new THREE.Vector3(0, 1, 0), _tf = new THREE.Vector3(), _tu = new THREE.Vector3(), _tl = new THREE.Vector3(), _te = new THREE.Vector3(), _tw = new THREE.Vector3();
+const _tm = new THREE.Matrix4(), _tq = new THREE.Quaternion();
 
 // add the torque that gives exactly this angular acceleration (rad/s^2) about a world axis -
 // the bike resists roll, pitch and yaw differently, so a plain torque would also spin it on the other axes
@@ -224,7 +226,7 @@ export class BikeController {
       addAccel(v, lvl, ap);
       const roll = Math.asin(clamp(left.y, -1, 1)); // + = leaning right (stays 0 during a flip)
       this.airRoll = roll;
-      const late = v.assist.landing > 0 ? Math.min(1, Math.max(0, (this.timeToLand - 0.15) / 0.35)) : 1;
+      const late = v.assist.landing > 0 ? Math.min(1, Math.max(0, (this.timeToLand - 0.3) / 0.4)) : 1; // whips fade out 0.7 s before wheels-down
       if (inp.clutch) {
         // Shift + A / D: flat spin (360s), the bike stays level
         const spinT = -this.steer * A.spinRate;
@@ -250,15 +252,40 @@ export class BikeController {
         let yawOff = 0;
         const hx = fwd.x, hz = fwd.z, vx = v.vel.x, vz = v.vel.z;
         if (vx * vx + vz * vz > 4 && hx * hx + hz * hz > 0.01) yawOff = Math.atan2(vz * hx - vx * hz, vx * hx + vz * hz);
-        // roll around the bike's own lengthwise axis (that keeps it pointing where it points)
-        v.torque.addScaledVector(fwd, ((rollT - roll) * (holding ? 30 : 75) - rollW * (holding ? 7 : 14)) * I[2]);
-        // turn around the true vertical (not the tilted bike), so the swing never fights the roll.
-        // Damp the HEADING rate only: with the nose down, rolling back out of a whip spins the
-        // bike about world-y too, and damping that stopped it ever lining back up (crooked landings)
-        const headW = v.angVel.y - rollW * fwd.y;
-        addAccel(v, _p.set(0, 1, 0), ((yawT - yawOff) * (holding ? 22 : 40) - headW * (holding ? 8.5 : 11)) * swingK);
+        // ONE controller turns the bike toward where it should be: laid over and swung out while you
+        // hold, straight and upright (lined up with where it is flying) once you let go. Separate roll
+        // and turn springs pulled against each other with the nose down, so letting go rolled the bike
+        // over the other way, flipped it or landed it crooked. The pitch stays with the landing assist.
+        const hk = holding ? amt : 0;     // near the ground the whip fades: pulled straight as if let go
+        const K = 90 + (30 - 90) * hk, C = 18 + (7.5 - 18) * hk;
+        const vh = Math.hypot(vx, vz);
+        const lvlA = _lv.set(fwd.z, 0, -fwd.x);
+        if (swingK > 0 && Math.abs(fwd.y) < 0.95 && lvlA.lengthSq() > 0.01) {
+          lvlA.normalize();
+          // target heading: the flight direction turned by the swing, at the bike's own pitch
+          const pitchNow = Math.asin(clamp(fwd.y, -1, 1));
+          if (vh > 2) _tf.set(vx / vh, 0, vz / vh).applyAxisAngle(_Y, yawT); else _tf.set(fwd.x, 0, fwd.z).normalize();
+          _tf.multiplyScalar(Math.cos(pitchNow)); _tf.y = Math.sin(pitchNow); _tf.normalize();
+          // target up: square to it, laid over by the whip (left = up x fwd, roll + = left.y > 0)
+          _tu.copy(_Y).addScaledVector(_tf, -_tf.y).normalize().applyAxisAngle(_tf, rollT);
+          _tl.crossVectors(_tu, _tf);
+          _tm.makeBasis(_tl, _tu, _tf); _tq.setFromRotationMatrix(_tm);
+          _tq.multiply(_qi.copy(v.quat).invert());          // the turn that takes the bike there (world)
+          if (_tq.w < 0) { _tq.x = -_tq.x; _tq.y = -_tq.y; _tq.z = -_tq.z; _tq.w = -_tq.w; }
+          const sh = Math.sqrt(1 - Math.min(1, _tq.w * _tq.w)), ang = 2 * Math.acos(Math.min(1, _tq.w));
+          _te.set(_tq.x, _tq.y, _tq.z); if (sh > 1e-5) _te.multiplyScalar(ang / sh); else _te.set(0, 0, 0);
+          // leave the pitch axis alone (flips and the landing assist own it)
+          _tw.copy(v.angVel);
+          _te.addScaledVector(lvlA, -_te.dot(lvlA)); _tw.addScaledVector(lvlA, -_tw.dot(lvlA));
+          _te.multiplyScalar(K * swingK).addScaledVector(_tw, -C * swingK);
+          addAccel(v, _te, 1);
+        }
+        // mid-flip (or pointing straight down): only keep the roll in check
+        if (swingK < 1) v.torque.addScaledVector(fwd, ((rollT - roll) * 75 - rollW * 15) * (1 - swingK) * I[2]);
         // scrub: whipping hard right off the lip keeps the bike low and fast
-        tr.whip = Math.max(tr.whip, Math.abs(roll)); // only real whips count, not the wobble of a spin
+        // the lay-over about the bike's own length (with the nose down, the lean from level reads smaller)
+        const rollAx = Math.asin(clamp(left.y / Math.sqrt(Math.max(0.05, 1 - fwd.y * fwd.y)), -1, 1));
+        tr.whip = Math.max(tr.whip, Math.abs(rollAx)); // only real whips count, not the wobble of a spin
         if (v.airTime < 0.35 && Math.abs(roll) > 25 * DEG) { tr.scrub = true; v.force.y -= c.mass * 9.81 * 0.3 * Math.min(1, Math.abs(roll) / (45 * DEG)); }
       }
       this.rollErr = 0;
