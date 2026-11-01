@@ -231,6 +231,11 @@ export function upgradeLevels(owned, vehicleId) {
   return out;
 }
 
+// player level needed to buy each vehicle: one level per 1,500 coins of price
+// (the cheap bikes are level 1, the 15,000-coin ones level 10). Set `level` on an
+// item above to override.
+export function vehicleLevel(item) { return !item || item.slot !== 'vehicle' || item.special ? 1 : item.level || Math.max(1, Math.floor(item.price / 1500)); }
+
 export const STARTER = { coins: 500, owned: SHOP.filter((i) => i.price === 0).map((i) => i.slot + ':' + i.id), equipped: { vehicle: 'mx250', color: 'stock', gear: 'match' } };
 
 // rarity for the shop cards (set on the item, or from its price)

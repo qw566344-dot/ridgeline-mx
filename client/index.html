@@ -227,6 +227,29 @@
     <section id="friends" class="screen overlay" hidden>
       <div class="sheet wide">
         <div class="sheet-head"><h2>Friends</h2><span id="friends-count" class="hint"></span></div>
+        <div id="friends-off" class="notice" hidden></div>
+        <div id="friends-on">
+          <div class="add-friend"><h4>Add a friend</h4><p class="hint">Type a rider name, then Add friend sends them a request.</p>
+          <div class="search-row">
+            <input id="friend-search" placeholder="Search riders by name" maxlength="16" autocomplete="off" spellcheck="false">
+            <button id="friend-add" class="primary">Add friend</button>
+          </div>
+          <div id="friend-msg" class="msg"></div>
+          <ul id="friend-results" class="people"></ul>
+          </div>
+          <div class="friends-cols">
+            <div>
+              <h4>Your friends</h4>
+              <ul id="friend-list" class="people"></ul>
+            </div>
+            <div>
+              <h4>Party invites</h4>
+              <ul id="invite-list" class="people"></ul>
+              <h4>Friend requests</h4>
+              <ul id="request-list" class="people"></ul>
+            </div>
+          </div>
+        </div>
         <div class="card party-card">
           <div class="card-head"><h3>Party</h3><span id="party-status" class="status">Solo</span></div>
           <div id="party-solo">
@@ -249,27 +272,6 @@
             </div>
           </div>
           <div id="party-error" class="error"></div>
-        </div>
-        <div id="friends-off" class="notice" hidden></div>
-        <div id="friends-on">
-          <div class="search-row">
-            <input id="friend-search" placeholder="Search riders by name" maxlength="16" autocomplete="off" spellcheck="false">
-            <button id="friend-add" class="primary">Add friend</button>
-          </div>
-          <div id="friend-msg" class="msg"></div>
-          <ul id="friend-results" class="people"></ul>
-          <div class="friends-cols">
-            <div>
-              <h4>Your friends</h4>
-              <ul id="friend-list" class="people"></ul>
-            </div>
-            <div>
-              <h4>Party invites</h4>
-              <ul id="invite-list" class="people"></ul>
-              <h4>Friend requests</h4>
-              <ul id="request-list" class="people"></ul>
-            </div>
-          </div>
         </div>
         <div class="row end"><button data-go="home">Back</button></div>
       </div>

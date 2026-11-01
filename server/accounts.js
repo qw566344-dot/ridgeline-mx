@@ -18,7 +18,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo } from '../shared/shop.js';
+import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS, ownsSpecials } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
 import { Chat } from './chat.js';
@@ -269,6 +269,8 @@ export class Accounts {
     if (u.owned.includes(k)) return { profile: this.profile(u) };
     if (item.special) return { error: 'That one is not for sale' };
     if (!inShop(slot, id)) return { error: 'That is not in the item shop right now - check back when it rotates' };
+    const need = vehicleLevel(item);
+    if (levelInfo(u.xp || 0).level < need) return { error: `Reach level ${need} to buy this` };
     if (slot === 'upgrade') for (const n of upgradeNeeds(item)) if (!this.has(u, n)) return { error: n.startsWith('vehicle') ? 'Buy the vehicle first' : 'Buy the level below first' };
     if (u.coins < item.price) return { error: `Not enough coins (need ${item.price})` };
     u.coins -= item.price;

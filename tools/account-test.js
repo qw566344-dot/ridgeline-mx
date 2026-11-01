@@ -38,6 +38,8 @@ try {
   const outside = ['goldrush', 'aurora', 'prism', 'chrome', 'lava'].find((id) => !inRot.has(id));
   r = await api(tok, 'buy', { slot: 'color', id: outside });
   ok(r.error && /shop/.test(r.error), `a skin that is not in the shop (${outside}) can not be bought`);
+  r = await api(tok, 'buy', { slot: 'vehicle', id: 'sxsr' });
+  ok(r.error && /level 10/.test(r.error), 'a vehicle above your level is refused');
   r = await api(tok, 'buy', { slot: 'vehicle', id: 'mx125' });
   const bought = 'mx125';
   ok(r.profile && r.profile.coins === 2000 && r.profile.owned.includes('vehicle:' + bought), 'earn + buy saved on the account');

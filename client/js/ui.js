@@ -12,7 +12,7 @@
 // =====================================================================
 import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES, SPECIAL_VEHICLES, SPECIAL_CATEGORY } from '/shared/vehicles.js';
-import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop, BUNDLES, getBundle, bundlePrice, levelInfo } from '/shared/shop.js';
+import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop, BUNDLES, getBundle, bundlePrice, levelInfo, vehicleLevel } from '/shared/shop.js';
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
@@ -410,13 +410,14 @@ export class UI {
     // every vehicle shows; the ones you don't own are locked with their price (buy them right here)
     const here = [...VEHICLES, ...SPECIAL_VEHICLES].filter((x) => x.category === this.garageCat && (!SPECIAL_VEHICLES.includes(x) || owns('vehicle', x.id)))
       .sort((a, b) => (owns('vehicle', b.id) - owns('vehicle', a.id)) || (shopItem('vehicle', a.id).price - shopItem('vehicle', b.id).price));
+    const myLevel = levelInfo((A && A.profile && A.profile.xp) || 0).level;
     for (const v of here) {
-      const own = owns('vehicle', v.id);
+      const own = owns('vehicle', v.id), need = vehicleLevel(shopItem('vehicle', v.id));
       const b = document.createElement('button');
       b.className = 'vcard' + (v.id === view ? ' sel' : '') + (own ? '' : ' locked');
       b.style.setProperty('--swatch', hex(paintFor(v.id, 'stock').body));
       const tag = v.id === cur ? '<span class="tag on">RIDING</span>' : own ? '<span class="tag">OWNED</span>' : `<span class="tag lock"><i class="coin"></i>${shopItem('vehicle', v.id).price.toLocaleString()}</span>`;
-      b.innerHTML = `<b>${v.name}</b>${tag}<small>${v.tier} &bull; ${v.category.replace(/ies$/, 'y').replace(/s$/, '')}</small>`;
+      b.innerHTML = `<b>${v.name}</b>${tag}<small>${v.tier} &bull; ${v.category.replace(/ies$/, 'y').replace(/s$/, '')}${own || need <= 1 ? '' : ` &bull; <span class="${myLevel >= need ? 'lvl-ok' : 'lvl-need'}">Level ${need}</span>`}</small>`;
       b.onclick = () => { this.gView = v.id; this.renderGarage(); this.syncStage(); };
       list.appendChild(b);
     }
@@ -454,9 +455,10 @@ export class UI {
     // equip / buy the vehicle (sits above the skins)
     const ownV = owns('vehicle', view);
     const act = $('g-action');
-    const vPrice = shopItem('vehicle', view).price;
+    const vPrice = shopItem('vehicle', view).price, vNeed = vehicleLevel(shopItem('vehicle', view));
     if (view === cur) act.innerHTML = '<button disabled class="wide">Equipped</button>';
     else if (ownV) act.innerHTML = `<button id="g-choose" class="primary wide">Equip vehicle</button>`;
+    else if (myLevel < vNeed) act.innerHTML = `<button class="wide" disabled>Locked - reach level ${vNeed} (you are level ${myLevel})</button>`;
     else act.innerHTML = `<button id="g-buyv" class="primary wide" ${coins >= vPrice ? '' : 'disabled'}>${coins >= vPrice ? `Buy for <i class="coin"></i>${vPrice.toLocaleString()}` : `Locked - need ${(vPrice - coins).toLocaleString()} more coins`}</button>`;
     if ($('g-choose')) $('g-choose').onclick = async () => {
       if (A) await A.equip('vehicle', view);

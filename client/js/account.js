@@ -7,7 +7,7 @@
 //  browser instead, with the password hashed. Guests also save locally.
 // =====================================================================
 import { serverBase } from './config.js';
-import { STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo } from '/shared/shop.js';
+import { STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel } from '/shared/shop.js';
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -294,6 +294,7 @@ export class Account {
     }
     const p = this.profile;
     if (this.owns(slot, id)) return null;
+    if (levelInfo(p.xp || 0).level < vehicleLevel(item)) return `Reach level ${vehicleLevel(item)} to buy this`;
     if (slot === 'upgrade') for (const n of upgradeNeeds(item)) { const [s2, i2] = n.split(':'); if (!this.owns(s2, i2)) return s2 === 'vehicle' ? 'Buy the vehicle first' : 'Buy the level below first'; }
     if (p.coins < item.price) return `Not enough coins (need ${item.price})`;
     p.coins -= item.price; p.owned.push(slot + ':' + id); if (slot !== 'upgrade') p.equipped[slot] = id;

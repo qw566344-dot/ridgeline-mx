@@ -690,3 +690,43 @@ h4 { margin: 22px 0 10px; }
 .lb-list b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lb-list .v { font-variant-numeric: tabular-nums; }
 @media (max-width: 820px) { .lb-cols { grid-template-columns: 1fr; } }
+
+/* =====================================================================
+   A LITTLE MORE COLOUR - same calm layout, richer accents (still no neon)
+   ===================================================================== */
+:root {
+  --accent: #f0743e; --accent-2: #ff9a66; --gold: #f2c443; --blue: #5b9cf0;
+  --good: #5fcf8b; --bad: #f07a74; --warn: #f2c443;
+  --card: rgba(20, 24, 33, 0.93); --line: rgba(255, 255, 255, 0.1);
+}
+#topbar { background: linear-gradient(90deg, rgba(18, 22, 32, 0.95), rgba(24, 22, 34, 0.95)); border-bottom: 1px solid rgba(240, 116, 62, 0.25); }
+.brand span, .logo span { color: var(--accent); }
+button.primary, button.primary:hover:not(:disabled) { background: linear-gradient(135deg, #f0743e, #e0553a); }
+button.primary:hover:not(:disabled) { background: linear-gradient(135deg, #ff8a52, #ec6440); }
+.play-btn { background: linear-gradient(135deg, #f0743e, #dc4f36); }
+.play-btn:hover:not(:disabled) { background: linear-gradient(135deg, #ff8a52, #e85c3e); }
+.play-btn.ready { background: linear-gradient(135deg, #4cc27f, #2f9a5e); }
+.tabs button.sel, .seg button.sel, .mode.sel, .track-card.sel, .region.sel, .vcard.sel, .options .sections button.sel { border-color: var(--accent); background: rgba(240, 116, 62, 0.18); }
+.stat .bar i { background: linear-gradient(90deg, #f0743e, #f2c443); }
+.pips i.on { background: linear-gradient(180deg, #f2c443, #f0743e); }
+.xpbar i { background: linear-gradient(90deg, #5b9cf0, #a78bfa); }
+.chip.level b { color: #b9d4ff; }
+.ntag .lv { color: #9cc3ff; }
+.sheet { border-top: 3px solid rgba(240, 116, 62, 0.55); }
+.fsec { color: var(--accent-2); }
+.fcard.Common, .fcard.Uncommon { background: linear-gradient(180deg, #4a5262, #272b34); }
+.fcard.Rare { background: linear-gradient(180deg, #2f6fb5, #1b2a44); }
+.fcard.Epic { background: linear-gradient(180deg, #7d4fc4, #2c2140); }
+.fcard.Legendary { background: linear-gradient(180deg, #d0812f, #3d2817); }
+.fcard .rar { color: #fff; }
+.tier.Works { background: rgba(242, 196, 67, 0.2); color: var(--gold); } .tier.Pro { background: rgba(91, 156, 240, 0.22); color: #a9c9ff; }
+.lb-list li:nth-child(1) { background: rgba(242, 196, 67, 0.12); }
+.lb-list li:nth-child(2) .pos { color: #cfd6e0; font-weight: 700; }
+.lb-list li:nth-child(3) .pos { color: #e09a62; font-weight: 700; }
+.lvl-need { color: var(--bad); font-weight: 700; }
+.lvl-ok { color: var(--good); font-weight: 700; }
+/* friends: add-a-friend box first, party below */
+.add-friend { padding: 18px 20px; border-radius: 14px; background: rgba(91, 156, 240, 0.08); border: 1px solid rgba(91, 156, 240, 0.25); margin-bottom: 8px; }
+.add-friend h4 { margin-top: 0; color: #a9c9ff; }
+.add-friend .hint { margin: 0 0 12px; }
+#friends .party-card { margin: 26px 0 0; }
