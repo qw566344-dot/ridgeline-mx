@@ -180,7 +180,7 @@ export class Lobby {
   // ------------------------------------------------------------- matchmaking
   // Casual: whoever is queued on this server, 2-8 riders, a random race track. Nobody else
   // after 40 s: the rider is told to race the AI instead. Ranked: needs an online account
-  // (only the home server has accounts), 2-6 riders of a similar rating - the window widens
+  // (only the home server has accounts), 1v1 against a rider of a similar rating - the window widens
   // the longer they wait - and the result moves everyone's rating (see rate).
   queue(p, m) {
     const mode = m.mode === 'ranked' ? 'ranked' : 'casual';
@@ -218,14 +218,16 @@ export class Lobby {
       } else {
         Q.sort((a, b) => a.rating - b.rating);
         const win = (e) => 150 + ((now - e.since) / 1000) * 8; // rating window, wider the longer you wait
-        for (let i = 0; i < Q.length - 1; i++) {
-          const group = [Q[i]];
-          for (let j = i + 1; j < Q.length && group.length < 6; j++) if (Math.abs(Q[j].rating - Q[i].rating) <= Math.min(win(Q[i]), win(Q[j]))) group.push(Q[j]);
-          if (group.length >= 2 && (group.length >= 6 || now - Math.min(...group.map((g) => g.since)) > 8000)) {
-            for (const g of group) Q.splice(Q.indexOf(g), 1);
-            this.makeMatch(mode, group);
-            i = -1;
+        // sorted by rating, so each rider's best opponent is a neighbour: pair the closest
+        // neighbours first, and keep going until nobody left fits anybody's window
+        for (;;) {
+          let best = -1, gap = Infinity;
+          for (let i = 0; i < Q.length - 1; i++) {
+            const d = Q[i + 1].rating - Q[i].rating;
+            if (d <= Math.min(win(Q[i]), win(Q[i + 1])) && d < gap) { gap = d; best = i; }
           }
+          if (best < 0) break;
+          this.makeMatch(mode, Q.splice(best, 2));
         }
       }
     }

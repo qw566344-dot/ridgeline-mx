@@ -49,8 +49,17 @@ check('the rating is saved on the account', me.profile.rating === k1.rating && m
 const lb = await get('leaderboard');
 check('the leaderboard lists ranked riders', lb.ranked && lb.ranked.length === 2 && lb.ranked[0].v >= lb.ranked[1].v && lb.ranked[0].tier);
 
+// ranked is 1v1: three riders queue, two race each other and the third keeps waiting
+const T = [];
+for (const n of ['TriOne', 'TriTwo', 'TriThree']) { const acc = await post('register', { name: n, password: 'tripw' + n }); const cl = client(n); await cl.open; T.push({ acc, cl }); }
+await wait(300);
+for (const { acc, cl } of T) cl.send({ t: 'queue', mode: 'ranked', auth: acc.token });
+await wait(4000);
+const ses = T.map(({ cl }) => cl.msgs.find((m) => m.t === 'session'));
+check('ranked is 1v1: three queued -> one 2-rider race, one still waiting', ses.filter(Boolean).length === 2 && ses.filter(Boolean).every((s) => s.players.length === 2));
+
 srv.kill();
-for (const x of [a, b, c, r1, r2]) x.ws.close();
+for (const x of [a, b, c, r1, r2, ...T.map((t) => t.cl)]) x.ws.close();
 const bad = results.filter((x) => !x).length;
 console.log(bad ? bad + ' FAILED' : 'all passed');
 process.exit(bad ? 1 : 0);

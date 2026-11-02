@@ -915,29 +915,27 @@ button.primary:hover:not(:disabled) { background: linear-gradient(135deg, #ff8a5
 .ru-hint { color: var(--muted); font-size: 12px; margin-top: 18px; animation: rise 0.5s 2.6s both; }
 
 /* =====================================================================
-   LOOK PASS: Barlow fonts, intro logo, a cleaner top bar (Cork7-style:
+   LOOK PASS: Saira fonts (slanted, like the logo), intro logo, a cleaner top bar (Cork7-style:
    glassy, pill tabs, everything on one baseline) and smoother motion
    ===================================================================== */
 :root {
-  --font: 'Barlow', 'Segoe UI', Roboto, Arial, sans-serif;
-  --display: 'Barlow Condensed', 'Barlow', 'Arial Narrow', sans-serif;
+  --font: 'Saira', 'Segoe UI', Roboto, Arial, sans-serif;
+  --display: 'Saira', 'Segoe UI', Arial, sans-serif;
   --ease: cubic-bezier(.2, .8, .2, 1);
 }
 body, button, input, select { font-family: var(--font); }
-h2, .sheet-head h2, .shop-head h2, .rk-info h2, .ru-tier, .ranked-soon { font-family: var(--display); letter-spacing: 0.02em; }
+h2, .sheet-head h2, .shop-head h2, .rk-info h2, .ru-tier, .ranked-soon { font-family: var(--display); font-style: italic; font-weight: 800; letter-spacing: 0; }
 h2 { font-weight: 700; }
-.play-btn, .rk-find { font-family: var(--display); font-weight: 800; letter-spacing: 0.1em; }
+.play-btn, .rk-find { font-family: var(--display); font-style: italic; font-weight: 900; letter-spacing: 0.04em; }
 
 /* intro: the logo drops in, a shine sweeps across it, the name and bar fade up */
 #loading { gap: 22px; background: radial-gradient(ellipse at 50% 42%, #1b2230 0%, #0a0c11 72%); }
-.intro-logo { position: relative; width: min(340px, 60vw); animation: introLogo 1.1s var(--ease) both; filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55)); overflow: hidden; }
+.intro-logo { position: relative; width: min(340px, 60vw); aspect-ratio: 214 / 111; animation: introLogo 0.9s var(--ease) both; will-change: transform, opacity; }
 .intro-logo img { display: block; width: 100%; height: auto; }
-.intro-shine { position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%); transform: translateX(-120%); animation: introShine 2.6s 0.9s ease-in-out infinite; mix-blend-mode: overlay; pointer-events: none; }
-.intro-name { font-family: var(--display); font-weight: 800; font-size: 26px; letter-spacing: 0.42em; padding-left: 0.42em; color: #e9e6e0; animation: rise 0.7s 0.5s var(--ease) both; }
+.intro-name { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 26px; letter-spacing: 0.3em; padding-left: 0.3em; color: #e9e6e0; animation: rise 0.7s 0.5s var(--ease) both; }
 .intro-name span { color: var(--accent); }
 #loading .loadbar { animation: rise 0.6s 0.7s var(--ease) both; }
-@keyframes introLogo { 0% { opacity: 0; transform: translateY(-30px) scale(1.25); filter: blur(8px); } 60% { opacity: 1; filter: blur(0); } 100% { opacity: 1; transform: none; } }
-@keyframes introShine { 0% { transform: translateX(-120%); } 45%, 100% { transform: translateX(120%); } }
+@keyframes introLogo { from { opacity: 0; transform: translateY(-18px) scale(1.12); } to { opacity: 1; transform: none; } }
 
 /* top bar: dark glass, pill tabs, round chips all the same height */
 #topbar { height: var(--top); padding: 0 22px; gap: 18px; background: linear-gradient(180deg, rgba(12, 14, 20, 0.92), rgba(12, 14, 20, 0.78)); border-bottom: 1px solid rgba(255, 255, 255, 0.06); backdrop-filter: blur(16px) saturate(1.2); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25); }

@@ -310,7 +310,7 @@ export class UI {
     $('rk-find').textContent = q && q.mode === 'ranked' ? (q.found ? 'FOUND!' : 'CANCEL') : 'FIND MATCH';
     $('rk-find').classList.toggle('searching', !!(q && q.mode === 'ranked'));
     $('rk-find').disabled = !online;
-    $('rk-status').textContent = !online ? 'Ranked needs an online account - log in to play.' : q && q.mode === 'ranked' ? (q.found ? 'Loading the track...' : `Searching for riders of your rank... ${q.n > 1 ? q.n + ' searching' : ''} (${Math.round((q.waited || 0) / 1000)} s)`) : 'Race 2-6 riders of your rank. Win to climb, lose and you drop.';
+    $('rk-status').textContent = !online ? 'Ranked needs an online account - log in to play.' : q && q.mode === 'ranked' ? (q.found ? 'Loading the track...' : `Searching for riders of your rank... ${q.n > 1 ? q.n + ' searching' : ''} (${Math.round((q.waited || 0) / 1000)} s)`) : '1v1 against a rider of your rank. Win to climb, lose and you drop.';
     if (!this.rkLoaded || Date.now() - this.rkLoaded > 30000) {
       this.rkLoaded = Date.now();
       let d = null;
