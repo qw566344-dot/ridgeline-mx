@@ -358,7 +358,10 @@ export class Game {
     const playing = this.mode !== 'menu';
     // global keys
     if (playing && inp.pressed('pause')) this.ui.togglePause(this);
-    if (inp.pressed('camera')) { const m = this.cam.cycle(); this.settings.set('camera', this.cam.mode); this.toast('Camera: ' + m); }
+    if (inp.pressed('camera')) {
+      if (this.player && this.player.spectator) this.dirNextShot = true; // watching: C picks the next shot
+      else { const m = this.cam.cycle(); this.settings.set('camera', this.cam.mode); this.toast('Camera: ' + m); }
+    }
     if (inp.pressed('fps')) this.settings.set('showFps', !this.settings.get('showFps'));
     if (this.paused) { this.render(0, 1); return; }
     if (playing && this.player && this.player.veh) {
@@ -399,7 +402,7 @@ export class Game {
     for (const r of this.riders) {
       const v = r.veh;
       if (!v) continue;
-      if (r.spectator) continue; // watching: the drone camera, no rider on the track
+      if (r.spectator) continue; // watching: the director camera, no rider on the track
       if (r.isPlayer && this.mode !== 'menu') {
         const c = r.finished && this.mode === 'race' ? { throttle: 0.2, brake: 0, steer: 0, rearBrake: 0, clutch: false, lean: 0 } : ctl;
         if (this.autopilot && !holding) this.autopilot.update(dt); // testing / demo: the AI rides your bike
@@ -438,11 +441,61 @@ export class Game {
   // an admin watching a race already going: just the rider, flying, no bike
   makeSpectator(r) {
     r.spectator = true;
-    if (r.isPlayer) this.cam.droneS = null; // starts where the camera is
+    if (r.isPlayer) this.dir = null; // the director starts fresh
     if (r.vis.root) r.vis.root.visible = false;
     if (r.vis.container) r.vis.container.visible = false;
     if (r.vis.placeholder) r.vis.placeholder.visible = false;
     if (r.veh) { r.veh.grounded = false; r.flyYaw = Math.atan2(r.veh.fwd.x || 0, r.veh.fwd.z || 1); r.veh.pos.y += 3; }
+  }
+
+  // DIRECTOR (watching a race): picks who to watch - a close battle, the leader, someone big in
+  // the air or crashing - and cuts between TV shots every few seconds. A / D or the arrow keys
+  // pick a rider yourself (the director stays on them a while, still cutting shots), Space goes
+  // back to automatic, C cuts to the next shot.
+  directorTick(dt) {
+    const D = this.dir || (this.dir = { target: null, shot: 'chase', t: 0, pin: 0, cut: true });
+    const live = (r) => !r.spectator && (r.veh || (r.remote && r.remote.state));
+    const list = this.riders.filter(live);
+    if (!list.length) return null;
+    const info = (r) => r.veh ? { air: r.veh.grounded ? 0 : r.veh.airTime || 0, crashed: r.veh.crashed, pos: r.veh.pos } : { air: 0, crashed: r.remote.state.crashed, pos: r.remote.state.pos };
+    const inp = this.input, k = (...c) => c.some((x) => inp.pressedOnce.has(x));
+    const SHOTS = ['chase', 'tv', 'side', 'heli', 'close'];
+    const pickShot = (air) => { const opts = SHOTS.filter((s) => s !== D.shot && (!air || s === 'side' || s === 'tv' || s === 'heli')); return opts[Math.floor(Math.random() * opts.length)]; };
+    const cutTo = (r, shot, why) => {
+      D.target = r; D.shot = shot; D.t = 4 + Math.random() * 4; D.cut = true; D.since = 0;
+      const hint = document.getElementById('hud-hint');
+      if (hint) hint.innerHTML = `DIRECTOR &nbsp; <b>${(r.name || 'Rider').replace(/[<>&]/g, '')}</b>${why ? ' &nbsp;' + why : ''} &nbsp; A/D pick rider &nbsp; Space auto &nbsp; C next shot${D.pin > 0 ? ' &nbsp; (picked)' : ''}`;
+    };
+    D.t -= dt; D.since = (D.since || 0) + dt; D.pin = Math.max(0, D.pin - dt);
+    if (!list.includes(D.target)) D.target = null;
+    // you pick
+    if (k('KeyD', 'ArrowRight', 'KeyA', 'ArrowLeft')) {
+      const i = Math.max(0, list.indexOf(D.target)), n = list.length;
+      D.pin = 25;
+      cutTo(list[(i + (k('KeyD', 'ArrowRight') ? 1 : n - 1)) % n], D.shot === 'heli' ? 'chase' : D.shot);
+    } else if (k('Space') && D.pin > 0) { D.pin = 0; D.t = 0; }
+    else if (this.dirNextShot) cutTo(D.target || list[0], pickShot(false));
+    this.dirNextShot = false;
+    // the director picks
+    if (!D.target || D.t <= 0 || (D.pin <= 0 && D.since > 2.5)) {
+      const order = this.standings().filter(live);
+      let best = null, bestScore = -1, why = '';
+      order.forEach((r, i) => {
+        const f = info(r);
+        let s = Math.random() * 2, w = '';
+        if (i === 0) { s += 3; w = 'leading'; }
+        const ahead = order[i - 1];
+        if (ahead && info(ahead).pos.distanceTo(f.pos) < 18) { s += 5; w = 'battling for P' + i; }
+        if (f.air > 0.5) { s += 6; w = 'big air'; }
+        if (f.crashed) { s += 5; w = 'crashed!'; }
+        if (r === D.target) s -= 1.5; // keep it moving
+        if (s > bestScore) { bestScore = s; best = r; why = w; }
+      });
+      const urgent = best && best !== D.target && (info(best).air > 0.6 || info(best).crashed) && D.since > 2.5;
+      if (D.pin > 0) { if (!D.target || D.t <= 0) cutTo(D.target || best, pickShot(false)); }
+      else if (!D.target || D.t <= 0 || urgent) cutTo(best, pickShot(info(best).air > 0.4), why);
+    }
+    return D.target;
   }
 
   // spectator flying: W / S forward and back, A / D turn, Space up, Shift down
@@ -794,7 +847,8 @@ export class Game {
     }
     // camera
     const cam = this.R.camera;
-    const focus = this.mode === 'menu' ? this.focus : this.player;
+    const spec = !!(this.player && this.player.spectator && this.mode !== 'menu');
+    const focus = this.mode === 'menu' ? this.focus : spec ? (dt > 0 ? this.directorTick(dt) : this.dir && this.dir.target) : this.player;
     if (focus && (focus.veh || (focus.remote && focus.remote.state))) {
       const v = focus.veh;
       const target = v ? {
@@ -802,19 +856,19 @@ export class Game {
         trackS: v.trackS, lean: v.lean, airTime: v.airTime, type: v.cfg.type,
       } : { pos: focus.vis.root.position, quat: focus.vis.root.quaternion, vel: focus.remote.state.vel, speed: focus.remote.state.vel.length(), grounded: true, trackS: 0 };
       let head = null;
-      if (this.cam.mode === 2 && focus.rider.attached) {
+      if (this.cam.mode === 2 && focus.rider.attached && !spec) {
         head = (this._head || (this._head = new THREE.Vector3())).copy(focus.rider.j.head).add(_v.set(0, 0.15, 0.12)).applyMatrix4(focus.vis.model.matrixWorld);
       }
-      if (dt > 0) this.cam.update(dt, target, this.world, head);
-      // the drone takes over the view: replay free cam, or watching a race (Space pauses replays)
+      if (spec) { if (dt > 0) { this.cam.directorShot(dt, target, this.world, this.dir.shot, this.dir.cut); this.dir.cut = false; } }
+      else if (dt > 0) this.cam.update(dt, target, this.world, head);
+      // the drone takes over the view in the replay free cam (Space pauses replays)
       if (this.replay && this.replay.free) this.cam.drone(dt, this.input, this.world, true);
-      else if (this.player && this.player.spectator) this.cam.drone(dt, this.input, this.world, false);
       focus.vis.root.visible = true;
       // helmet cam: our own rider loses the head and chest (see rider.js), keeps the arms
       focus.rider.mesh.visible = true;
-      for (const r of this.riders) if (r.rider) r.rider.firstPerson = this.cam.mode === 2 && r === focus && r.rider.attached && !(this.replay && this.replay.free);
+      for (const r of this.riders) if (r.rider) r.rider.firstPerson = this.cam.mode === 2 && r === focus && r.rider.attached && !spec && !(this.replay && this.replay.free);
       // goggles: a soft frame around the first-person view on bikes and quads (not in cars)
-      const gog = this.cam.mode === 2 && focus.rider.attached && v && v.cfg.type !== 'car' && !(this.replay && this.replay.free);
+      const gog = this.cam.mode === 2 && focus.rider.attached && v && v.cfg.type !== 'car' && !spec && !(this.replay && this.replay.free);
       if (gog !== this.gogOn) { this.gogOn = gog; const g = document.getElementById('goggles'); if (g) g.hidden = !gog; }
       this.R.followShadow(focus.vis.root.position);
       if (this.player === focus && v) {

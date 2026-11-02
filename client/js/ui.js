@@ -276,7 +276,7 @@ export class UI {
     btn.classList.remove('ready');
     btn.disabled = false;
     if (!P) { btn.textContent = 'PLAY'; note.textContent = ''; }
-    else if (P.session && !net.isLeader()) { btn.textContent = 'WATCH'; note.textContent = `${modeName(P.session.mode)} in progress - watch with the drone camera`; }
+    else if (P.session && !net.isLeader()) { btn.textContent = 'WATCH'; note.textContent = `${modeName(P.session.mode)} in progress - watch it live`; }
     else if (net.isLeader()) {
       const others = P.members.filter((m) => m.id !== net.id && m.connected);
       const ready = others.filter((m) => m.ready).length;
@@ -1229,7 +1229,7 @@ export class UI {
     $('trick-pop').innerHTML = '';
     $('name-tags').innerHTML = ''; this.nameTagEls = new Map();
     $('toasts').innerHTML = '';
-    $('hud-hint').innerHTML = spec ? 'DRONE CAM &nbsp; W/A/S/D fly &nbsp; Space up &nbsp; Ctrl down &nbsp; Shift fast &nbsp; right mouse look' : game.mode === 'freestyle' ? 'Q/E flip &nbsp; A/D whip &nbsp; Shift+A/D spin &nbsp; Y restart' : 'R reset &nbsp; C camera &nbsp; Esc pause';
+    $('hud-hint').innerHTML = spec ? 'DIRECTOR &nbsp; A/D pick rider &nbsp; Space auto &nbsp; C next shot' : game.mode === 'freestyle' ? 'Q/E flip &nbsp; A/D whip &nbsp; Shift+A/D spin &nbsp; Y restart' : 'R reset &nbsp; C camera &nbsp; Esc pause';
     if (this.stage) this.stage.hideTags();
   }
   hideHud() { $('hud').hidden = true; }

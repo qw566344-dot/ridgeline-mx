@@ -14,7 +14,7 @@ export const UPDATES = [
       'New upgrade: Anti-Lag - instant power after a lift and louder backfires',
       'Four new tricks: Can-Can (5), Lazy Boy (6), Seat Grab (7) and Rock Solid (8)',
       'Quads turn sharper, grip better and roll less',
-      'Watching a race now uses a drone camera, and the replay free cam flies the same way',
+      'Watching a race now has a TV-style Director camera that follows the best action (A/D to pick a rider), and the replay free cam flies like a drone',
       'A new lobby on a sunny track, new fonts, a cleaner top bar and smoother menus',
     ],
   },

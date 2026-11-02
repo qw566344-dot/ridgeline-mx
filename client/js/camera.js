@@ -39,6 +39,47 @@ export class CameraRig {
     this.prevSpd = 0; this.accel = 0; this.airPull = 0;
   }
 
+  // DIRECTOR shots (spectating): like a TV director, the game picks who to watch (see
+  // Game.directorTick) and this frames them. chase / close / tv reuse the normal camera modes;
+  // side tracks alongside the rider, heli circles high above. cut = a new shot: jump straight there
+  directorShot(dt, target, world, shot, cut) {
+    const cam = this.camera;
+    if (cut) { this.snapNext = true; this.tvPoint = null; this.dirS = null; }
+    const modes = { chase: 0, close: 1, tv: 3 };
+    if (shot in modes) {
+      const keep = this.mode; this.mode = modes[shot];
+      this.update(dt, target, world, null);
+      this.mode = keep;
+      return;
+    }
+    const D = this.dirS || (this.dirS = { pos: null, a: Math.random() * Math.PI * 2, side: Math.random() < 0.5 ? 1 : -1 });
+    const h = _h.copy(target.vel).setY(0);
+    if (h.lengthSq() < 4) h.set(0, 0, 1).applyQuaternion(target.quat).setY(0);
+    h.normalize();
+    const want = _d;
+    if (shot === 'side') {
+      // alongside, a little ahead, low: the classic tracking shot
+      want.copy(target.pos).addScaledVector(_w.crossVectors(h, THREE.Object3D.DEFAULT_UP).normalize(), 7.5 * D.side).addScaledVector(h, 2.5);
+      want.y = Math.max(target.pos.y, heightAt(world, want.x, want.z)) + 1.3;
+    } else {
+      // heli: high and wide, slowly circling
+      D.a += dt * 0.22;
+      want.set(target.pos.x + Math.sin(D.a) * 18, 0, target.pos.z + Math.cos(D.a) * 18);
+      want.y = Math.max(target.pos.y, heightAt(world, want.x, want.z)) + 12;
+    }
+    if (!D.pos || this.snapNext) D.pos = want.clone();
+    D.pos.lerp(want, Math.min(1, dt * (shot === 'side' ? 4 : 2)));
+    const floor = heightAt(world, D.pos.x, D.pos.z) + 0.8;
+    if (D.pos.y < floor) D.pos.y = floor;
+    cam.position.copy(D.pos); cam.up.set(0, 1, 0);
+    _l.copy(target.pos).addScaledVector(target.vel, 0.15); _l.y += 0.7;
+    cam.lookAt(_l);
+    const fov = shot === 'side' ? 50 : 42;
+    cam.fov += (fov - cam.fov) * (this.snapNext ? 1 : Math.min(1, dt * 4)); cam.updateProjectionMatrix();
+    this.pos.copy(cam.position); this.look.copy(_l);
+    this.snapNext = false;
+  }
+
   // DRONE camera (spectating, replay free cam), like Rocket League's: it flies with momentum -
   // W / S forward and back along where you look, A / D sideways, Space or E up, Ctrl or Q down,
   // Shift fast; hold the right mouse button to look around. noSpace: Space is taken (replays pause)
@@ -183,23 +224,47 @@ export class CameraRig {
         _h.normalize();
         if (_w.lengthSq() > 0.04) {
           _l.crossVectors(_w.normalize(), THREE.Object3D.DEFAULT_UP).normalize(); // the bike's own heading (spins turn it)
+          // the follow heading only takes the bike's turning while its nose is near level (a 360).
+          // With the nose straight up or down mid-flip, the smallest roll of the bike swings its
+          // side axis round - read as heading, that shook the view left and right
+          if (!this.fHead) { this.fHead = _l.clone(); this.fPrevL = _l.clone(); }
+          const turn = Math.atan2(this.fPrevL.z * _l.x - this.fPrevL.x * _l.z, this.fPrevL.dot(_l));
+          const level = fwd.x * fwd.x + fwd.z * fwd.z;                    // cos^2 of the nose angle
+          this.fHead.applyAxisAngle(THREE.Object3D.DEFAULT_UP, turn * level * level).normalize();
+          this.fPrevL.copy(_l);
           const whip = Math.min(1, Math.max(0, (lay - 0.2) / 0.3));       // a whip: keep looking where you are flying
-          _h.lerp(_l, 1 - whip * whip * (3 - 2 * whip)).normalize();
+          this.whipS = (this.whipS || 0) + (whip - (this.whipS || 0)) * Math.min(1, dt * 6); // eased, so it can't flicker
+          const ws = this.whipS;
+          _h.lerp(this.fHead, 1 - ws * ws * (3 - 2 * ws)).normalize();
         }
         // nose angle round the flip (+ = up), all the way round. Measured against the nose's whole
         // level length (with the sign from the heading), not just the part along the heading: in a
         // whip the nose swings sideways, and that read as "nose down" and tipped the view down
         const th = Math.atan2(fwd.y, Math.hypot(fwd.x, fwd.z) * (fwd.dot(_h) < 0 ? -1 : 1));
-        const pitch = th - (car ? 0.08 : 0.3);
-        _w.crossVectors(_h, THREE.Object3D.DEFAULT_UP).normalize();      // the flip axis (level, square to the heading)
-        _f.copy(_h).applyAxisAngle(_w, pitch);
-        _u.set(0, 1, 0).applyAxisAngle(_w, pitch);
-        _m.lookAt(_v2.set(0, 0, 0), _f, _u);
-        if (!this.flipQ) this.flipQ = new THREE.Quaternion();
-        this.flipQ.setFromRotationMatrix(_m);                            // kept while fading out after landing
+        // kept continuous all the way round (and past one turn), so blending it never jumps
+        if (this.fPitch == null) this.fPitch = th;
+        else { const d = th - this.fPitch; this.fPitch += d - Math.round(d / (Math.PI * 2)) * Math.PI * 2; }
+        (this.fH || (this.fH = new THREE.Vector3())).copy(_h);            // kept while fading out after landing
+      } else {
+        this.fHead = null; this.whipS = 0;
+        if (this.fPitch != null) this.fPitch -= Math.round(this.fPitch / (Math.PI * 2)) * Math.PI * 2; // landed: the nearest way back to level
       }
       this.flipLock = (this.flipLock || 0) + (followW - (this.flipLock || 0)) * Math.min(1, dt * 3.5);
-      if (this.flipLock > 0.001 && this.flipQ) _q.slerp(this.flipQ, this.flipLock);
+      // blend the ANGLES (heading, nose angle) from the normal view to the flip view. Blending the
+      // two orientations instead took the shortest way between them - from level to upside down
+      // that way flips between rolling left and rolling right, which shook the view mid-flip
+      if (this.flipLock > 0.001 && this.fH && this.fPitch != null) {
+        const k = this.flipLock;
+        const lvlPitch = Math.asin(Math.max(-1, Math.min(1, _f.y)));
+        _d.copy(_f).setY(0).normalize().lerp(this.fH, k).normalize();     // heading
+        const P = lvlPitch + (this.fPitch - (car ? 0.08 : 0.3) - lvlPitch) * k;
+        _w.crossVectors(_d, THREE.Object3D.DEFAULT_UP).normalize();      // the flip axis (level, square to the heading)
+        _f.copy(_d).applyAxisAngle(_w, P);
+        _u.set(0, 1, 0).applyAxisAngle(_w, P);
+        if (target.lean) _u.applyAxisAngle(_f, -target.lean * 0.45 * (1 - k));
+        _m.lookAt(_v2.set(0, 0, 0), _f, _u);
+        _q.setFromRotationMatrix(_m);
+      } else if (followW === 0) this.fPitch = null;
       if (!this.helmQ || this.snapNext) this.helmQ = _q.clone();
       this.helmQ.slerp(_q, Math.min(1, dt * (this.flipLock > 0.3 ? 12 : target.grounded ? 9 : 5)));
       cam.quaternion.copy(this.helmQ);

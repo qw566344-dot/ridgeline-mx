@@ -1031,3 +1031,54 @@ button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
   .casino-stage .picks { grid-template-columns: repeat(4, 1fr); }
   .casino-stage .rl-wheel { height: 170px; } .casino-stage .rl-ball { width: 110px; height: 110px; font-size: 54px; }
 }
+
+/* =====================================================================
+   CASINO LOOK: a real roulette wheel, poker-chip bet buttons, a printed
+   blackjack felt with proper cards, a glowing crash graph
+   ===================================================================== */
+.casino-stage .cgame[data-game="roulette"] { background: radial-gradient(ellipse at 50% 0%, rgba(26, 92, 58, 0.55), rgba(14, 18, 24, 0.85) 70%); }
+.casino-stage .cgame[data-game="blackjack"] { background: radial-gradient(ellipse at 50% 0%, rgba(20, 70, 48, 0.45), rgba(14, 18, 24, 0.85) 70%); }
+.casino-stage .cgame[data-game="crash"] { background: radial-gradient(ellipse at 50% 0%, rgba(40, 52, 96, 0.5), rgba(14, 18, 24, 0.85) 70%); }
+.casino-stage .cgame h3 { display: flex; align-items: center; gap: 10px; }
+.casino-stage .cgame h3::before { content: ''; width: 6px; height: 26px; border-radius: 3px; background: linear-gradient(180deg, var(--gold), var(--accent)); }
+/* roulette wheel */
+.casino-stage .rl-wheel { position: relative; width: 270px; height: 270px; margin: 4px auto 0; border-radius: 50%; border: none; background: radial-gradient(circle, #5a3a1c 0 58%, #3b2410 59% 100%); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55), inset 0 0 0 6px #b8860b, inset 0 0 0 9px #3b2410; display: grid; place-items: center; }
+.rl-disc { position: absolute; inset: 14px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255, 215, 120, 0.5), 0 0 0 2px #b8860b; will-change: transform; }
+.rl-disc::after { content: ''; position: absolute; inset: 22%; border-radius: 50%; background: radial-gradient(circle, #6b4524, #3b2410); box-shadow: 0 0 0 3px #b8860b; }
+.rl-disc span { position: absolute; left: 50%; top: 0; height: 50%; width: 22px; margin-left: -11px; transform-origin: 50% 100%; text-align: center; }
+.rl-disc span b { display: block; padding-top: 5px; font-size: 12px; font-weight: 700; color: #fff; font-family: var(--font); }
+.rl-pointer { position: absolute; top: 4px; left: 50%; z-index: 3; width: 0; height: 0; margin-left: -9px; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 18px solid var(--gold); filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6)); }
+.casino-stage .rl-ball { position: relative; z-index: 2; width: 92px; height: 92px; font-size: 42px; border-width: 4px; }
+.casino-stage .hist { justify-content: center; }
+/* roulette picks: felt cells */
+.casino-stage .picks .pk { border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.12); font-weight: 700; }
+.casino-stage .picks .pk.red { background: linear-gradient(180deg, #d42a35, #a3141e); }
+.casino-stage .picks .pk.black { background: linear-gradient(180deg, #2a2c33, #111216); }
+.casino-stage .picks .pk.green { background: linear-gradient(180deg, #18a352, #0e6e36); }
+.casino-stage .picks .pk.sel { box-shadow: 0 0 0 3px var(--gold), 0 6px 16px rgba(242, 196, 67, 0.3); }
+/* bet buttons: poker chips */
+.casino-stage .bet-row { align-items: center; gap: 8px; }
+.casino-stage .bet-row button[data-chip] { width: 48px; height: 48px; padding: 0; border-radius: 50%; font-size: 11px; font-weight: 800; color: #fff; border: 4px dashed rgba(255, 255, 255, 0.85); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), inset 0 0 0 3px rgba(0, 0, 0, 0.18); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.casino-stage .bet-row button[data-chip="100"] { background: #c8202e; }
+.casino-stage .bet-row button[data-chip="1000"] { background: #2563eb; }
+.casino-stage .bet-row button[data-chip="x2"] { background: #15803d; }
+.casino-stage .bet-row button[data-chip="half"] { background: #7c3aed; }
+.casino-stage .bet-row button[data-chip="max"] { background: #b7791f; }
+.casino-stage .bet-row button[data-chip]:hover:not(:disabled) { transform: translateY(-3px) rotate(-12deg); }
+.casino-stage .bet-row input { height: 48px; font-size: 18px; border-radius: 12px; }
+/* blackjack felt */
+.casino-stage .bj-table { position: relative; background: radial-gradient(ellipse at 50% 20%, #237a51, #0f3f2a 75%); border: 10px solid #4a2e17; border-radius: 22px 22px 140px 140px / 22px 22px 70px 70px; box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.45), 0 14px 30px rgba(0, 0, 0, 0.45); padding: 22px 34px 40px; gap: 52px; }
+.bj-print { position: absolute; left: 0; right: 0; top: calc(50% - 14px); text-align: center; font-family: var(--display); font-style: italic; font-weight: 700; font-size: 13px; letter-spacing: 0.14em; color: rgba(255, 230, 160, 0.4); pointer-events: none; }
+.casino-stage .bj-row { display: flex; flex-direction: column; align-items: center; }
+.casino-stage .bj-row small { font-weight: 700; letter-spacing: 0.12em; }
+.casino-stage .bj-row small b { display: inline-block; min-width: 26px; padding: 1px 8px; margin-left: 6px; border-radius: 10px; background: rgba(0, 0, 0, 0.35); }
+.casino-stage .bj-cards { justify-content: center; }
+.casino-stage .pcard { position: relative; width: 74px; height: 104px; border-radius: 9px; background: linear-gradient(160deg, #ffffff, #efeae0); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4); display: grid; place-items: center; }
+.casino-stage .pcard i { font-size: 38px; }
+.casino-stage .pcard em { position: absolute; left: 6px; top: 4px; font-style: normal; font-weight: 800; font-size: 15px; line-height: 1; text-align: center; }
+.casino-stage .pcard em.br { left: auto; top: auto; right: 6px; bottom: 4px; transform: rotate(180deg); }
+.casino-stage .pcard.back { background: repeating-linear-gradient(45deg, #9c3b2a 0 7px, #b5523d 7px 14px); border: 4px solid #f8f6f1; }
+/* crash */
+.casino-stage .cr-box { border-radius: 14px; background: radial-gradient(ellipse at 70% 20%, #172036, #090c14 75%); border: 1px solid rgba(120, 150, 255, 0.15); box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5); }
+.casino-stage .cr-mult { top: 34%; font-style: italic; font-weight: 900; }
+.casino-stage #cr-go.cash { background: linear-gradient(135deg, #facc15, #d97706); color: #1a1408; }

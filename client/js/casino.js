@@ -6,6 +6,9 @@
 import { checkBet, validPick, roulettePayout, rouletteColor, crashMult, crashPointFrom, MIN_BET, bjDeal, bjHit, bjStand, bjDouble, bjCanDouble, bjView } from '/shared/casino.js';
 
 const $ = (id) => document.getElementById(id);
+// the pockets round a European wheel, clockwise from 0
+const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+const POCKET = { red: '#c81e2a', black: '#17181c', green: '#138a43' };
 
 export class CasinoUI {
   constructor(ui, account) {
@@ -83,7 +86,18 @@ export class CasinoUI {
     if (id === 'crash' && !this.round) this.drawCrash(1, false);
   }
 
+  // the roulette wheel: coloured pockets (one conic gradient) with their numbers round the rim
+  buildWheel() {
+    const disc = $('rl-disc');
+    if (!disc || disc.childElementCount) return;
+    const step = 360 / WHEEL.length;
+    disc.style.background = 'conic-gradient(' + WHEEL.map((n, i) => `${POCKET[rouletteColor(n)]} ${i * step}deg ${(i + 1) * step}deg`).join(',') + ')';
+    disc.innerHTML = WHEEL.map((n, i) => `<span style="transform: rotate(${(i + 0.5) * step}deg)"><b>${n}</b></span>`).join('');
+    this.wheelRot = 0;
+  }
+
   wire() {
+    this.buildWheel();
     document.querySelectorAll('[data-cgame]').forEach((b) => b.onclick = () => this.setGame(b.dataset.cgame));
     let last = null; try { last = localStorage.getItem('mx.casinoGame'); } catch { /* private mode */ }
     this.setGame(['roulette', 'blackjack', 'crash'].includes(last) ? last : 'roulette');
@@ -132,7 +146,16 @@ export class CasinoUI {
     this.msg('rl-msg', '');
     const r = await this.call('roulette', { bet: Number($('rl-bet').value), pick: this.pick });
     if (r.error) { this.msg('rl-msg', r.error, 'bad'); this.spinning = false; $('rl-spin').disabled = false; return; }
-    // flick through numbers, slowing down, then land on the result
+    // the wheel spins and slows so the winning pocket stops under the pointer, while the
+    // hub flicks through numbers, slowing down, then lands on the result
+    const disc = $('rl-disc'), step = 360 / WHEEL.length;
+    if (disc) {
+      const at = (WHEEL.indexOf(r.result) + 0.5) * step;
+      const base = Math.ceil((this.wheelRot || 0) / 360) * 360;
+      this.wheelRot = base + 360 * 5 + (360 - at);
+      disc.style.transition = 'transform 2.6s cubic-bezier(.15,.65,.2,1)';
+      disc.style.transform = `rotate(${this.wheelRot}deg)`;
+    }
     const ball = $('rl-ball');
     let delay = 40, t = 0;
     await new Promise((done) => {
@@ -170,7 +193,8 @@ export class CasinoUI {
     const card = (c, i) => {
       if (c === '??') return `<span class="pcard back" style="animation-delay:${i * 0.08}s"></span>`;
       const suit = c.slice(-1), rank = c.slice(0, -1), red = suit === 'H' || suit === 'D';
-      return `<span class="pcard${red ? ' red' : ''}" style="animation-delay:${i * 0.08}s"><b>${rank}</b><i>${{ S: '\u2660', H: '\u2665', D: '\u2666', C: '\u2663' }[suit]}</i></span>`;
+      const s = { S: '\u2660', H: '\u2665', D: '\u2666', C: '\u2663' }[suit];
+      return `<span class="pcard${red ? ' red' : ''}" style="animation-delay:${i * 0.08}s"><em>${rank}<br>${s}</em><i>${s}</i><em class="br">${rank}<br>${s}</em></span>`;
     };
     $('bj-dealer').innerHTML = h.dealer.map(card).join(''); $('bj-player').innerHTML = h.player.map(card).join('');
     $('bj-dtotal').textContent = h.dTotal; $('bj-ptotal').textContent = h.pTotal;
@@ -240,23 +264,37 @@ export class CasinoUI {
 
   resetBtn() { $('cr-go').textContent = 'BET'; $('cr-go').classList.remove('cash'); }
 
-  // the rising line
+  // the rising line: a glowing curve with the area under it filled, a marker riding the tip,
+  // and the multiplier marked up the side
   drawCrash(m, dead, cashedAt = 0) {
     const c = $('cr-canvas'), x = c.getContext('2d');
-    const w = c.width, h = c.height;
+    const w = c.width, h = c.height, padL = 46, padB = 18;
     x.clearRect(0, 0, w, h);
     const top = Math.max(2, m * 1.15);
     const tMax = Math.log(top) / 0.075;
-    x.strokeStyle = 'rgba(255,255,255,0.08)'; x.lineWidth = 1;
-    for (let i = 1; i < 5; i++) { x.beginPath(); x.moveTo(0, (h * i) / 5); x.lineTo(w, (h * i) / 5); x.stroke(); }
-    const tNow = Math.log(Math.max(1, m)) / 0.075;
-    x.beginPath();
-    for (let i = 0; i <= 60; i++) {
-      const t = (tNow * i) / 60, mm = Math.exp(0.075 * t);
-      const px = (t / Math.max(1, tMax)) * w, py = h - ((mm - 1) / (top - 1)) * (h - 10) - 4;
-      i ? x.lineTo(px, py) : x.moveTo(px, py);
+    const Y = (mm) => h - padB - ((mm - 1) / (top - 1)) * (h - padB - 14);
+    x.font = '600 13px Saira, sans-serif'; x.textAlign = 'right'; x.textBaseline = 'middle';
+    for (let i = 0; i <= 4; i++) {
+      const mm = 1 + ((top - 1) * i) / 4, y = Y(mm);
+      x.strokeStyle = 'rgba(255,255,255,0.07)'; x.lineWidth = 1; x.beginPath(); x.moveTo(padL, y); x.lineTo(w, y); x.stroke();
+      x.fillStyle = 'rgba(255,255,255,0.4)'; x.fillText(mm.toFixed(mm < 10 ? 1 : 0) + 'x', padL - 8, y);
     }
-    x.strokeStyle = dead ? '#f87171' : '#4ade80'; x.lineWidth = 4; x.stroke();
+    const tNow = Math.log(Math.max(1, m)) / 0.075;
+    const col = dead ? '#f87171' : cashedAt ? '#facc15' : '#4ade80';
+    const pts = [];
+    for (let i = 0; i <= 80; i++) {
+      const t = (tNow * i) / 80, mm = Math.exp(0.075 * t);
+      pts.push([padL + (t / Math.max(1, tMax)) * (w - padL - 20), Y(mm)]);
+    }
+    const end = pts[pts.length - 1];
+    const fill = x.createLinearGradient(0, end[1], 0, h - padB);
+    fill.addColorStop(0, dead ? 'rgba(248,113,113,0.35)' : 'rgba(74,222,128,0.35)'); fill.addColorStop(1, 'rgba(0,0,0,0)');
+    x.beginPath(); x.moveTo(pts[0][0], h - padB); for (const [px, py] of pts) x.lineTo(px, py); x.lineTo(end[0], h - padB); x.closePath();
+    x.fillStyle = fill; x.fill();
+    x.beginPath(); pts.forEach(([px, py], i) => (i ? x.lineTo(px, py) : x.moveTo(px, py)));
+    x.shadowColor = col; x.shadowBlur = 16; x.strokeStyle = col; x.lineWidth = 4; x.lineCap = 'round'; x.stroke();
+    x.beginPath(); x.arc(end[0], end[1], 7, 0, Math.PI * 2); x.fillStyle = '#fff'; x.fill();
+    x.shadowBlur = 0;
     $('cr-mult').textContent = (dead ? 'CRASHED ' : '') + m.toFixed(2) + 'x';
     $('cr-mult').className = 'cr-mult' + (dead ? ' dead' : cashedAt ? ' won' : '');
   }

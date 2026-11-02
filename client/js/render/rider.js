@@ -88,61 +88,101 @@ function capsule(r, len, color) {
   return colorize(g, color);
 }
 
+// LOFT: a smooth body panel swept up the bone. prof is a list of rings, bottom to top:
+// [y, half-width, half-depth, forward offset]. Between rings the shape is eased (Catmull-Rom),
+// so a few rings give a natural taper - a chest wider than the waist, a calf, a wrist
+function loft(prof, color, rs = 16, rows = 4) {
+  const n = prof.length, hs = segs((n - 1) * rows, n - 1);
+  const g = new THREE.CylinderGeometry(1, 1, 1, segs(rs, 6), hs, false);
+  const p = g.attributes.position;
+  const at = (k, j) => prof[Math.max(0, Math.min(n - 1, k))][j] || 0;
+  const cr = (k, u, j) => { const p0 = at(k - 1, j), p1 = at(k, j), p2 = at(k + 1, j), p3 = at(k + 2, j); return 0.5 * ((2 * p1) + (-p0 + p2) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (-p0 + 3 * p1 - 3 * p2 + p3) * u * u * u); };
+  for (let i = 0; i < p.count; i++) {
+    const t = p.getY(i) + 0.5, fk = t * (n - 1), k = Math.min(n - 2, Math.floor(fk)), u = fk - k;
+    const y = at(k, 0) + (at(k + 1, 0) - at(k, 0)) * u;
+    p.setXYZ(i, p.getX(i) * cr(k, u, 1), y, p.getZ(i) * cr(k, u, 2) + cr(k, u, 3));
+  }
+  g.computeVertexNormals();
+  return colorize(clean(g), color);
+}
+
 function partGeo(scheme) {
   const [jersey, pants, accent] = scheme.gear;
-  const boot = 0xf2f2f2, glove = accent, dark = 0x1d1f24;
+  const boot = 0xf2f2f2, glove = accent, dark = 0x1d1f24, sole = 0x2b2d33;
   const parts = []; // [geometry, boneIndex]
   const add = (g, b) => parts.push([g, b]);
   const silver = 0xb8bec7;
-  // pelvis / hips: pants with hip pads and a belt
-  add(sphere(0.17, pants, [0, 0.04, 0], [1.05, 0.62, 0.78], 16, 10), B.pelvis);
+  // pelvis / hips: rounded pants seat with hip pads, a belt with a buckle
+  add(loft([[-0.1, 0.11, 0.09, -0.01], [-0.05, 0.16, 0.12, -0.012], [0.03, 0.175, 0.13, -0.005], [0.1, 0.165, 0.12, 0], [0.14, 0.155, 0.112, 0]], pants, 18), B.pelvis);
   for (const s of [1, -1]) add(sphere(0.07, pants, [s * 0.15, 0.03, -0.01], [0.8, 1.1, 1.0], 10, 8), B.pelvis);
-  add(cyl(0.165, 0.165, 0.045, dark, [0, 0.12, 0], [0, 0, 0], 18), B.pelvis);
-  // torso: shaped jersey (chest wider than the waist), chest protector, shoulder cups, collar
-  add(sphere(0.2, jersey, [0, 0.33, 0], [0.92, 1.3, 0.62], 18, 14), B.torso);
-  add(sphere(0.155, jersey, [0, 0.12, 0], [1.0, 0.9, 0.78], 16, 10), B.torso);
-  add(sphere(0.19, accent, [0, 0.37, 0.035], [0.98, 0.78, 0.6], 16, 12), B.torso);            // chest protector
-  add(sphere(0.12, dark, [0, 0.36, 0.06], [0.55, 0.42, 0.62], 12, 8), B.torso);               // protector centre plate
+  add(loft([[0.1, 0.163, 0.118, 0], [0.145, 0.163, 0.118, 0]], dark, 18, 1), B.pelvis);       // belt
+  add(roundBoxC(0.06, 0.04, 0.02, 0.008, silver, [0, 0.122, 0.12]), B.pelvis);                // buckle
+  // torso: one smooth jersey (narrow waist, broad chest, sloping shoulders), a loose hem over the
+  // belt, the chest protector showing through, roost deflector shoulders, a back protector hump
+  add(loft([[0.0, 0.152, 0.11, 0], [0.1, 0.155, 0.112, 0.002], [0.2, 0.168, 0.118, 0.008], [0.3, 0.188, 0.126, 0.014], [0.39, 0.198, 0.126, 0.01], [0.46, 0.178, 0.112, 0], [0.52, 0.11, 0.088, -0.006], [0.56, 0.078, 0.07, -0.006]], jersey, 20), B.torso);
+  add(loft([[-0.02, 0.166, 0.124, 0.004], [0.03, 0.162, 0.12, 0.002], [0.07, 0.156, 0.114, 0.002]], accent, 20, 1), B.torso);   // jersey hem
+  add(loft([[0.2, 0.12, 0.05, 0.085], [0.28, 0.165, 0.07, 0.085], [0.38, 0.175, 0.07, 0.083], [0.47, 0.15, 0.055, 0.068]], accent, 18), B.torso); // chest protector
+  add(roundBoxC(0.13, 0.12, 0.03, 0.014, dark, [0, 0.35, 0.155]), B.torso);                   // protector centre plate
+  add(sphere(0.12, accent, [0, 0.33, -0.09], [1.05, 1.25, 0.42], 14, 10), B.torso);           // back protector
   add(sphere(0.188, accent, [0, 0.455, -0.012], [0.98, 0.3, 0.66], 18, 8), B.torso);          // shoulder yoke
-  add(sphere(0.158, accent, [0, 0.035, 0], [1.03, 0.16, 0.8], 16, 6), B.torso);               // jersey hem
   for (const s of [1, -1]) {
     add(sphere(0.085, jersey, [s * 0.2, 0.46, -0.005], [1.08, 0.55, 1.12], 14, 8), B.torso);    // shoulder pads: low and wide
     add(sphere(0.07, accent, [s * 0.205, 0.468, -0.005], [1.05, 0.38, 1.05], 12, 6), B.torso);
-    add(sphere(0.13, accent, [s * 0.16, 0.24, -0.005], [0.22, 1.4, 0.72], 10, 10), B.torso); // side panels
+    add(sphere(0.13, accent, [s * 0.165, 0.24, -0.005], [0.2, 1.4, 0.72], 10, 10), B.torso);   // side panels
   }
   add(torus(0.088, 0.034, dark, [0, 0.53, -0.01], [Math.PI / 2, 0, 0], 8, 18), B.torso);        // neck brace
+  add(roundBoxC(0.09, 0.05, 0.03, 0.012, dark, [0, 0.49, -0.1]), B.torso);                     // neck brace back strut
   add(cyl(0.07, 0.08, 0.05, jersey, [0, 0.555, -0.005], [0, 0, 0], 14), B.torso);               // collar
   // (the race number on the back is a decal mesh, see Rider.setNumber)
   // head: the helmet model is its own mesh on the head bone (see Rider); this is the face
   // inside it, plus a plain shell in case the helmet model could not be loaded
   add(sphere(0.085, 0x2a1f1a, [0, 0.09, -0.02], [1, 1.1, 0.9], 12, 10), B.head); // head inside the helmet (dark, behind the goggle lens)
   if (!helmetModel()) add(sphere(0.155, jersey, [0, 0.13, 0.0], [1.0, 1.04, 1.13], 16, 12), B.head);
-  // arms: smooth sleeves, elbow guards, cuffs, shaped gloves with a knuckle guard
+  // arms: tapered sleeves (round at the shoulder, narrowing to the elbow, a forearm that swells
+  // then slims to the wrist), ball joints so nothing gaps when they bend, elbow guards,
+  // gauntlet gloves with a thumb, fingers that curl round the grip and a knuckle guard
   for (const [ua, fa, h] of [[B.uaL, B.faL, B.hL], [B.uaR, B.faR, B.hR]]) {
-    add(capsule(0.062, LEN.ua, jersey), ua);
-    for (const y of [0.5, 0.62]) add(cyl(0.0655, 0.0655, 0.028, accent, [0, LEN.ua * y, 0], [0, 0, 0], 14), ua); // sleeve stripes
-    add(capsule(0.052, LEN.fa, jersey), fa);
-    add(sphere(0.06, dark, [0, 0.02, -0.012], [1, 0.95, 0.8], 12, 8), fa);                       // elbow guard
-    add(cyl(0.056, 0.05, 0.07, accent, [0, LEN.fa - 0.035, 0], [0, 0, 0], 14), fa);             // cuff
-    add(roundBoxC(0.088, 0.1, 0.05, 0.022, glove, [0, 0.04, 0]), h);                             // palm
-    add(roundBoxC(0.084, 0.06, 0.04, 0.016, glove, [0, 0.105, 0.012]), h);                       // fingers
-    add(roundBoxC(0.07, 0.035, 0.02, 0.008, dark, [0, 0.07, 0.03]), h);                          // knuckle guard
+    add(sphere(0.07, jersey, [0, 0.0, 0], [1, 1, 1], 14, 10), ua);                               // shoulder joint
+    add(loft([[0, 0.07, 0.07], [0.06, 0.068, 0.067], [0.15, 0.064, 0.061], [0.24, 0.057, 0.054], [LEN.ua, 0.054, 0.052]], jersey, 14, 3), ua);
+    for (const y of [0.5, 0.62]) add(cyl(0.0645, 0.063, 0.026, accent, [0, LEN.ua * y, 0], [0, 0, 0], 14), ua); // sleeve stripes
+    add(sphere(0.054, jersey, [0, 0, 0], [1, 1, 1], 12, 8), fa);                                 // elbow joint
+    add(loft([[0, 0.054, 0.052], [0.07, 0.06, 0.056], [0.15, 0.057, 0.051], [0.21, 0.05, 0.045], [LEN.fa - 0.02, 0.047, 0.043]], jersey, 14, 3), fa);
+    add(sphere(0.062, dark, [0, 0.035, -0.02], [1, 1.25, 0.7], 12, 8), fa);                      // elbow guard
+    add(loft([[LEN.fa - 0.075, 0.051, 0.048], [LEN.fa - 0.02, 0.054, 0.05], [LEN.fa + 0.01, 0.048, 0.044]], glove, 14, 1), fa); // gauntlet
+    add(roundBoxC(0.088, 0.1, 0.052, 0.024, glove, [0, 0.045, 0]), h);                           // palm
+    for (let k = 0; k < 4; k++) {                                                                  // fingers, closed into a fist round the grip
+      const x = (k - 1.5) * 0.0215, l = k === 0 || k === 3 ? 0.034 : 0.04;
+      add(roundBoxC(0.021, l, 0.026, 0.01, glove, [x, 0.092 + l / 2, 0.004]), h);
+      add(roundBoxC(0.021, 0.026, 0.03, 0.01, glove, [x, 0.088 + l, -0.02]), h);
+    }
+    add(roundBoxC(0.024, 0.055, 0.024, 0.011, glove, [0, 0.05, -0.034]), h);                     // thumb, under the grip
+    add(roundBoxC(0.074, 0.03, 0.018, 0.008, dark, [0, 0.085, 0.03]), h);                         // knuckle guard
+    add(roundBoxC(0.06, 0.04, 0.012, 0.006, dark, [0, 0.03, 0.028]), h);                          // wrist strap
   }
-  // legs: smooth pants, knee braces with hinges, tall boots with shin plates, buckles, toe caps
+  // legs: baggy tapered pants with a leather knee panel, knee braces with hinges, tall boots
+  // that flare at the top, shin plates, strap buckles, a stepped sole and toe cap
   for (const [th, sh, ft] of [[B.thL, B.shL, B.ftL], [B.thR, B.shR, B.ftR]]) {
-    add(capsule(0.082, LEN.th, pants), th);
-    for (const s of [1, -1]) add(sphere(0.07, accent, [s * 0.062, LEN.th * 0.5, 0], [0.32, 2.6, 0.7], 8, 10), th); // pant side panels
-    add(sphere(0.078, dark, [0, LEN.th * 0.62, -0.035], [0.9, 1.6, 0.55], 10, 8), th);          // seat / rear panel
-    add(sphere(0.07, pants, [0, LEN.th - 0.03, 0.01], [1, 0.9, 1], 12, 8), th);                  // knee
-    add(roundBoxC(0.12, 0.2, 0.12, 0.045, dark, [0, 0.04, 0.012]), sh);                           // knee brace
-    for (const s of [1, -1]) add(cyl(0.022, 0.022, 0.03, silver, [s * 0.068, 0.04, 0.01], [0, 0, Math.PI / 2], 10), sh); // hinges
-    add(roundBoxC(0.125, 0.32, 0.135, 0.05, boot, [0, 0.25, 0.0]), sh);                           // boot shaft
-    add(roundBoxC(0.09, 0.26, 0.03, 0.014, accent, [0, 0.24, 0.07]), sh);                         // shin plate
-    for (let k = 0; k < 4; k++) add(box(0.132, 0.018, 0.142, k % 2 ? silver : dark, [0, 0.13 + k * 0.065, 0]), sh); // buckles
-    add(roundBoxC(0.115, 0.26, 0.1, 0.04, boot, [0, 0.1, 0.0]), ft);                              // foot
-    add(roundBoxC(0.112, 0.06, 0.07, 0.025, dark, [0, 0.215, 0.005]), ft);                        // toe cap
-    add(roundBoxC(0.105, 0.05, 0.06, 0.02, dark, [0, -0.01, -0.01]), ft);                          // heel
-    add(box(0.12, 0.27, 0.022, dark, [0, 0.1, -0.05]), ft);                                        // sole
+    add(sphere(0.092, pants, [0, 0.0, 0], [1, 1, 1], 14, 10), th);                               // hip joint
+    add(loft([[0, 0.094, 0.09], [0.08, 0.098, 0.093], [0.2, 0.092, 0.087], [0.33, 0.083, 0.08], [LEN.th, 0.075, 0.073]], pants, 16, 3), th);
+    for (const s of [1, -1]) add(sphere(0.07, accent, [s * 0.07, LEN.th * 0.5, 0], [0.3, 2.6, 0.7], 8, 10), th); // pant side panels
+    add(sphere(0.078, dark, [0, LEN.th * 0.62, -0.04], [0.9, 1.6, 0.55], 10, 8), th);           // seat / rear panel
+    add(sphere(0.072, pants, [0, LEN.th - 0.03, 0.01], [1, 0.9, 1], 12, 8), th);                 // knee
+    add(sphere(0.07, dark, [0, LEN.th - 0.05, 0.04], [0.9, 1.3, 0.55], 10, 8), th);              // leather knee panel
+    add(loft([[-0.02, 0.078, 0.078, 0.004], [0.06, 0.074, 0.076, 0.008], [0.11, 0.075, 0.078, 0.004]], pants, 14, 2), sh); // pants over the brace, into the boot
+    add(roundBoxC(0.12, 0.17, 0.12, 0.045, dark, [0, 0.03, 0.03]), sh);                           // knee brace cup
+    for (const s of [1, -1]) add(cyl(0.022, 0.022, 0.03, silver, [s * 0.07, 0.04, 0.01], [0, 0, Math.PI / 2], 10), sh); // hinges
+    add(loft([[0.09, 0.072, 0.078, 0.004], [0.16, 0.068, 0.073, 0.004], [0.28, 0.062, 0.068, 0.004], [0.37, 0.058, 0.066, 0.002], [0.43, 0.058, 0.07, 0.004]], boot, 16, 3), sh); // boot shaft
+    add(loft([[0.12, 0.05, 0.02, 0.065], [0.24, 0.048, 0.02, 0.06], [0.36, 0.044, 0.018, 0.056]], accent, 12, 2), sh); // shin plate
+    for (let k = 0; k < 4; k++) {
+      const y = 0.15 + k * 0.07, w = 0.072 - k * 0.003;
+      add(loft([[y, w, w + 0.006, 0.004], [y + 0.016, w, w + 0.006, 0.004]], dark, 16, 1), sh); // strap
+      for (const s of [1, -1]) add(roundBoxC(0.012, 0.024, 0.03, 0.004, silver, [s * (w + 0.002), y + 0.008, 0.02]), sh); // buckles
+    }
+    add(roundBoxC(0.112, 0.25, 0.1, 0.042, boot, [0, 0.1, 0.0]), ft);                             // foot
+    add(roundBoxC(0.112, 0.07, 0.075, 0.028, dark, [0, 0.21, 0.004]), ft);                        // toe cap
+    add(roundBoxC(0.105, 0.06, 0.065, 0.022, dark, [0, -0.01, -0.006]), ft);                       // heel cup
+    add(roundBoxC(0.122, 0.28, 0.026, 0.008, sole, [0, 0.1, -0.05]), ft);                         // sole
+    add(box(0.124, 0.05, 0.03, dark, [0, 0.07, -0.056]), ft);                                     // instep (sits on the peg)
   }
   // merge, tagging every vertex with its bone, and jersey / pants parts with
   // a zone so a skin pattern can be printed on them (see riderMaterial)
