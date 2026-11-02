@@ -241,6 +241,7 @@ export class UI {
     const P = net && net.party;
     $('party-solo').hidden = !!P;
     $('party-in').hidden = !P;
+    $('party-leave').hidden = !P; // the small Leave party button under the party panel
     const stEl = $('party-status');
     if (P) {
       const live = P.members.filter((m) => m.connected).length;
@@ -746,7 +747,8 @@ export class UI {
       $('rp-seek').oninput = (e) => { const r = G().replay; if (r) G().seekReplay((Number(e.target.value) / 1000) * r.end); };
       $('rp-speed').onchange = (e) => { const r = G().replay; if (r) r.speed = Number(e.target.value); };
       $('rp-rider').onchange = (e) => G().watchRider(Number(e.target.value));
-      $('rp-cam').onclick = () => { const g = G(); const mode = g.cam.cycle(); g.settings.set('camera', g.cam.mode); g.toast('Camera: ' + mode); };
+      $('rp-cam').onclick = () => { const g = G(); if (g.replay && g.replay.free) g.toggleFreeCam(); const mode = g.cam.cycle(); g.settings.set('camera', g.cam.mode); g.toast('Camera: ' + mode); };
+      $('rp-free').onclick = () => G().toggleFreeCam();
       window.addEventListener('keydown', (e) => {
         const g = G(); if (!g || !g.replay || /INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName) || '')) return;
         if (e.code === 'Space') { e.preventDefault(); $('rp-play').click(); }
@@ -758,6 +760,7 @@ export class UI {
   }
 
   updateReplay(game) {
+    $('rp-free').classList.toggle('primary', !!(game.replay && game.replay.free));
     const R = game.replay;
     if (!R) return;
     const len = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;

@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { getTrack } from '/shared/tracks.js';
 import { makeWorld, heightAt } from '/shared/terrain.js';
+import { KEYS } from './input.js';
 import { getVehicle, BIKE_COLORS, VEHICLES, paintFor } from '/shared/vehicles.js';
 import { pointAt, sampleArr, wrapS, deltaS } from '/shared/trackgen.js';
 import { LapTracker, GAME } from '/shared/rules.js';
@@ -305,8 +306,39 @@ export class Game {
     R.focus = i; this.player = this.riders[i]; this.cam.snapNext = true;
   }
 
+  // replay free cam: fly anywhere while the replay plays (F or the Free cam button)
+  toggleFreeCam() {
+    const R = this.replay;
+    if (!R) return;
+    if (R.free) { R.free = null; this.cam.snapNext = true; this.toast('Free cam off', 1.2); }
+    else {
+      const cam = this.R.camera, d = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+      R.free = { pos: cam.position.clone(), yaw: Math.atan2(d.x, d.z), pitch: Math.asin(Math.max(-1, Math.min(1, d.y))) };
+      this.toast('Free cam: W/S fly, A/D turn, E/Q up/down, Shift faster, right mouse to look', 3);
+    }
+    this.ui.updateReplay(this);
+  }
+  freeCamUpdate(dt) {
+    const F = this.replay.free, inp = this.input, cam = this.R.camera, m = inp.mouse;
+    const key = (a) => KEYS[a].some((k) => inp.down.has(k) && !k.startsWith('Arrow')); // arrows seek the replay
+    if (m.dx || m.dy) { F.yaw -= m.dx * 0.004; F.pitch = Math.max(-1.45, Math.min(1.45, F.pitch - m.dy * 0.004)); }
+    F.yaw += ((key('left') ? 1 : 0) - (key('right') ? 1 : 0)) * 1.8 * dt;
+    const sp = (inp.down.has('ShiftLeft') || inp.down.has('ShiftRight') ? 45 : 16) * dt;
+    const fx = Math.sin(F.yaw) * Math.cos(F.pitch), fy = Math.sin(F.pitch), fz = Math.cos(F.yaw) * Math.cos(F.pitch);
+    const go = (key('throttle') ? 1 : 0) - (key('brake') ? 1 : 0);
+    F.pos.x += fx * go * sp; F.pos.y += fy * go * sp; F.pos.z += fz * go * sp;
+    F.pos.y += ((key('leanFwd') ? 1 : 0) - (key('leanBack') ? 1 : 0)) * sp;
+    const half = this.world.half - 2;
+    F.pos.x = Math.max(-half, Math.min(half, F.pos.x)); F.pos.z = Math.max(-half, Math.min(half, F.pos.z));
+    F.pos.y = Math.max(heightAt(this.world, F.pos.x, F.pos.z) + 0.6, Math.min(F.pos.y, 400));
+    cam.position.copy(F.pos);
+    cam.up.set(0, 1, 0);
+    cam.lookAt(F.pos.x + fx, F.pos.y + fy, F.pos.z + fz);
+  }
+
   replayFrame(dt) {
     const R = this.replay, rep = R.rep, inp = this.input;
+    if (inp.pressedOnce.has('KeyF')) this.toggleFreeCam();
     if (inp.pressed('camera')) { const m = this.cam.cycle(); this.settings.set('camera', this.cam.mode); this.toast('Camera: ' + m); }
     if (inp.pressed('pause')) { this.ui.emit('replayExit'); return; }
     const step = R.playing ? dt * R.speed : 0;
@@ -785,12 +817,13 @@ export class Game {
         head = (this._head || (this._head = new THREE.Vector3())).copy(focus.rider.j.head).add(_v.set(0, 0.15, 0.12)).applyMatrix4(focus.vis.model.matrixWorld);
       }
       if (dt > 0) this.cam.update(dt, target, this.world, head);
+      if (this.replay && this.replay.free) this.freeCamUpdate(dt); // replay free cam takes over the view
       focus.vis.root.visible = true;
       // helmet cam: our own rider loses the head and chest (see rider.js), keeps the arms
       focus.rider.mesh.visible = true;
-      for (const r of this.riders) if (r.rider) r.rider.firstPerson = this.cam.mode === 2 && r === focus && r.rider.attached;
+      for (const r of this.riders) if (r.rider) r.rider.firstPerson = this.cam.mode === 2 && r === focus && r.rider.attached && !(this.replay && this.replay.free);
       // goggles: a soft frame around the first-person view on bikes and quads (not in cars)
-      const gog = this.cam.mode === 2 && focus.rider.attached && v && v.cfg.type !== 'car';
+      const gog = this.cam.mode === 2 && focus.rider.attached && v && v.cfg.type !== 'car' && !(this.replay && this.replay.free);
       if (gog !== this.gogOn) { this.gogOn = gog; const g = document.getElementById('goggles'); if (g) g.hidden = !gog; }
       this.R.followShadow(focus.vis.root.position);
       if (this.player === focus && v) {
