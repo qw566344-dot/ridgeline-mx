@@ -18,6 +18,7 @@ import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
 import { escapeHtml, ordinal, hex, ago, staffTags } from './util.js';
 import { liveTrick } from './sim/tricks.js';
+import { ReplayStore } from './replay.js';
 import { KEYS, DEFAULT_KEYS, applyBindings, keyName } from './input.js';
 import { UPDATES } from './updates.js';
 import { regionList, customServer, setServerBase, serverBase } from './config.js';
@@ -26,9 +27,9 @@ export { escapeHtml };
 import { Vector3 } from 'three';
 const $ = (id) => document.getElementById(id);
 const _tv = new Vector3();
-const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'ranked', 'friends', 'settings', 'credits', 'pause', 'results'];
-const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'ranked', 'friends', 'settings', 'credits']);
-const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', leaderboard: 'leaderboard', ranked: 'ranked', friends: 'friends', settings: 'settings' };
+const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'ranked', 'friends', 'settings', 'credits', 'pause', 'results'];
+const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'ranked', 'friends', 'settings', 'credits']);
+const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', leaderboard: 'leaderboard', replays: 'replays', ranked: 'ranked', friends: 'friends', settings: 'settings' };
 // Settings > Controls: what each key does (the actions you can rebind), in order
 const BINDABLE = [['throttle', 'Throttle'], ['brake', 'Brake / reverse'], ['left', 'Steer left'], ['right', 'Steer right'], ['leanBack', 'Lean back / backflip'], ['leanFwd', 'Lean forward / front flip / preload'], ['clutch', 'Clutch / flat spin'], ['rearBrake', 'Rear brake'], ['trick1', 'Superman'], ['trick2', 'Nac-Nac'], ['trick3', 'Heel Clicker'], ['trick4', 'Cliffhanger'], ['gearMode', 'Manual / automatic gears'], ['shiftUp', 'Shift up'], ['shiftDown', 'Shift down'], ['reset', 'Reset onto the track'], ['retry', 'Quick retry'], ['camera', 'Change camera'], ['pause', 'Pause']];
 
@@ -137,6 +138,7 @@ export class UI {
     if (name === 'shop') this.renderShop();
     if (name === 'casino' && this.casino) this.casino.show();
     if (name === 'leaderboard') this.renderLeaderboard();
+    if (name === 'replays') this.renderReplays();
     if (name === 'friends') { this.renderHome(); this.renderFriends(); if (this.social) this.social.refresh(); }
     if (name === 'settings') this.renderSettings();
     this.renderTop();
@@ -701,6 +703,74 @@ export class UI {
     if (P && this.account.mode === 'online' && mine < 0) { $('lb-mine').hidden = false; $('lb-mine').innerHTML = `You: <b>${pts((P.stats && P.stats.tp) || 0)}</b> - the top 25 are shown`; }
   }
 
+  // ------------------------------------------------------------- replays
+  async renderReplays() {
+    const el = $('rp-list');
+    el.innerHTML = '<li class="hint">Loading...</li>';
+    const list = await ReplayStore.list();
+    if (!list.length) { el.innerHTML = '<li class="hint">No replays yet - go for a ride, it is recorded by itself.</li>'; return; }
+    const modeName = { race: 'Race', freeride: 'Free ride', freestyle: 'Freestyle', timetrial: 'Time trial', practice: 'Practice' };
+    const len = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    el.innerHTML = list.map((m) => {
+      const tr = (() => { try { return getTrack(m.track).name; } catch { return m.track; } })();
+      const res = m.result ? (m.result.pos ? `${ordinal(m.result.pos)} of ${m.result.of}` : m.result.score != null ? `${m.result.score.toLocaleString()} pts` : '') : '';
+      const me = m.riders.find((r) => r.me);
+      return `<li class="${m.starred ? 'star' : ''}">
+        <div class="rp-info"><b>${escapeHtml(tr)}</b><span>${modeName[m.mode] || m.mode}${m.mp ? ' (party)' : ''} &bull; ${len(m.length || 0)} &bull; ${m.riders.length} rider${m.riders.length === 1 ? '' : 's'}${res ? ' &bull; ' + res : ''}</span>
+        <small>${new Date(m.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}${me ? ' &bull; ' + escapeHtml(getVehicle(me.vehicleId).name) : ''}</small></div>
+        <div class="rp-acts"><button class="small primary" data-watch="${m.id}">Watch</button><button class="small" data-star="${m.id}" title="${m.starred ? 'Starred: kept for good' : 'Keep for good'}">${m.starred ? '&#9733;' : '&#9734;'}</button><button class="small danger" data-del="${m.id}">Delete</button></div></li>`;
+    }).join('');
+    el.querySelectorAll('[data-watch]').forEach((b) => b.onclick = () => this.emit('watchReplay', b.dataset.watch));
+    el.querySelectorAll('[data-star]').forEach((b) => b.onclick = async () => { const m = list.find((x) => x.id === b.dataset.star); await ReplayStore.star(m.id, !m.starred); this.renderReplays(); });
+    el.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { if (b.dataset.sure) { await ReplayStore.remove(b.dataset.del); this.renderReplays(); } else { b.dataset.sure = 1; b.textContent = 'Sure?'; } });
+  }
+
+  showReplay(game) {
+    const R = game.replay, m = R.rep.meta;
+    for (const s of SCREENS) $(s).hidden = true;
+    this.screen = 'replay';
+    $('topbar').hidden = true;
+    $('hud').hidden = false; $('hud').classList.add('replay'); // only the name tags
+    $('replay-bar').hidden = false;
+    $('rp-title').textContent = 'Replay - ' + (() => { try { return getTrack(m.track).name; } catch { return m.track; } })();
+    $('rp-rider').innerHTML = m.riders.map((r, i) => `<option value="${i}" ${i === R.focus ? 'selected' : ''}>${escapeHtml(r.name)}${r.me ? ' (you)' : ''}</option>`).join('');
+    $('rp-speed').value = '1';
+    if (!this.rpWired) {
+      this.rpWired = true;
+      const G = () => this.game;
+      $('rp-exit').onclick = () => this.emit('replayExit');
+      $('rp-play').onclick = () => { const r = G().replay; if (!r) return; if (r.t >= r.end) r.t = 0; r.playing = !r.playing; };
+      $('rp-back').onclick = () => G().seekReplay(G().replay.t - 5);
+      $('rp-fwd').onclick = () => G().seekReplay(G().replay.t + 5);
+      $('rp-seek').oninput = (e) => { const r = G().replay; if (r) G().seekReplay((Number(e.target.value) / 1000) * r.end); };
+      $('rp-speed').onchange = (e) => { const r = G().replay; if (r) r.speed = Number(e.target.value); };
+      $('rp-rider').onchange = (e) => G().watchRider(Number(e.target.value));
+      $('rp-cam').onclick = () => { const g = G(); const mode = g.cam.cycle(); g.settings.set('camera', g.cam.mode); g.toast('Camera: ' + mode); };
+      window.addEventListener('keydown', (e) => {
+        const g = G(); if (!g || !g.replay || /INPUT|TEXTAREA|SELECT/.test((e.target && e.target.tagName) || '')) return;
+        if (e.code === 'Space') { e.preventDefault(); $('rp-play').click(); }
+        if (e.code === 'ArrowLeft') g.seekReplay(g.replay.t - 5);
+        if (e.code === 'ArrowRight') g.seekReplay(g.replay.t + 5);
+        if (e.code === 'Tab') { e.preventDefault(); g.watchRider((g.replay.focus + 1) % g.riders.length); $('rp-rider').value = String(g.replay.focus); }
+      });
+    }
+  }
+
+  updateReplay(game) {
+    const R = game.replay;
+    if (!R) return;
+    const len = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    setText($('rp-time'), `${len(R.t)} / ${len(R.end)}${R.speed !== 1 ? `  (${R.speed}x)` : ''}`);
+    setText($('rp-play'), R.playing ? 'Pause' : R.t >= R.end ? 'Replay' : 'Play');
+    if (document.activeElement !== $('rp-seek')) { const v = String(Math.round((R.t / Math.max(0.01, R.end)) * 1000)); if ($('rp-seek').value !== v) $('rp-seek').value = v; }
+  }
+
+  hideReplay() {
+    const bar = $('replay-bar');
+    if (bar) bar.hidden = true;
+    $('hud').classList.remove('replay');
+  }
+
   // levels on other riders' name tags (asked for in one batch, remembered)
   tagLevel(name, el) {
     const c = (this.levelCache = this.levelCache || new Map());
@@ -1212,7 +1282,7 @@ export class UI {
     const tags = this.nameTagEls || (this.nameTagEls = new Map());
     const seen = new Set();
     for (const r of game.riders) {
-      if (r.isPlayer || !r.vis.root.visible) continue;
+      if (r.isPlayer || r === game.player || !r.vis.root.visible) continue;
       const p = r.vis.root.position;
       const d = cam.position.distanceTo(p);
       if (d > 160) continue;

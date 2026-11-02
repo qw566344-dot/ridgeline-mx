@@ -9,6 +9,7 @@ import { Input, applyBindings } from './input.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
 import { Game } from './game.js';
+import { ReplayStore } from './replay.js';
 import { Stage } from './stage.js';
 import { Thumbs } from './thumbs.js';
 import { CasinoUI } from './casino.js';
@@ -164,6 +165,20 @@ async function backToLobby() {
   social.refresh();
 }
 ui.on('mainMenu', backToLobby);
+// replays: watch one (the lobby stage steps aside), exit back to the list
+ui.on('watchReplay', async (id) => {
+  const rep = await ReplayStore.load(id).catch(() => null);
+  if (!rep) { ui.popup('That replay could not be loaded', 'bad'); return; }
+  audio.unlock();
+  stage.active = false;
+  await game.startReplay(rep);
+});
+ui.on('replayExit', () => {
+  game.stop();
+  ui.hideHud();
+  stage.snap = true;
+  ui.show('replays');
+});
 ui.on('region', (id) => {
   settings.set('region', id);
   if (id === 'auto') net.pingRegions(); else net.useRegion(id);
@@ -202,7 +217,7 @@ window.addEventListener('keydown', () => audio.unlock());
 
 // ---- frame loop
 let last = performance.now();
-const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits']);
+const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits', 'replays']);
 // the screen's refresh interval, measured from every animation frame (ms)
 let lastTick = 0, tickMs = 16.7, tickN = 0;
 function loop(now) {

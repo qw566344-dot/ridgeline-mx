@@ -20,6 +20,7 @@ import { VehicleVisual } from './render/vehicleModel.js';
 import { Rider, riderScheme } from './render/rider.js';
 import { GEAR_SETS, REWARDS, upgradeLevels } from '/shared/shop.js';
 import { CameraRig, CAMERA_MODES } from './camera.js';
+import { Recorder, ReplayStore, poseRider } from './replay.js';
 
 const AI_NAMES = ['Tanner', 'Kade', 'Brody', 'Jett', 'Ryder', 'Colt', 'Maverick', 'Dax', 'Wyatt', 'Blaze', 'Cruz', 'Ace'];
 const MAX_STEPS = 8;
@@ -115,7 +116,7 @@ export class Game {
     const rider = new Rider(rs);
     rider.setNumber(number, rs);
     rider.attachTo(vis.model);
-    const r = { id, name, number, isPlayer, vis, rider, vehicleId, colorId, lap: new LapTracker(this.world.T), finished: false, best: null, key: String(id) };
+    const r = { id, name, number, isPlayer, vis, rider, vehicleId, colorId, gearId, lap: new LapTracker(this.world.T), finished: false, best: null, key: String(id) };
     if (!remote) {
       const upgrades = isPlayer && this.account && this.account.profile ? upgradeLevels(this.account.profile.owned, vehicleId) : {};
       r.veh = new Vehicle(vehicleId, this.world, { id, ai: !!ai, upgrades });
@@ -173,6 +174,8 @@ export class Game {
 
   // opts: { mode, trackId, vehicleId, colorId, laps, aiCount, section, mp }
   async startSession(opts) {
+    this.saveRecording(); // a restart: keep the run you just did
+    this.replay = null; this.ui.hideReplay && this.ui.hideReplay();
     this.ui.showLoading('Loading ' + getTrack(opts.trackId).name + '...');
     await this.loadTrack(opts.trackId, (m) => this.ui.showLoading(m));
     this.clearRiders();
@@ -246,9 +249,73 @@ export class Game {
     }
     this.scenery.forceUpdate(this.R.camera);
     await this.warmShaders();
+    this.rec = opts.mp && opts.mp.spectator ? null : new Recorder(this, opts); // the replay of this session
     this.state = 'running';
     this.ui.hideLoading();
     this.ui.showHud(this);
+  }
+
+  // ------------------------------------------------------------------ replays
+  saveRecording() {
+    const rec = this.rec;
+    this.rec = null;
+    if (!rec) return;
+    const rep = rec.finish(this);
+    if (rep) ReplayStore.save(rep);
+  }
+
+  async startReplay(rep) {
+    this.saveRecording();
+    this.state = 'idle';
+    this.ui.showLoading('Loading replay...');
+    await this.loadTrack(rep.meta.track, (m) => this.ui.showLoading(m));
+    this.clearRiders();
+    this.mode = 'replay'; this.net = null; this.paused = false; this.results = null; this.fs = null; this.practice = null; this.autopilot = null;
+    this.opts = { mode: 'replay', trackId: rep.meta.track };
+    let focus = 0;
+    rep.meta.riders.forEach((m, i) => {
+      this.addRider({ id: m.id, name: m.name, vehicleId: m.vehicleId, colorId: m.colorId, gearId: m.gearId, number: m.number, remote: true });
+      if (m.me) focus = i;
+    });
+    this.replay = { rep, t: 0, speed: 1, playing: true, focus, end: rep.times[rep.times.length - 1] };
+    this.player = this.riders[focus];
+    rep.meta.riders.forEach((m, i) => poseRider(this.riders[i], rep, i, 0, 0));
+    this.phase = 'go';
+    if (this.scenery.gate) { this.scenery.dropGate(rep.meta.goAt === null || rep.meta.goAt <= 0); this.scenery.setGate(rep.meta.goAt === null || rep.meta.goAt <= 0 ? -Math.PI / 2 * 0.96 : 0); }
+    this.cam.setMode(this.settings.get('camera') || 0);
+    this.cam.snapNext = true;
+    this.scenery.forceUpdate(this.R.camera);
+    await this.warmShaders();
+    this.state = 'running';
+    this.ui.hideLoading();
+    this.ui.showReplay(this);
+  }
+
+  // jump to a time (seconds) in the replay
+  seekReplay(t) {
+    const R = this.replay;
+    if (!R) return;
+    R.t = Math.max(0, Math.min(R.end, t));
+    this.cam.snapNext = true;
+  }
+
+  watchRider(i) {
+    const R = this.replay;
+    if (!R || !this.riders[i]) return;
+    R.focus = i; this.player = this.riders[i]; this.cam.snapNext = true;
+  }
+
+  replayFrame(dt) {
+    const R = this.replay, rep = R.rep, inp = this.input;
+    if (inp.pressed('camera')) { const m = this.cam.cycle(); this.settings.set('camera', this.cam.mode); this.toast('Camera: ' + m); }
+    if (inp.pressed('pause')) { this.ui.emit('replayExit'); return; }
+    const step = R.playing ? dt * R.speed : 0;
+    R.t = Math.min(R.end, R.t + step);
+    if (R.t >= R.end) R.playing = false;
+    if (this.scenery.gate) this.scenery.dropGate(rep.meta.goAt === null || R.t >= rep.meta.goAt);
+    rep.meta.riders.forEach((m, i) => { if (this.riders[i]) poseRider(this.riders[i], rep, i, R.t, step); });
+    this.render(dt, 1);
+    this.ui.updateReplay(this);
   }
 
   // compile every shader the session can use before it starts (hidden things too: dust, far-away
@@ -272,6 +339,7 @@ export class Game {
     const C = this.adminCheats();
     if (C.slowmo && !(this.opts && this.opts.mp)) dt *= 0.4; // slow motion (solo only, party timing stays real)
     this.trackFps(dt);
+    if (this.replay) { this.replayFrame(dt); return; }
     const inp = this.input;
     const playing = this.mode !== 'menu';
     // global keys
@@ -305,6 +373,7 @@ export class Game {
     if (steps === MAX_STEPS) this.acc = 0;
     const alpha = this.acc / FIXED_DT;
     this.updateLogic(dt);
+    if (this.rec) this.rec.sample(this, dt);
     this.render(dt, alpha);
   }
 
@@ -763,6 +832,9 @@ export class Game {
 
   // back to the lobby: nothing on track, the menus draw the 3D stage instead
   stop() {
+    this.saveRecording();
+    this.replay = null;
+    if (this.ui.hideReplay) this.ui.hideReplay();
     this.state = 'idle';
     if (this.gogOn) { this.gogOn = false; const g = document.getElementById('goggles'); if (g) g.hidden = true; }
     this.mode = 'none';

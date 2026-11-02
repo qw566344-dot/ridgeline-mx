@@ -815,3 +815,25 @@ button.primary:hover:not(:disabled) { background: linear-gradient(135deg, #ff8a5
 .upd-new { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 6px; background: var(--accent); color: #fff; }
 .upd-new.soft { background: rgba(240, 116, 62, 0.25); color: var(--accent-2); }
 .upd ul { margin: 0; padding-left: 18px; color: #d1d5db; font-size: 13.5px; line-height: 1.55; }
+
+/* ---------- replays ---------- */
+.rp-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 58vh; overflow-y: auto; }
+.rp-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--card-2); border: 1px solid transparent; }
+.rp-list li.star { border-color: rgba(242, 196, 67, 0.45); }
+.rp-list li.hint { display: block; background: none; padding: 6px 2px; }
+.rp-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rp-info b { font-size: 16px; }
+.rp-info span { color: var(--text); font-size: 13px; }
+.rp-info small { color: var(--muted); font-size: 12px; }
+.rp-acts { display: flex; gap: 6px; flex-shrink: 0; }
+.rp-acts [data-star] { min-width: 36px; color: var(--gold); }
+#hud.replay > :not(#name-tags) { display: none !important; }
+.replay-bar { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 26; width: min(760px, calc(100vw - 28px)); padding: 10px 14px 12px; border-radius: 14px;
+  background: rgba(10, 12, 18, 0.82); border: 1px solid var(--line); backdrop-filter: blur(8px); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45); pointer-events: auto; }
+.replay-bar .rp-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.replay-bar .rp-time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.replay-bar input[type=range] { width: 100%; accent-color: var(--accent); margin: 2px 0 8px; }
+.replay-bar .rp-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.replay-bar .rp-lbl { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.replay-bar select { padding: 5px 8px; font-size: 13px; }
+#rp-play { min-width: 76px; }

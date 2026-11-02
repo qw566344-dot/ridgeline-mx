@@ -52,6 +52,7 @@
         <button data-go="garage">Garage</button>
         <button data-go="shop">Shop</button>
         <button data-go="leaderboard">Leaderboard</button>
+        <button data-go="replays">Replays</button>
         <button data-go="casino">Casino</button>
         <button data-go="friends">Friends <b id="friends-badge" class="badge" hidden></b></button>
         <button data-go="settings">Settings</button>
@@ -223,6 +224,16 @@
       </div>
     </section>
 
+    <!-- REPLAYS -->
+    <section id="replays" class="screen overlay" hidden>
+      <div class="sheet wide">
+        <div class="sheet-head"><h2>Replays</h2></div>
+        <p class="hint">Every ride is recorded. The last 12 are kept on this device - star one to keep it for good.</p>
+        <ul id="rp-list" class="rp-list"></ul>
+        <div class="row end"><button data-go="home">Back</button></div>
+      </div>
+    </section>
+
     <!-- RANKED (ready on the server, switched on later) -->
     <section id="ranked" class="screen menu-screen ranked-screen" hidden>
       <div class="ranked-soon">Coming soon...</div>
@@ -306,6 +317,19 @@
 
     <!-- HUD -->
     <div id="goggles" hidden></div>
+    <div id="replay-bar" class="replay-bar" hidden>
+      <div class="rp-top"><b id="rp-title">Replay</b><span id="rp-time" class="rp-time">0:00 / 0:00</span></div>
+      <input type="range" id="rp-seek" min="0" max="1000" value="0" step="1">
+      <div class="rp-row">
+        <button id="rp-exit" class="small">Exit</button>
+        <button id="rp-back" class="small" title="Back 5 s (Left)">&#9664;&#9664; 5s</button>
+        <button id="rp-play" class="small primary" title="Play / pause (Space)">Pause</button>
+        <button id="rp-fwd" class="small" title="Forward 5 s (Right)">5s &#9654;&#9654;</button>
+        <label class="rp-lbl">Speed <select id="rp-speed"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
+        <label class="rp-lbl">Watch <select id="rp-rider"></select></label>
+        <button id="rp-cam" class="small" title="Camera (C)">Camera</button>
+      </div>
+    </div>
     <div id="hud" hidden>
       <div id="name-tags"></div>
       <div id="hud-trick" class="hud-trick"></div>
