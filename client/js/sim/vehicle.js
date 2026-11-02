@@ -283,7 +283,27 @@ export class Vehicle {
         break;
       }
     }
-    let T = throttle * tq * (e.limiter ? 0.05 : 1);
+    // BACKFIRE: lift off the gas at high revs and the exhaust pops - a pop or two on the starter
+    // bikes, a proper volley on the works machines, the most with anti-lag (also on the limiter)
+    const al = this.cfg.antilag;
+    // a lift: off the gas (under 25%) after holding it open (over 60%) in the last half second
+    e.thrPeak = Math.max(inp.throttle, (e.thrPeak || 0) - dt * 1.5);
+    if (inp.throttle > 0.5) { e.highThr = Math.min(1, (e.highThr || 0) + dt * 2); e.liftArmed = true; } else e.highThr = Math.max(0, (e.highThr || 0) - dt * 0.5);
+    const lifted = e.liftArmed && inp.throttle < 0.25 && e.thrPeak > 0.6;
+    if (lifted) e.liftArmed = false;
+    if (!this.cfg.audio || (this.cfg.audio.kind !== 'none' && !this.cfg.audio.electric)) {
+      const aggr = ({ Starter: 0.25, Pro: 0.55, Works: 0.85 }[this.cfg.tier] || 0.4) + (al ? al.pops * 0.6 : 0);
+      if (lifted && e.rpm > ec.redline * 0.6 && e.highThr > 0.4) {
+        const n = 1 + Math.floor(Math.random() * (1 + aggr * 4));
+        if (Math.random() < 0.35 + aggr * 0.6) this.events.push({ type: 'backfire', n, k: Math.min(1, 0.3 + aggr * 0.7) });
+      }
+      if (al && e.limiter && Math.random() < dt * 6 * al.pops) this.events.push({ type: 'backfire', n: 1, k: 0.5 + al.pops * 0.4 });
+    }
+    if (lifted) e.liftT = 0; else e.liftT = (e.liftT ?? 9) + dt;
+    // anti-lag kick: back on the gas within a second of lifting, the torque is up for half a second
+    if (al && inp.throttle > 0.5 && e.liftT < 1 && e.liftT > 0) e.kickT = 0.5;
+    e.kickT = Math.max(0, (e.kickT || 0) - dt);
+    let T = throttle * tq * (e.limiter ? 0.05 : 1) * (al && e.kickT > 0 ? 1 + al.kick : 1);
     if (throttle < 0.05 && !e.reverse) T -= ec.engineBrake * (e.rpm / ec.redline);
     if (e.dump > 0) T *= 1.6;
     let force = (T * ratio * 0.9) / r;

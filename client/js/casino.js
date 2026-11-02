@@ -3,7 +3,7 @@
 //  Online accounts: the server decides every result (server/casino.js).
 //  Offline / guest accounts: the same rules run here (shared/casino.js).
 // =====================================================================
-import { checkBet, validPick, roulettePayout, rouletteColor, crashMult, crashPointFrom, MIN_BET } from '/shared/casino.js';
+import { checkBet, validPick, roulettePayout, rouletteColor, crashMult, crashPointFrom, MIN_BET, bjDeal, bjHit, bjStand, bjDouble, bjCanDouble, bjView } from '/shared/casino.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -44,6 +44,22 @@ export class CasinoUI {
       this.local = { bet: b.amount, start: Date.now(), cp: crashPointFrom(Math.random()) };
       return { id: 'local' };
     }
+    if (route.startsWith('bj/')) { // blackjack, same rules as the server
+      const a = route.slice(3);
+      let h = this.localHand;
+      if (a === 'deal') {
+        if (h && !h.done) return { error: 'Finish the hand you are playing first' };
+        const b = checkBet(body.bet, p.coins); if (b.error) return b;
+        p.coins -= b.amount; h = this.localHand = bjDeal(b.amount, (n) => Math.floor(Math.random() * n));
+      } else {
+        if (!h || h.done) return { error: 'Deal a new hand' };
+        if (a === 'hit') bjHit(h); else if (a === 'stand') bjStand(h);
+        else if (a === 'double') { if (!bjCanDouble(h) || p.coins < h.bet) return { error: 'You can not double now' }; p.coins -= h.bet; bjDouble(h); }
+      }
+      if (h.done) { p.coins += h.win; this.localHand = null; }
+      save();
+      return { hand: bjView(h) };
+    }
     const L = this.local;
     if (!L) return { crashed: true, gone: true };
     const mult = crashMult(Date.now() - L.start);
@@ -69,6 +85,10 @@ export class CasinoUI {
     $('rl-num').oninput = () => { const n = Math.max(0, Math.min(36, Math.floor(Number($('rl-num').value) || 0))); this.pick = 'n' + n; this.renderPicks(); };
     $('rl-spin').onclick = () => this.spin();
     $('cr-go').onclick = () => (this.round ? this.cashOut() : this.startCrash());
+    $('bj-deal').onclick = () => this.bjMove('deal');
+    $('bj-hit').onclick = () => this.bjMove('hit');
+    $('bj-stand').onclick = () => this.bjMove('stand');
+    $('bj-double').onclick = () => this.bjMove('double');
   }
 
   show() {
@@ -121,6 +141,34 @@ export class CasinoUI {
     $('casino-coins').textContent = this.A.coins.toLocaleString();
     this.ui.renderTop();
     this.spinning = false; $('rl-spin').disabled = false;
+  }
+
+  // ---- blackjack
+  async bjMove(action) {
+    if (this.bjBusy) return;
+    this.bjBusy = true;
+    if (action === 'deal') this.msg('bj-msg', '');
+    const r = await this.call('bj/' + action, action === 'deal' ? { bet: Number($('bj-bet').value) } : {});
+    this.bjBusy = false;
+    if (r.error) this.msg('bj-msg', r.error, 'bad');
+    if (r.hand) this.renderHand(r.hand);
+    $('casino-coins').textContent = this.A.coins.toLocaleString(); this.ui.renderTop();
+  }
+  renderHand(h) {
+    const card = (c, i) => {
+      if (c === '??') return `<span class="pcard back" style="animation-delay:${i * 0.08}s"></span>`;
+      const suit = c.slice(-1), rank = c.slice(0, -1), red = suit === 'H' || suit === 'D';
+      return `<span class="pcard${red ? ' red' : ''}" style="animation-delay:${i * 0.08}s"><b>${rank}</b><i>${{ S: '\u2660', H: '\u2665', D: '\u2666', C: '\u2663' }[suit]}</i></span>`;
+    };
+    $('bj-dealer').innerHTML = h.dealer.map(card).join(''); $('bj-player').innerHTML = h.player.map(card).join('');
+    $('bj-dtotal').textContent = h.dTotal; $('bj-ptotal').textContent = h.pTotal;
+    const playing = !h.done;
+    $('bj-hit').disabled = $('bj-stand').disabled = !playing; $('bj-double').disabled = !h.canDouble;
+    $('bj-deal').disabled = playing;
+    if (h.done) {
+      const t = { blackjack: `Blackjack! +${(h.win - h.bet).toLocaleString()} coins`, win: `You win +${(h.win - h.bet).toLocaleString()} coins`, push: 'Push - your bet comes back', lose: 'Dealer wins', bust: 'Bust - over 21' }[h.result];
+      this.msg('bj-msg', t, h.win > h.bet ? 'good' : h.result === 'push' ? '' : 'bad');
+    }
   }
 
   // ---- crash

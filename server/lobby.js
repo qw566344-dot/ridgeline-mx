@@ -490,9 +490,9 @@ export class Lobby {
   rejoin(p) {
     const party = p.party, S = party && party.session;
     if (!S || S.over) return this.err(p, 'NO_SESSION', 'No session is running right now.');
-    if (S.mode === 'race' && !S.players.some((x) => x.id === p.id)) return this.err(p, 'RACE_RUNNING', 'A race is in progress - you can join the next one.');
+    // not in it from the start: watch with the drone camera (no rider on the track, nobody sees you)
     if (!S.players.some((x) => x.id === p.id)) {
-      S.players.push(this.sessionPlayer(p, S.players.length));
+      S.players.push(this.sessionPlayer(p, S.players.length, true));
       this.setupTracker(party, p);
       for (const m of party.members.values()) if (m.conn && m !== p) m.conn.send(this.sessionMsg(party, true));
     }
@@ -593,7 +593,7 @@ export class Lobby {
       const p = [];
       for (const sp of S.players) {
         const m = this.players.get(sp.id);
-        if (!m || !m.state || m.party !== party) continue;
+        if (!m || !m.state || m.party !== party || sp.spectator) continue; // watchers are invisible
         if (now - m.stateTime > 3000) continue;
         p.push([m.id, m.stateTime, ...m.state]);
       }

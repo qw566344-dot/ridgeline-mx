@@ -160,6 +160,22 @@ export class Effects {
     }
   }
 
+  // exhaust backfire: a short tongue of flame and a puff out of the back of the vehicle
+  backfire(veh, n, k) {
+    const f = veh.fwd, l = veh.left, p = veh.pos;
+    const back = veh.cfg.type === 'bike' ? 0.95 : 1.15;
+    const x = p.x - f.x * back - l.x * 0.18, y = p.y + 0.12, z = p.z - f.z * back - l.z * 0.18;
+    for (let j = 0; j < n; j++) {
+      const t = j * 0.04;
+      for (let i = 0; i < 4 + k * 6; i++) {
+        const s = 3 + Math.random() * 5 * k, hot = Math.random();
+        this.spawn(x - f.x * t, y, z - f.z * t, veh.vel.x - f.x * s + (Math.random() - 0.5), veh.vel.y + Math.random(), veh.vel.z - f.z * s + (Math.random() - 0.5),
+          0.18 + k * 0.22, 1.5, 0.12 + Math.random() * 0.1, 0.95, 1, 0.5 + hot * 0.4, 0.08 + hot * 0.2, 0, 4);
+      }
+      this.spawn(x, y, z, veh.vel.x - f.x * 2, 0.6, veh.vel.z - f.z * 2, 0.3, 1.6, 0.7, 0.35, 0.2, 0.2, 0.2, -0.3, 2);
+    }
+  }
+
   // admin troll: a fireball, sparks and a column of smoke
   explosion(pos) {
     const n = Math.max(20, 70 * this.budget);

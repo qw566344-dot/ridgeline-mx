@@ -541,8 +541,12 @@ export class Rider {
     if (P === 'Cliffhanger') J.pelvis.y += 0.28 * pw;
     if (P === 'Heel Clicker') { J.pelvis.y += 0.12 * pw; J.pelvis.z -= 0.12 * pw; }
     if (P === 'Nac-Nac') { J.pelvis.x -= 0.12 * pw; J.pelvis.y += 0.14 * pw; }
+    if (P === 'Can-Can') { J.pelvis.x += 0.08 * pw; J.pelvis.y += 0.1 * pw; }                  // one leg kicked over the seat
+    if (P === 'Lazy Boy') { J.pelvis.y += 0.08 * pw; J.pelvis.z -= 0.22 * pw; }                // lying back, feet up on the bars
+    if (P === 'Seat Grab') { J.pelvis.x += 0.12 * pw; J.pelvis.y += 0.16 * pw; J.pelvis.z -= 0.08 * pw; } // off to the side, hand on the seat
+    if (P === 'Rock Solid') { J.pelvis.y += 0.42 * pw; J.pelvis.z -= 0.42 * pw; }             // whole body flat out above the bike
     // torso direction (forward lean + side lean)
-    const pitch = (isBike ? 0.32 : 0.25) + s.stand * 0.38 + s.fore * 0.25 + s.crouch * 0.35 + (P === 'Superman' ? 1.1 * pw : P === 'Cliffhanger' ? -0.3 * pw : P === 'Heel Clicker' ? -0.45 * pw : P === 'Nac-Nac' ? 0.15 * pw : 0);
+    const pitch = (isBike ? 0.32 : 0.25) + s.stand * 0.38 + s.fore * 0.25 + s.crouch * 0.35 + (P === 'Superman' ? 1.1 * pw : P === 'Cliffhanger' ? -0.3 * pw : P === 'Heel Clicker' ? -0.45 * pw : P === 'Nac-Nac' ? 0.15 * pw : P === 'Lazy Boy' ? -0.95 * pw : P === 'Rock Solid' ? 1.35 * pw : P === 'Can-Can' ? 0.1 * pw : 0);
     t.up.set(Math.sin(s.leanBody) * 0.9, Math.cos(pitch), Math.sin(pitch)).normalize();
     J.neck.copy(J.pelvis).addScaledVector(t.up, LEN.torso);
     // shoulders
@@ -555,6 +559,8 @@ export class Rider {
     for (const [sh, el, ha, grip, sx] of [[J.shL, J.elL, J.haL, A.gripL, 1], [J.shR, J.elR, J.haR, A.gripR, -1]]) {
       t.b.copy(grip).add(t.c.set(0, 0.0, -0.03));
       if (P === 'Cliffhanger') t.b.lerp(t.c.set(sh.x + sx * 0.3, sh.y + 0.5, sh.z + 0.05), pw);   // hands up
+      if (P === 'Lazy Boy') t.b.lerp(t.c.set(sh.x + sx * 0.45, sh.y + 0.15, sh.z - 0.1), pw);      // arms out wide
+      if (P === 'Seat Grab' && sx < 0) t.b.lerp(t.c.set(-0.12, seat.y + 0.12, seat.z - 0.35), pw);  // right hand on the back of the seat
       t.a.copy(sh).add(t.c.set(sx * 0.5, 0.12, -0.25));
       ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
     }
@@ -570,6 +576,10 @@ export class Rider {
       if (P === 'Nac-Nac' && sx > 0) t.b.lerp(t.c.set(-0.55, pegY + 0.75, pegZ - 0.45), pw);          // left leg swung over the back
       if (P === 'Heel Clicker') t.b.lerp(t.c.set(sx * 0.13, A.gripL.y + 0.14, A.gripL.z + 0.32), pw);  // heels together over the bars
       if (P === 'Cliffhanger') t.b.lerp(t.c.set(sx * 0.12, A.gripL.y - 0.18, A.gripL.z + 0.08), pw);
+      if (P === 'Can-Can' && sx < 0) t.b.lerp(t.c.set(0.5, pegY + 0.62, pegZ + 0.4), pw);             // right leg over to the left side
+      if (P === 'Lazy Boy') t.b.lerp(t.c.set(sx * 0.2, A.gripL.y + 0.06, A.gripL.z + 0.12), pw);       // feet hooked on the bars
+      if (P === 'Seat Grab') t.b.lerp(t.c.set(sx * 0.3 - 0.25, pegY + 0.35, pegZ - 0.35), pw);         // legs swung out to the side
+      if (P === 'Rock Solid') t.b.lerp(t.c.set(sx * 0.15, seat.y + 0.9, seat.z - 1.2), pw);            // legs straight out, way up
       t.a.copy(hip).add(t.c.set(sx * 0.18, 0.05, 0.6));
       ik(hip, t.b, LEN.th, LEN.sh, t.a, kn, an);
       toe.copy(an).add(t.c.set(0, -0.06, 0.24));

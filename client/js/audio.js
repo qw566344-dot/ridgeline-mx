@@ -154,6 +154,22 @@ export class Audio {
     o.connect(og); og.connect(this.fxBus); o.start(t); o.stop(t + 0.04);
   }
 
+  // exhaust backfire: n pops, each a sharp crack with a low thump (k = how hard)
+  backfire(n, k) {
+    if (!this.ready) return;
+    const c = this.ctx, t0 = c.currentTime;
+    for (let j = 0; j < n; j++) {
+      const t = t0 + j * (0.05 + Math.random() * 0.07);
+      const src = c.createBufferSource(); src.buffer = this.noise;
+      const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 700 + Math.random() * 900; f.Q.value = 0.9;
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.35 * k, t + 0.004); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+      src.connect(f); f.connect(g); g.connect(this.fxBus); src.start(t, Math.random()); src.stop(t + 0.1);
+      const o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.08);
+      const og = c.createGain(); og.gain.setValueAtTime(0.3 * k, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      o.connect(og); og.connect(this.fxBus); o.start(t); o.stop(t + 0.11);
+    }
+  }
+
   // crowd: a murmur that grows near the start straight (level 0..1)
   crowd(level) {
     if (!this.ready) return;

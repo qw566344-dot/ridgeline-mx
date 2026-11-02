@@ -42,3 +42,61 @@ export function checkBet(amount, coins) {
   if (amount > coins) return { error: 'Not enough coins' };
   return { amount };
 }
+
+// ---------------------------------------------------------------------
+//  BLACKJACK: one deck shuffled per hand. Dealer stands on all 17s,
+//  blackjack pays 3:2, double down on the first two cards (one more card).
+//  A hand is a plain object, so the server and the browser share it.
+//  rand(n) -> a random whole number 0..n-1
+// ---------------------------------------------------------------------
+const SUITS = ['S', 'H', 'D', 'C'], RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+export function bjValue(cards) {
+  let total = 0, aces = 0;
+  for (const c of cards) { const r = c.slice(0, -1); if (r === 'A') { aces++; total += 11; } else total += ['J', 'Q', 'K'].includes(r) ? 10 : Number(r); }
+  while (total > 21 && aces) { total -= 10; aces--; }
+  return { total, soft: aces > 0 };
+}
+const isBJ = (cards) => cards.length === 2 && bjValue(cards).total === 21;
+export function bjDeal(bet, rand) {
+  const deck = [];
+  for (const s of SUITS) for (const r of RANKS) deck.push(r + s);
+  for (let i = deck.length - 1; i > 0; i--) { const j = rand(i + 1); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+  const h = { deck, bet, player: [deck.pop(), deck.pop()], dealer: [deck.pop(), deck.pop()], done: false, result: null, win: 0, doubled: false };
+  if (isBJ(h.player) || isBJ(h.dealer)) bjFinish(h);
+  return h;
+}
+export function bjHit(h) {
+  if (h.done) return h;
+  h.player.push(h.deck.pop());
+  if (bjValue(h.player).total >= 21) bjStand(h);
+  return h;
+}
+export function bjStand(h) {
+  if (h.done) return h;
+  if (bjValue(h.player).total <= 21) while (bjValue(h.dealer).total < 17) h.dealer.push(h.deck.pop());
+  return bjFinish(h);
+}
+export function bjCanDouble(h) { return !h.done && h.player.length === 2 && !h.doubled; }
+export function bjDouble(h) {
+  if (!bjCanDouble(h)) return h;
+  h.doubled = true; h.bet *= 2;
+  h.player.push(h.deck.pop());
+  return bjStand(h);
+}
+// settle: win = coins handed back (the bet included); result: blackjack | win | push | lose | bust
+function bjFinish(h) {
+  h.done = true;
+  const p = bjValue(h.player).total, d = bjValue(h.dealer).total;
+  if (isBJ(h.player) && !isBJ(h.dealer)) { h.result = 'blackjack'; h.win = Math.floor(h.bet * 2.5); }
+  else if (isBJ(h.player) && isBJ(h.dealer)) { h.result = 'push'; h.win = h.bet; }
+  else if (isBJ(h.dealer)) { h.result = 'lose'; h.win = 0; }
+  else if (p > 21) { h.result = 'bust'; h.win = 0; }
+  else if (d > 21 || p > d) { h.result = 'win'; h.win = h.bet * 2; }
+  else if (p === d) { h.result = 'push'; h.win = h.bet; }
+  else { h.result = 'lose'; h.win = 0; }
+  return h;
+}
+// what the player may see (the dealer's second card stays face down until the hand is over)
+export function bjView(h) {
+  return { player: h.player, dealer: h.done ? h.dealer : [h.dealer[0], '??'], pTotal: bjValue(h.player).total, dTotal: h.done ? bjValue(h.dealer).total : bjValue([h.dealer[0]]).total, done: h.done, result: h.result, win: h.win, bet: h.bet, canDouble: bjCanDouble(h) };
+}

@@ -23,6 +23,10 @@ export const KEYS = {
   trick2: ['Digit2', 'Numpad2'],   // Nac-Nac
   trick3: ['Digit3', 'Numpad3'],   // Heel Clicker
   trick4: ['Digit4', 'Numpad4'],   // Cliffhanger
+  trick5: ['Digit5', 'Numpad5'],   // Can-Can
+  trick6: ['Digit6', 'Numpad6'],   // Lazy Boy
+  trick7: ['Digit7', 'Numpad7'],   // Seat Grab
+  trick8: ['Digit8', 'Numpad8'],   // Rock Solid
   pause: ['Escape', 'KeyP'],
   fps: ['F3'],
 };
@@ -83,7 +87,8 @@ export class Input {
     let lean = (this.held('leanFwd') ? 1 : 0) - (this.held('leanBack') ? 1 : 0);
     let rear = this.held('rearBrake') ? 1 : 0;
     let clutch = this.held('clutch');
-    let trick = this.held('trick1') ? 1 : this.held('trick2') ? 2 : this.held('trick3') ? 3 : this.held('trick4') ? 4 : 0;
+    let trick = 0;
+    for (let i = 1; i <= 8; i++) if (this.held('trick' + i)) { trick = i; break; }
     // gamepad (if any)
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     const pad = pads && Array.from(pads).find((p) => p && p.connected);

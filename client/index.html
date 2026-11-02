@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ridgeline MX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,700&display=swap">
   <link rel="stylesheet" href="css/style.css">
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.js" } }
@@ -22,7 +25,8 @@
   <div id="ui">
     <!-- LOADING -->
     <div id="loading" class="screen center">
-      <div class="logo big">RIDGELINE <span>MX</span></div>
+      <div class="intro-logo"><img src="img/logo.png" alt="Ridgeline MX"><i class="intro-shine"></i></div>
+      <div class="intro-name">RIDGELINE <span>MX</span></div>
       <div class="loadbar"><i id="loading-bar"></i></div>
       <div id="loading-text">Loading...</div>
     </div>
@@ -186,6 +190,16 @@
             <div id="rl-msg" class="cmsg"></div>
           </div>
           <div class="cgame">
+            <h3>Blackjack</h3>
+            <div class="bj-table">
+              <div class="bj-row"><small>Dealer <b id="bj-dtotal"></b></small><div id="bj-dealer" class="bj-cards"></div></div>
+              <div class="bj-row"><small>You <b id="bj-ptotal"></b></small><div id="bj-player" class="bj-cards"></div></div>
+            </div>
+            <div class="bet-row"><input id="bj-bet" type="number" min="10" value="100"><button class="small" data-chip="100" data-for="bj-bet">+100</button><button class="small" data-chip="1000" data-for="bj-bet">+1K</button><button class="small" data-chip="x2" data-for="bj-bet">x2</button><button class="small" data-chip="half" data-for="bj-bet">1/2</button><button class="small" data-chip="max" data-for="bj-bet">Max</button></div>
+            <div class="bj-acts"><button id="bj-deal" class="primary">DEAL</button><button id="bj-hit" disabled>Hit</button><button id="bj-stand" disabled>Stand</button><button id="bj-double" disabled>Double</button></div>
+            <div id="bj-msg" class="cmsg"></div>
+          </div>
+          <div class="cgame">
             <h3>Crash</h3>
             <div class="cr-box"><canvas id="cr-canvas" width="420" height="200"></canvas><div id="cr-mult" class="cr-mult">1.00x</div></div>
             <div id="cr-hist" class="hist"></div>
@@ -261,7 +275,28 @@
 
     <!-- RANKED (ready on the server, switched on later) -->
     <section id="ranked" class="screen menu-screen ranked-screen" hidden>
-      <div class="ranked-soon">Coming soon...</div>
+      <div class="rk-wrap">
+        <div class="rk-main card">
+          <div class="rk-me">
+            <div id="rk-badge" class="rk-badge"></div>
+            <div class="rk-info">
+              <small>YOUR RANK</small>
+              <h2 id="rk-tier">Bronze</h2>
+              <div class="rk-rating"><b id="rk-rating">1000</b> rating <span id="rk-record" class="hint"></span></div>
+              <div class="rk-bar"><i id="rk-fill"></i></div>
+              <div id="rk-next" class="hint"></div>
+            </div>
+          </div>
+          <button id="rk-find" class="primary rk-find">FIND RANKED MATCH</button>
+          <div id="rk-status" class="rk-status hint">Race 2-6 riders of your rank. Win to climb, lose and you drop.</div>
+          <h4>Ranks</h4>
+          <div id="rk-ladder" class="rk-ladder"></div>
+        </div>
+        <aside class="rk-top card">
+          <h4>Top ranked</h4>
+          <ol id="rk-list" class="lb-list"></ol>
+        </aside>
+      </div>
     </section>
 
     <!-- FRIENDS -->

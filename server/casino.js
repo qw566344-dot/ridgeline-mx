@@ -4,16 +4,19 @@
 //    POST /api/casino/crash/start  {bet}        -> {id, profile}
 //    POST /api/casino/crash/check  {id}         -> {crashed, crashPoint?, mult}
 //    POST /api/casino/crash/cashout{id}         -> {cashed, mult, win, crashPoint, profile}
+//    POST /api/casino/bj/deal {bet} | bj/hit | bj/stand | bj/double -> {hand, profile}
 //  A crash round lives here with its secret crash point; the multiplier
-//  is worked out from the server's own clock.
+//  is worked out from the server's own clock. A blackjack hand (deck and
+//  the dealer's face-down card) lives here too; the game only sees bjView.
 // =====================================================================
 import crypto from 'crypto';
-import { checkBet, validPick, roulettePayout, rouletteColor, crashMult, crashPointFrom } from '../shared/casino.js';
+import { checkBet, validPick, roulettePayout, rouletteColor, crashMult, crashPointFrom, bjDeal, bjHit, bjStand, bjDouble, bjCanDouble, bjView } from '../shared/casino.js';
 
 export class Casino {
   constructor(accounts) {
     this.A = accounts;
     this.rounds = new Map(); // id -> { key, bet, start, cp }
+    this.hands = new Map();  // account key -> blackjack hand in play
     setInterval(() => { const now = Date.now(); for (const [id, r] of this.rounds) if (now - r.start > 15 * 60_000) this.rounds.delete(id); }, 60_000).unref();
   }
 
@@ -62,7 +65,33 @@ export class Casino {
     return { cashed: true, mult, win, crashPoint: r.cp, profile: this.A.profile(u) };
   }
 
+  // ---- blackjack: the bet comes off on the deal (and again on a double); the win is paid when the hand ends
+  bj(u, action, m) {
+    let h = this.hands.get(u.key);
+    if (action === 'deal') {
+      if (h && !h.done) return { error: 'Finish the hand you are playing first', hand: bjView(h) };
+      const b = checkBet(m.bet, u.coins);
+      if (b.error) return b;
+      u.coins -= b.amount;
+      h = bjDeal(b.amount, (n) => crypto.randomInt(n));
+      this.hands.set(u.key, h);
+    } else {
+      if (!h || h.done) return { error: 'Deal a new hand' };
+      if (action === 'hit') bjHit(h);
+      else if (action === 'stand') bjStand(h);
+      else if (action === 'double') {
+        if (!bjCanDouble(h)) return { error: 'You can only double on your first two cards', hand: bjView(h) };
+        if (u.coins < h.bet) return { error: 'Not enough coins to double', hand: bjView(h) };
+        u.coins -= h.bet; bjDouble(h);
+      } else return { error: 'Unknown move' };
+    }
+    if (h.done) { u.coins += h.win; this.hands.delete(u.key); }
+    this.A.save();
+    return { hand: bjView(h), profile: this.A.profile(u) };
+  }
+
   handle(route, u, m) {
+    if (route.startsWith('casino/bj/')) return this.bj(u, route.slice(10), m);
     switch (route) {
       case 'casino/roulette': return this.roulette(u, m);
       case 'casino/crash/start': return this.crashStart(u, m);

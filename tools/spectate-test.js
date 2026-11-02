@@ -1,5 +1,5 @@
-// Admin joins a party that is racing: comes in as a spectator (flies, no bike),
-// the racers see them, and they stay out of the standings.
+// Admin joins a party that is racing: comes in as a spectator (drone camera, no bike),
+// the racers never see them, and they stay out of the standings.
 //   node tools/spectate-test.js   (starts its own server on port 5399)
 import { spawn } from 'child_process';
 import fs from 'fs';
@@ -34,11 +34,11 @@ const me = as && as.players.find((p) => p.name === 'lmkk');
 check('admin drops into the race as a spectator', me && me.spectator === true);
 const r1s = [...R1.msgs].reverse().find((m) => m.t === 'session');
 check('the racers are told (spectator in their player list)', r1s && r1s.players.some((p) => p.name === 'lmkk' && p.spectator));
-// fly far and fast: accepted, relayed, not flagged; not in the standings
+// watchers send their camera position, but it is never relayed; not in the standings
 const st = (x, y, z) => [x, y, z, 0, 0, 0, 1, 30, 0, 0, 0, 0, 0, 1000, 0, 2, 0, 0, 0, 0];
 A.send({ t: 's', d: st(0, 20, 0) }); await wait(100); A.send({ t: 's', d: st(80, 30, 40) }); await wait(300);
 const snap = [...R1.msgs].reverse().find((m) => m.t === 'snap' && m.p.some((x) => x[0] === me.id));
-check('racers see the spectator flying', !!snap);
+check('racers never see the spectator (watching with the drone camera, invisible)', !snap);
 R1.send({ t: 's', d: st(5, 1, 5) }); await wait(150); R1.send({ t: 's', d: st(6, 1, 6) }); await wait(1200);
 const race = [...R1.msgs].reverse().find((m) => m.t === 'race');
 check('spectator is not in the standings', !race || !race.rows.some((x) => x.name === 'lmkk'));

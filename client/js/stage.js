@@ -28,8 +28,7 @@ export class Stage {
   constructor(R) {
     this.R = R;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x10141c);
-    this.scene.fog = new THREE.Fog(0x10141c, 18, 60);
+    this.scene.fog = new THREE.Fog(0xd6e2ea, 40, 170);
     this.camera = new THREE.PerspectiveCamera(36, 1, 0.1, 200);
     this.build();
     this.entries = new Map();   // key -> entry
@@ -54,60 +53,118 @@ export class Stage {
   }
 
   // the room: dirt stage, curved back wall with light strips, spotlights
+  // the lobby is a motocross track on a sunny day: sky, rolling grass, a dirt track winding past
+  // behind the line-up with a table jump and a berm, taped fences, pines and hills far off
   build() {
     const S = this.scene;
-    S.add(new THREE.HemisphereLight(0xcfdcff, 0x2b2218, 0.9));
-    const key = new THREE.DirectionalLight(0xffffff, 2.4);
-    key.position.set(6, 12, 9);
+    // sky: a soft vertical gradient behind everything
+    const sky = document.createElement('canvas'); sky.width = 2; sky.height = 256;
+    const sg = sky.getContext('2d'), grd = sg.createLinearGradient(0, 0, 0, 256);
+    grd.addColorStop(0, '#4f8fd6'); grd.addColorStop(0.55, '#a9cbe8'); grd.addColorStop(0.8, '#dfe9f0'); grd.addColorStop(1, '#e6ecef');
+    sg.fillStyle = grd; sg.fillRect(0, 0, 2, 256);
+    const skyTex = new THREE.CanvasTexture(sky); skyTex.colorSpace = THREE.SRGBColorSpace;
+    S.background = skyTex;
+    // light: sky / ground bounce and a warm afternoon sun with shadows
+    S.add(new THREE.HemisphereLight(0xd8e8ff, 0x55603a, 1.0));
+    const key = new THREE.DirectionalLight(0xfff1dc, 2.6);
+    key.position.set(-9, 14, 10);
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 1024);
-    Object.assign(key.shadow.camera, { left: -22, right: 22, top: 8, bottom: -8, near: 1, far: 40 });
+    Object.assign(key.shadow.camera, { left: -22, right: 22, top: 10, bottom: -10, near: 1, far: 50 });
     key.shadow.bias = -0.0004;
     S.add(key);
-    const rim = new THREE.DirectionalLight(0xff9a5a, 1.5);
-    rim.position.set(-8, 5, -9);
-    S.add(rim);
-    const fill = new THREE.DirectionalLight(0x7aa7ff, 0.6);
-    fill.position.set(10, 3, -6);
+    const fill = new THREE.DirectionalLight(0x9fc0ff, 0.5);
+    fill.position.set(10, 4, -6);
     S.add(fill);
-    // floor + dirt stage
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(80, 64), new THREE.MeshStandardMaterial({ color: 0x1b1f28, roughness: 0.95 }));
-    floor.rotation.x = -Math.PI / 2; floor.position.y = -0.14; floor.receiveShadow = true;
-    S.add(floor);
-    const dirt = new THREE.Mesh(new THREE.BoxGeometry(44, 0.26, 9, 1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x5a412c, roughness: 1 }));
-    dirt.position.set(0, -0.13, -0.6); dirt.receiveShadow = true;
-    S.add(dirt);
-    const edgeMat = new THREE.MeshStandardMaterial({ color: 0xff5a1f, emissive: 0xff4a10, emissiveIntensity: 1.2, roughness: 0.4 });
-    const edge = new THREE.Mesh(new THREE.BoxGeometry(44, 0.05, 0.08), edgeMat);
-    edge.position.set(0, 0.01, 3.92);
-    S.add(edge);
-    // curved back wall with glowing strips
-    const wall = new THREE.Mesh(new THREE.CylinderGeometry(34, 34, 14, 64, 1, true, Math.PI * 0.62, Math.PI * 0.76),
-      new THREE.MeshStandardMaterial({ color: 0x161b25, roughness: 0.9, side: THREE.BackSide }));
-    wall.position.set(0, 6.5, 24);
-    S.add(wall);
-    const stripMat = new THREE.MeshBasicMaterial({ color: 0xff6a2a });
-    const stripMat2 = new THREE.MeshBasicMaterial({ color: 0x3a6cff });
-    for (let i = -6; i <= 6; i++) {
-      const a = Math.PI * 1.5 + i * 0.085;
-      const s = new THREE.Mesh(new THREE.BoxGeometry(0.12, 9 - Math.abs(i) * 0.4, 0.12), Math.abs(i) % 3 === 0 ? stripMat : stripMat2);
-      s.position.set(Math.cos(a) * 33.6, 5, 24 + Math.sin(a) * 33.6);
-      S.add(s);
+    const rnd = (() => { let x = 1234567; return () => ((x = (x * 16807) % 2147483647) / 2147483647); })();
+    // the dirt track: a ribbon winding left to right behind the line-up
+    const trackZ = (x) => -15 - 6 * Math.sin(x / 17) - 0.004 * x * x;
+    const jumpY = (x) => { const d = Math.abs(x - 2); return d < 5 ? 1.5 : d < 12 ? 1.5 * (1 - (d - 5) / 7) : 0; }; // a table top
+    const hillY = (x, z) => { const r = Math.hypot(x, z); return r < 26 ? 0 : (r - 26) * 0.05 + Math.sin(x * 0.07) * Math.cos(z * 0.05) * 1.6 * Math.min(1, (r - 26) / 20); };
+    // grass ground (flat near the line-up, rolling further out)
+    const gg = new THREE.PlaneGeometry(320, 320, 96, 96);
+    gg.rotateX(-Math.PI / 2);
+    const gp = gg.attributes.position;
+    for (let i = 0; i < gp.count; i++) gp.setY(i, hillY(gp.getX(i), gp.getZ(i)) - 0.15);
+    gg.computeVertexNormals();
+    const grass = new THREE.Mesh(gg, new THREE.MeshStandardMaterial({ color: 0x6f9a45, roughness: 1 }));
+    grass.receiveShadow = true;
+    S.add(grass);
+    const W = 9, pos = [], idx = [], N = 160;
+    for (let i = 0; i <= N; i++) {
+      const x = -80 + (160 * i) / N, z = trackZ(x), z2 = trackZ(x + 0.5);
+      const tx = 0.5, tz = z2 - z, l = Math.hypot(tx, tz), nx = -tz / l, nz = tx / l;
+      const y = jumpY(x) + 0.02;
+      pos.push(x + nx * W / 2, y, z + nz * W / 2, x - nx * W / 2, y, z - nz * W / 2);
+      if (i < N) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
     }
-    // big logo bar on the wall
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(18, 0.18, 0.2), stripMat);
-    bar.position.set(0, 9.5, -9.6);
-    S.add(bar);
-    // hay bales + stakes either side, so it reads as a motocross pit
+    const tg = new THREE.BufferGeometry();
+    tg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); tg.setIndex(idx); tg.computeVertexNormals();
+    const track = new THREE.Mesh(tg, new THREE.MeshStandardMaterial({ color: 0x8a6440, roughness: 1, side: THREE.DoubleSide }));
+    track.receiveShadow = true;
+    S.add(track);
+    // the jump's sides, so the table reads as a solid mound of dirt
+    const mound = new THREE.Mesh(new THREE.CylinderGeometry(7, 12, 1.5, 24, 1), new THREE.MeshStandardMaterial({ color: 0x7a5636, roughness: 1 }));
+    mound.scale.set(1, 1, 0.42); mound.position.set(2, 0.7, trackZ(2)); mound.receiveShadow = true;
+    S.add(mound);
+    // fences: stakes and tape along both edges of the track
+    const postG = new THREE.CylinderGeometry(0.05, 0.05, 1.1, 5), postM = new THREE.MeshStandardMaterial({ color: 0xe8e2d4, roughness: 0.8 });
+    const tapeM = new THREE.MeshStandardMaterial({ color: 0xe8462a, roughness: 0.6 });
+    for (const side of [1, -1]) {
+      let prev = null;
+      for (let x = -70; x <= 70; x += 4) {
+        const z = trackZ(x) + side * (W / 2 + 1.2), y = jumpY(x) * 0.0 + 0.4;
+        const p = new THREE.Mesh(postG, postM); p.position.set(x, y, z); p.castShadow = true; S.add(p);
+        if (prev) {
+          const len = Math.hypot(x - prev.x, z - prev.z);
+          const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.06, 0.02), tapeM);
+          t.position.set((x + prev.x) / 2, 0.85, (z + prev.z) / 2); t.rotation.y = -Math.atan2(z - prev.z, x - prev.x);
+          S.add(t);
+        }
+        prev = { x, z };
+      }
+    }
+    // dirt pad the line-up stands on, with hay bales either side
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(44, 0.26, 9, 1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x8f6a46, roughness: 1 }));
+    pad.position.set(0, -0.13, -0.6); pad.receiveShadow = true;
+    S.add(pad);
     const bale = new THREE.BoxGeometry(1.6, 0.8, 0.9);
-    const baleMat = new THREE.MeshStandardMaterial({ color: 0xc9a65a, roughness: 1 });
+    const baleMat = new THREE.MeshStandardMaterial({ color: 0xd2b066, roughness: 1 });
     for (const x of [-21, -19.2, 19.2, 21]) {
-      const b = new THREE.Mesh(bale, baleMat);
-      b.position.set(x, 0.4, -2.4 + (x > 0 ? 0.4 : 0));
-      b.rotation.y = x * 0.1;
-      b.castShadow = true; b.receiveShadow = true;
-      S.add(b);
+      const bb = new THREE.Mesh(bale, baleMat);
+      bb.position.set(x, 0.4, -2.4 + (x > 0 ? 0.4 : 0)); bb.rotation.y = x * 0.1;
+      bb.castShadow = true; bb.receiveShadow = true;
+      S.add(bb);
     }
+    // pines (instanced) behind the track and round the sides, clear of the track
+    const pines = [];
+    for (let t = 0; t < 900 && pines.length < 260; t++) {
+      const x = (rnd() - 0.5) * 260, z = -24 - rnd() * 120;
+      if (Math.abs(z - trackZ(x)) < W) continue;
+      pines.push([x, z, 0.7 + rnd() * 0.9]);
+    }
+    for (let t = 0; t < 120; t++) { const sd = rnd() < 0.5 ? -1 : 1; pines.push([sd * (30 + rnd() * 50), -10 + rnd() * 40, 0.7 + rnd() * 0.8]); }
+    const cone = new THREE.ConeGeometry(1.6, 5, 7); cone.translate(0, 4, 0);
+    const trunk = new THREE.CylinderGeometry(0.2, 0.25, 1.6, 5); trunk.translate(0, 0.8, 0);
+    const coneM = new THREE.InstancedMesh(cone, new THREE.MeshStandardMaterial({ color: 0x2f5a32, roughness: 1, flatShading: true }), pines.length);
+    const trunkM = new THREE.InstancedMesh(trunk, new THREE.MeshStandardMaterial({ color: 0x5a3e28, roughness: 1 }), pines.length);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
+    pines.forEach(([x, z, k], i) => { m4.compose(new THREE.Vector3(x, hillY(x, z) - 0.15, z), q, sc.set(k, k, k)); coneM.setMatrixAt(i, m4); trunkM.setMatrixAt(i, m4); });
+    coneM.castShadow = true;
+    S.add(coneM, trunkM);
+    // hills far off
+    const hillM = new THREE.MeshStandardMaterial({ color: 0x7f9c64, roughness: 1, flatShading: true });
+    for (let i = 0; i < 9; i++) {
+      const h = new THREE.Mesh(new THREE.SphereGeometry(30 + rnd() * 30, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), hillM);
+      h.position.set(-140 + i * 35 + rnd() * 10, -4, -150 - rnd() * 30); h.scale.y = 0.35 + rnd() * 0.25;
+      S.add(h);
+    }
+    // a start gate banner over the track
+    const gateM = new THREE.MeshStandardMaterial({ color: 0xf0743e, roughness: 0.6 });
+    const gz = trackZ(-22);
+    for (const dz of [-W / 2 - 0.4, W / 2 + 0.4]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4.5, 0.3), gateM); p.position.set(-22, 2.2, gz + dz); p.castShadow = true; S.add(p); }
+    const banner = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, W + 1.1), new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.7 }));
+    banner.position.set(-22, 4.2, gz); S.add(banner);
   }
 
   // list: [{ key, vehicleId, colorId, gearId, name, sub, ready, leader, me, ping }]

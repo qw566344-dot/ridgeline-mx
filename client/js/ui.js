@@ -21,6 +21,8 @@ import { liveTrick } from './sim/tricks.js';
 import { ReplayStore } from './replay.js';
 import { KEYS, DEFAULT_KEYS, applyBindings, keyName } from './input.js';
 import { UPDATES } from './updates.js';
+import { rankBadge, nextTier, tierStart } from './ranks.js';
+import { RANK_TIERS, RANK_START, rankTier } from '/shared/shop.js';
 import { regionList, customServer, setServerBase, serverBase } from './config.js';
 
 export { escapeHtml };
@@ -31,7 +33,7 @@ const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino
 const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'ranked', 'friends', 'settings', 'credits']);
 const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', leaderboard: 'leaderboard', replays: 'replays', ranked: 'ranked', friends: 'friends', settings: 'settings' };
 // Settings > Controls: what each key does (the actions you can rebind), in order
-const BINDABLE = [['throttle', 'Throttle'], ['brake', 'Brake / reverse'], ['left', 'Steer left'], ['right', 'Steer right'], ['leanBack', 'Lean back / backflip'], ['leanFwd', 'Lean forward / front flip / preload'], ['clutch', 'Clutch / flat spin'], ['rearBrake', 'Rear brake'], ['trick1', 'Superman'], ['trick2', 'Nac-Nac'], ['trick3', 'Heel Clicker'], ['trick4', 'Cliffhanger'], ['gearMode', 'Manual / automatic gears'], ['shiftUp', 'Shift up'], ['shiftDown', 'Shift down'], ['reset', 'Reset onto the track'], ['retry', 'Quick retry'], ['camera', 'Change camera'], ['pause', 'Pause']];
+const BINDABLE = [['throttle', 'Throttle'], ['brake', 'Brake / reverse'], ['left', 'Steer left'], ['right', 'Steer right'], ['leanBack', 'Lean back / backflip'], ['leanFwd', 'Lean forward / front flip / preload'], ['clutch', 'Clutch / flat spin'], ['rearBrake', 'Rear brake'], ['trick1', 'Superman'], ['trick2', 'Nac-Nac'], ['trick3', 'Heel Clicker'], ['trick4', 'Cliffhanger'], ['trick5', 'Can-Can'], ['trick6', 'Lazy Boy'], ['trick7', 'Seat Grab'], ['trick8', 'Rock Solid'], ['gearMode', 'Manual / automatic gears'], ['shiftUp', 'Shift up'], ['shiftDown', 'Shift down'], ['reset', 'Reset onto the track'], ['retry', 'Quick retry'], ['camera', 'Change camera'], ['pause', 'Pause']];
 
 export const MODES = [
   { id: 'freeride', name: 'Free Ride', desc: 'Ride at your own pace. No timer, no pressure.', party: true },
@@ -43,8 +45,9 @@ export const MODES = [
 export const modeName = (id) => (MODES.find((m) => m.id === id) || MODES[0]).name;
 
 // rough effect of each upgrade level on the 0-10 stat bars
-const UP_STAT = { engine: { speed: 0.25, accel: 0.32 }, suspension: { suspension: 0.25, stability: 0.18 }, tyres: { handling: 0.28, stability: 0.1 }, weight: { accel: 0.2, handling: 0.15 }, air: { handling: 0.05 } };
+const UP_STAT = { engine: { speed: 0.25, accel: 0.32 }, suspension: { suspension: 0.25, stability: 0.18 }, tyres: { handling: 0.28, stability: 0.1 }, weight: { accel: 0.2, handling: 0.15 }, air: { handling: 0.05 }, antilag: { accel: 0.25 } };
 const UP_TEXT = {
+  antilag: (L) => `instant power after a lift (+${Math.round(L.kick * 100)}%), louder backfires`,
   engine: (L) => `+${Math.round((L.power - 1) * 100)}% engine power`,
   suspension: (L) => `+${Math.round((L.travel - 1) * 100)}% travel, +${Math.round((L.damp - 1) * 100)}% damping`,
   tyres: (L) => `+${Math.round((L.grip - 1) * 100)}% grip`,
@@ -89,6 +92,7 @@ export class UI {
     $('logout-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('logout'); });
     $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
     $('updates-btn').addEventListener('click', () => this.showUpdates());
+    $('rk-find').addEventListener('click', () => this.emit('queue', 'ranked'));
     $('dock-setup').addEventListener('click', () => this.show('play'));
     $('play-btn').addEventListener('click', () => this.onPlay());
 
@@ -139,6 +143,7 @@ export class UI {
     if (name === 'shop') this.renderShop();
     if (name === 'casino' && this.casino) this.casino.show();
     if (name === 'leaderboard') this.renderLeaderboard();
+    if (name === 'ranked') this.renderRanked();
     if (name === 'replays') this.renderReplays();
     if (name === 'friends') { this.renderHome(); this.renderFriends(); if (this.social) this.social.refresh(); }
     if (name === 'settings') this.renderSettings();
@@ -271,7 +276,7 @@ export class UI {
     btn.classList.remove('ready');
     btn.disabled = false;
     if (!P) { btn.textContent = 'PLAY'; note.textContent = ''; }
-    else if (P.session && !net.isLeader()) { btn.textContent = 'JOIN'; note.textContent = `${modeName(P.session.mode)} in progress - jump in`; }
+    else if (P.session && !net.isLeader()) { btn.textContent = 'WATCH'; note.textContent = `${modeName(P.session.mode)} in progress - watch with the drone camera`; }
     else if (net.isLeader()) {
       const others = P.members.filter((m) => m.id !== net.id && m.connected);
       const ready = others.filter((m) => m.ready).length;
@@ -288,8 +293,36 @@ export class UI {
     this.syncStage();
   }
 
+  // the Ranked screen: your badge and rating, progress to the next rank, find a match, the ladder, the top riders
+  async renderRanked() {
+    const A = this.account, P = A && A.profile;
+    const online = A && A.mode === 'online';
+    const rating = (P && P.rating) || RANK_START, tier = rankTier(rating), R = (P && P.ranked) || { races: 0, wins: 0 };
+    $('rk-badge').innerHTML = rankBadge(tier, 150);
+    $('rk-tier').textContent = tier; $('rk-tier').className = 'tier-name ' + tier;
+    $('rk-rating').textContent = rating;
+    $('rk-record').textContent = R.races ? `${R.wins} wins in ${R.races} races` : 'no ranked races yet';
+    const nx = nextTier(tier), from = tierStart(tier);
+    $('rk-fill').style.width = (nx ? Math.max(3, Math.min(100, ((rating - from) / (nx[1] - from)) * 100)) : 100) + '%';
+    $('rk-next').textContent = nx ? `${nx[1] - rating} rating to ${nx[0]}` : 'Top rank - stay there!';
+    $('rk-ladder').innerHTML = RANK_TIERS.map(([n, min], i) => { const hi = RANK_TIERS[i + 1] ? RANK_TIERS[i + 1][1] - 1 : null; return `<div class="rung${n === tier ? ' me' : ''}">${rankBadge(n, 44)}<div><b class="tier-name ${n}">${n}</b><small>${hi ? min + ' - ' + hi : min + '+'}</small></div></div>`; }).join('');
+    const q = this.mmState;
+    $('rk-find').textContent = q && q.mode === 'ranked' ? (q.found ? 'MATCH FOUND...' : 'CANCEL SEARCH') : 'FIND RANKED MATCH';
+    $('rk-find').classList.toggle('searching', !!(q && q.mode === 'ranked'));
+    $('rk-find').disabled = !online;
+    $('rk-status').textContent = !online ? 'Ranked needs an online account - log in to play.' : q && q.mode === 'ranked' ? (q.found ? 'Loading the track...' : `Searching for riders of your rank... ${q.n > 1 ? q.n + ' searching' : ''} (${Math.round((q.waited || 0) / 1000)} s)`) : 'Race 2-6 riders of your rank. Win to climb, lose and you drop.';
+    if (!this.rkLoaded || Date.now() - this.rkLoaded > 30000) {
+      this.rkLoaded = Date.now();
+      let d = null;
+      try { d = await (await fetch(serverBase() + '/api/leaderboard')).json(); } catch { /* offline */ }
+      const rows = (d && d.ranked) || [], me = P ? P.name.toLowerCase() : '';
+      $('rk-list').innerHTML = rows.length ? rows.slice(0, 10).map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 1}</span><b>${rankBadge(r.tier, 22)} ${escapeHtml(r.name)}</b><span class="v">${r.v}</span></li>`).join('') : '<li class="hint">Nobody has played ranked yet - be the first!</li>';
+    }
+  }
+
   // matchmaking: the two buttons under PLAY, and what they show while searching
   renderMatchmaking() {
+    if (this.screen === 'ranked') this.renderRanked();
     if (!$('mm-casual')) return; // the buttons are off until Ranked opens
     const q = this.mmState, A = this.account;
     $('mm-tier').textContent = A && A.profile && A.profile.ranked && A.profile.ranked.races ? `${A.profile.tier} ${A.profile.rating}` : '';
@@ -1196,7 +1229,7 @@ export class UI {
     $('trick-pop').innerHTML = '';
     $('name-tags').innerHTML = ''; this.nameTagEls = new Map();
     $('toasts').innerHTML = '';
-    $('hud-hint').innerHTML = spec ? 'SPECTATING &nbsp; W/S fly &nbsp; A/D turn &nbsp; Space up &nbsp; Shift down &nbsp; C camera' : game.mode === 'freestyle' ? 'Q/E flip &nbsp; A/D whip &nbsp; Shift+A/D spin &nbsp; Y restart' : 'R reset &nbsp; C camera &nbsp; Esc pause';
+    $('hud-hint').innerHTML = spec ? 'DRONE CAM &nbsp; W/A/S/D fly &nbsp; Space up &nbsp; Ctrl down &nbsp; Shift fast &nbsp; right mouse look' : game.mode === 'freestyle' ? 'Q/E flip &nbsp; A/D whip &nbsp; Shift+A/D spin &nbsp; Y restart' : 'R reset &nbsp; C camera &nbsp; Esc pause';
     if (this.stage) this.stage.hideTags();
   }
   hideHud() { $('hud').hidden = true; }

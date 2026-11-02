@@ -39,6 +39,42 @@ export class CameraRig {
     this.prevSpd = 0; this.accel = 0; this.airPull = 0;
   }
 
+  // DRONE camera (spectating, replay free cam), like Rocket League's: it flies with momentum -
+  // W / S forward and back along where you look, A / D sideways, Space or E up, Ctrl or Q down,
+  // Shift fast; hold the right mouse button to look around. noSpace: Space is taken (replays pause)
+  droneStart() {
+    const cam = this.camera, d = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    this.droneS = { pos: cam.position.clone(), vel: new THREE.Vector3(), yaw: Math.atan2(d.x, d.z), pitch: Math.asin(Math.max(-1, Math.min(1, d.y))) };
+    this.droneS.tyaw = this.droneS.yaw; this.droneS.tpitch = this.droneS.pitch;
+  }
+  drone(dt, input, world, noSpace = false) {
+    if (!this.droneS) this.droneStart();
+    const D = this.droneS, cam = this.camera, m = input.mouse, down = input.down;
+    const k = (...codes) => codes.some((c) => down.has(c));
+    if (m.dx || m.dy) { D.tyaw -= m.dx * 0.0035 * this.mouseSens; D.tpitch = Math.max(-1.5, Math.min(1.5, D.tpitch - m.dy * 0.0035 * this.mouseSens)); }
+    const look = 1 - Math.exp(-dt * 14);
+    D.yaw += (D.tyaw - D.yaw) * look; D.pitch += (D.tpitch - D.pitch) * look;
+    const cp = Math.cos(D.pitch);
+    const fx = Math.sin(D.yaw) * cp, fy = Math.sin(D.pitch), fz = Math.cos(D.yaw) * cp;
+    const rx = -Math.cos(D.yaw), rz = Math.sin(D.yaw);           // right (screen) direction
+    const f = (k('KeyW') ? 1 : 0) - (k('KeyS') ? 1 : 0), s = (k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0);
+    const u = ((!noSpace && k('Space')) || k('KeyE') ? 1 : 0) - (k('ControlLeft', 'ControlRight', 'KeyQ') ? 1 : 0);
+    const top = k('ShiftLeft', 'ShiftRight') ? 48 : 18;
+    const wish = _w.set(fx * f + rx * s, fy * f + u, fz * f + rz * s);
+    if (wish.lengthSq() > 1) wish.normalize();
+    D.vel.lerp(wish.multiplyScalar(top), 1 - Math.exp(-dt * (wish.lengthSq() ? 3.5 : 2.2))); // speeds up and glides to a stop
+    D.pos.addScaledVector(D.vel, dt);
+    const half = world.half - 2;
+    D.pos.x = Math.max(-half, Math.min(half, D.pos.x)); D.pos.z = Math.max(-half, Math.min(half, D.pos.z));
+    const floor = heightAt(world, D.pos.x, D.pos.z) + 0.6;
+    if (D.pos.y < floor) { D.pos.y = floor; D.vel.y = Math.max(0, D.vel.y); }
+    D.pos.y = Math.min(D.pos.y, 400);
+    cam.position.copy(D.pos); cam.up.set(0, 1, 0);
+    cam.lookAt(D.pos.x + fx, D.pos.y + fy, D.pos.z + fz);
+    if (cam.fov !== 70) { cam.fov += (70 - cam.fov) * Math.min(1, dt * 4); cam.updateProjectionMatrix(); }
+    this.pos.copy(cam.position);
+  }
+
   // a landing pushes the camera down; it springs back up
   landing(strength) { if (this.effects) this.dipV -= Math.min(3, strength * 1.6); }
 

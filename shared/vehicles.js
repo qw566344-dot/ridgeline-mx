@@ -238,20 +238,20 @@ const ATV_BASE = {
   cdA: 1.0, crr: 0.03,
   wheels: [
     // the model: axles 0.64 m ahead / behind, front track 0.94 m, rear 0.86 m
-    { id: 'fl', z: 0.64, x: 0.47, r: 0.28, travel: 0.23, freq: 1.75, sag: 0.3, steer: true, driven: false, brake: 'front', mu: 0.97, alphaPeak: 0.16 },
-    { id: 'fr', z: 0.64, x: -0.47, r: 0.28, travel: 0.23, freq: 1.75, sag: 0.3, steer: true, driven: false, brake: 'front', mu: 0.97, alphaPeak: 0.16 },
+    { id: 'fl', z: 0.64, x: 0.47, r: 0.28, travel: 0.23, freq: 1.75, sag: 0.3, steer: true, driven: false, brake: 'front', mu: 1.05, alphaPeak: 0.16 },
+    { id: 'fr', z: 0.64, x: -0.47, r: 0.28, travel: 0.23, freq: 1.75, sag: 0.3, steer: true, driven: false, brake: 'front', mu: 1.05, alphaPeak: 0.16 },
     { id: 'rl', z: -0.64, x: 0.43, r: 0.255, travel: 0.25, freq: 1.8, sag: 0.32, steer: false, driven: true, brake: 'rear', mu: 1.0, alphaPeak: 0.14 },
     { id: 'rr', z: -0.64, x: -0.43, r: 0.255, travel: 0.25, freq: 1.8, sag: 0.32, steer: false, driven: true, brake: 'rear', mu: 1.0, alphaPeak: 0.14 },
   ],
-  damping: { bump: 0.45, rebound: 0.75 },
+  damping: { bump: 0.5, rebound: 0.78 },
   progressive: 5,
-  steer: { maxLow: 33, maxHigh: 8, highSpeed: 22, rate: 3.0, airYaw: 0.8, latAcc: 9.0 },
+  steer: { maxLow: 35, maxHigh: 9, highSpeed: 22, rate: 3.8, airYaw: 0.9, latAcc: 10.0 }, // quicker, sharper than before
   antiRoll: 16000,                 // N per metre of left/right compression difference
-  rollCentre: 0.6,                 // 0 = tyre forces at the ground (tippy), 1 = at the CoM (can't tip)
+  rollCentre: 0.68,                // 0 = tyre forces at the ground (tippy), 1 = at the CoM (can't tip)
   riderLean: 900,                  // N m of body-English torque when steering
   riderBalance: 5200,              // N m per radian: the rider throws weight to the high side
-  axleScrub: 0.22,                 // solid rear axle resists turning (understeer)
-  air: { flipRate: 3.3, flipAccel: 5.5, spinDamp: 1.0, gyro: 1.4, whip: 25, spinRate: 3.6 },
+  axleScrub: 0.14,                 // solid rear axle resists turning (understeer)
+  air: { flipRate: 3.6, flipAccel: 6.0, spinDamp: 1.0, gyro: 1.5, whip: 35, spinRate: 3.9 },
   brakes: { front: 2100, rear: 1500 },
   crash: { landPitch: 66, impact: 19, roll: 88, loop: 90 },
   probes: [
@@ -669,18 +669,22 @@ export const UPGRADES = {
   tyres: { name: 'Tyres', levels: [600, 1300, 2400, 4000, 6500].map((price, i) => ({ price, grip: 1 + 0.03 * (i + 1) })) },
   weight: { name: 'Weight Reduction', levels: [700, 1500, 2800, 4500, 7000].map((price, i) => ({ price, mass: 1 - 0.03 * (i + 1) })) },
   air: { name: 'Air Control', levels: [600, 1200, 2200, 3600, 5500].map((price, i) => ({ price, rot: 1 + 0.06 * (i + 1) })) },
+  // anti-lag: lift and get back on the gas and the power is there straight away (a short kick),
+  // and the exhaust pops and bangs much harder
+  antilag: { name: 'Anti-Lag', levels: [1800, 3600, 6500].map((price, i) => ({ price, kick: [0.08, 0.14, 0.2][i], pops: [0.35, 0.65, 1][i] })) },
 };
 
 export function applyUpgrades(def, ups = {}) {
   const L = (p) => (ups[p] ? UPGRADES[p].levels[Math.min(ups[p], UPGRADES[p].levels.length) - 1] : null);
-  const e = L('engine'), s = L('suspension'), t = L('tyres'), w = L('weight'), a = L('air');
-  if (!e && !s && !t && !w && !a) return def;
+  const e = L('engine'), s = L('suspension'), t = L('tyres'), w = L('weight'), a = L('air'), al = L('antilag');
+  if (!e && !s && !t && !w && !a && !al) return def;
   const d = JSON.parse(JSON.stringify(def));
   if (e) d.engine.torque = d.engine.torque.map(([r, q]) => [r, q * e.power]);
   if (s) { d.wheels.forEach((x) => { x.travel *= s.travel; }); d.damping.bump *= s.damp; d.damping.rebound *= s.damp; }
   if (t) d.wheels.forEach((x) => { x.mu *= t.grip; });
   if (w) { d.mass *= w.mass; d.inertia = d.inertia.map((i) => i * w.mass); }
   if (a) { d.air.flipRate *= a.rot; d.air.spinRate *= a.rot; d.air.flipAccel *= a.rot; }
+  if (al) d.antilag = { kick: al.kick, pops: al.pops };
   return d;
 }
 

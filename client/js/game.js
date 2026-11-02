@@ -310,36 +310,12 @@ export class Game {
   toggleFreeCam() {
     const R = this.replay;
     if (!R) return;
-    if (R.free) { R.free = null; this.cam.snapNext = true; this.toast('Free cam off', 1.2); }
+    if (R.free) { R.free = false; this.cam.snapNext = true; this.toast('Free cam off', 1.2); }
     else {
-      const cam = this.R.camera, d = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
-      R.free = { pos: cam.position.clone(), yaw: Math.atan2(d.x, d.z), pitch: Math.asin(Math.max(-1, Math.min(1, d.y))) };
-      this.toast('Free cam: W/S fly, A/D turn, E/Q up/down, Shift faster, right mouse to look', 3);
+      R.free = true; this.cam.droneStart();
+      this.toast('Free cam: W/S/A/D fly, E up, Q down, Shift fast, right mouse to look', 3);
     }
     this.ui.updateReplay(this);
-  }
-  freeCamUpdate(dt) {
-    const F = this.replay.free, inp = this.input, cam = this.R.camera, m = inp.mouse;
-    const key = (a) => KEYS[a].some((k) => inp.down.has(k) && !k.startsWith('Arrow')); // arrows seek the replay
-    // smooth: the mouse and keys set where the camera wants to look and how fast it wants to go;
-    // the camera eases there (no jerky starts, stops or snaps)
-    if (F.tyaw === undefined) { F.tyaw = F.yaw; F.tpitch = F.pitch; F.v = new THREE.Vector3(); }
-    if (m.dx || m.dy) { F.tyaw -= m.dx * 0.004; F.tpitch = Math.max(-1.45, Math.min(1.45, F.tpitch - m.dy * 0.004)); }
-    F.tyaw += ((key('left') ? 1 : 0) - (key('right') ? 1 : 0)) * 1.6 * dt;
-    const look = 1 - Math.exp(-dt * 10);
-    F.yaw += (F.tyaw - F.yaw) * look; F.pitch += (F.tpitch - F.pitch) * look;
-    const top = inp.down.has('ShiftLeft') || inp.down.has('ShiftRight') ? 45 : 16;
-    const fx = Math.sin(F.yaw) * Math.cos(F.pitch), fy = Math.sin(F.pitch), fz = Math.cos(F.yaw) * Math.cos(F.pitch);
-    const go = (key('throttle') ? 1 : 0) - (key('brake') ? 1 : 0), lift = (key('leanFwd') ? 1 : 0) - (key('leanBack') ? 1 : 0);
-    const want = _v.set(fx * go * top, fy * go * top + lift * top, fz * go * top);
-    F.v.lerp(want, 1 - Math.exp(-dt * 4));
-    F.pos.addScaledVector(F.v, dt);
-    const half = this.world.half - 2;
-    F.pos.x = Math.max(-half, Math.min(half, F.pos.x)); F.pos.z = Math.max(-half, Math.min(half, F.pos.z));
-    F.pos.y = Math.max(heightAt(this.world, F.pos.x, F.pos.z) + 0.6, Math.min(F.pos.y, 400));
-    cam.position.copy(F.pos);
-    cam.up.set(0, 1, 0);
-    cam.lookAt(F.pos.x + fx, F.pos.y + fy, F.pos.z + fz);
   }
 
   replayFrame(dt) {
@@ -423,7 +399,7 @@ export class Game {
     for (const r of this.riders) {
       const v = r.veh;
       if (!v) continue;
-      if (r.spectator) { if (r.isPlayer) this.fly(r, dt); continue; }
+      if (r.spectator) continue; // watching: the drone camera, no rider on the track
       if (r.isPlayer && this.mode !== 'menu') {
         const c = r.finished && this.mode === 'race' ? { throttle: 0.2, brake: 0, steer: 0, rearBrake: 0, clutch: false, lean: 0 } : ctl;
         if (this.autopilot && !holding) this.autopilot.update(dt); // testing / demo: the AI rides your bike
@@ -462,6 +438,8 @@ export class Game {
   // an admin watching a race already going: just the rider, flying, no bike
   makeSpectator(r) {
     r.spectator = true;
+    if (r.isPlayer) this.cam.droneS = null; // starts where the camera is
+    if (r.vis.root) r.vis.root.visible = false;
     if (r.vis.container) r.vis.container.visible = false;
     if (r.vis.placeholder) r.vis.placeholder.visible = false;
     if (r.veh) { r.veh.grounded = false; r.flyYaw = Math.atan2(r.veh.fwd.x || 0, r.veh.fwd.z || 1); r.veh.pos.y += 3; }
@@ -571,6 +549,11 @@ export class Game {
             this.toast('CRASH! ' + e.reason + '  (R to reset)', 2.2, 'bad');
             if (this.net) this.net.sendEvent({ t: 'crash' });
           }
+        } else if (e.type === 'backfire') {
+          // exhaust pops: flame out of the back, a crack and a thump (only nearby riders are heard)
+          this.effects.backfire && this.effects.backfire(v, e.n, e.k);
+          if (r.isPlayer) this.audio.backfire(e.n, e.k);
+          else if (this.player && this.player.veh && v.pos.distanceTo(this.player.veh.pos) < 60) this.audio.backfire(e.n, e.k * 0.4);
         } else if (e.type === 'land') {
           const strength = Math.min(1.5, (v.landImpact || 0) / 6);
           if (e.air > 0.35) {
@@ -823,7 +806,9 @@ export class Game {
         head = (this._head || (this._head = new THREE.Vector3())).copy(focus.rider.j.head).add(_v.set(0, 0.15, 0.12)).applyMatrix4(focus.vis.model.matrixWorld);
       }
       if (dt > 0) this.cam.update(dt, target, this.world, head);
-      if (this.replay && this.replay.free) this.freeCamUpdate(dt); // replay free cam takes over the view
+      // the drone takes over the view: replay free cam, or watching a race (Space pauses replays)
+      if (this.replay && this.replay.free) this.cam.drone(dt, this.input, this.world, true);
+      else if (this.player && this.player.spectator) this.cam.drone(dt, this.input, this.world, false);
       focus.vis.root.visible = true;
       // helmet cam: our own rider loses the head and chest (see rider.js), keeps the arms
       focus.rider.mesh.visible = true;

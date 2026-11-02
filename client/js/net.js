@@ -21,6 +21,7 @@ import { PROTOCOL_VERSION, SEND_RATE, SNAPSHOT_RATE, INTERP_DELAY, packState, cl
 import { getVehicle } from '/shared/vehicles.js';
 import { regionList, wsUrlFor, measurePing } from './config.js';
 import { escapeHtml, ordinal } from './util.js';
+import { rankUpAnimation, rankBadge } from './ranks.js';
 
 const $ = (id) => document.getElementById(id);
 const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
@@ -110,7 +111,9 @@ export class Net {
   onRank(m) {
     const up = m.delta >= 0;
     const tierUp = m.tier !== m.was;
-    this.ui.popup(`<b>Ranked: ${m.pos === 1 ? 'you won!' : 'finished #' + m.pos}</b><br>Rating ${m.rating} (${up ? '+' : ''}${m.delta})${tierUp ? ` - <b>${up ? 'promoted to' : 'down to'} ${m.tier}</b>` : ` - ${m.tier}`}`, up ? 'good' : 'bad', null, 9);
+    // promoted: the full-screen rank up; otherwise a popup with the new rating
+    if (tierUp && up) setTimeout(() => rankUpAnimation(m.was, m.tier, m.rating, m.delta), 1800);
+    else this.ui.popup(`<div class="rk-pop">${rankBadge(m.tier, 40)}<div><b>Ranked: ${m.pos === 1 ? 'you won!' : 'finished #' + m.pos}</b><br>${m.tier} ${m.rating} (${up ? '+' : ''}${m.delta})${tierUp ? ' - down to ' + m.tier : ''}</div></div>`, up ? 'good' : 'bad', null, 9);
     const A = this.ui.account;
     if (A && A.init) A.init();
   }
