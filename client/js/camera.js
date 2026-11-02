@@ -8,7 +8,7 @@
 // =====================================================================
 import * as THREE from 'three';
 import { heightAt } from '/shared/terrain.js';
-import { pointAt } from '/shared/trackgen.js';
+import { pointAt, locate } from '/shared/trackgen.js';
 
 export const CAMERA_MODES = ['Chase', 'Close Chase', 'Helmet', 'Trackside'];
 
@@ -173,13 +173,29 @@ export class CameraRig {
       this.look.copy(cam.position).addScaledVector(_f, 10);
     } else {
       // trackside TV camera: a fixed spot beside the track, zooming to follow
+      // Where the rider is along the track comes from their position (replays and online riders
+      // have no lap position of their own - they all read as the start line, so the camera kept
+      // re-picking a spot back there every frame and flickered). The new spot is never further
+      // ahead than the re-pick distance (fast riders re-picked every frame too), and off the track
+      // (free ride) it goes beside where the rider is heading.
       const T = world.T;
-      if (!this.tvPoint || this.tvTimer <= 0 || this.tvPoint.distanceTo(target.pos) > 70) {
-        const s = (target.trackS || 0) + 30 + spd * 1.2;
+      if (!this.tvPoint || this.tvTimer <= 0 || this.tvPoint.distanceTo(target.pos) > 95) {
         const side = Math.random() < 0.5 ? 1 : -1;
-        const p = pointAt(T, s, side * (11 + Math.random() * 8));
-        this.tvPoint = new THREE.Vector3(p.x, heightAt(world, p.x, p.z) + 2.5 + Math.random() * 3, p.z);
+        const ahead = Math.min(55, 25 + spd * 1.1);
+        const loc = world.F ? locate(world.F, target.pos.x, target.pos.z) : null;
+        let x, z;
+        if (loc && Math.abs(loc.u) < 25) {
+          const p = pointAt(T, loc.s + ahead, side * (11 + Math.random() * 8));
+          x = p.x; z = p.z;
+        } else {
+          const h = _h.copy(target.vel).setY(0);
+          if (h.lengthSq() < 1) h.copy(fwd).setY(0);
+          h.normalize();
+          x = target.pos.x + h.x * ahead - h.z * side * 14; z = target.pos.z + h.z * ahead + h.x * side * 14;
+        }
+        this.tvPoint = new THREE.Vector3(x, heightAt(world, x, z) + 2.5 + Math.random() * 3, z);
         this.tvTimer = 7;
+        this.snapNext = true; // a cut, not a swoop across the map
       }
       this.tvTimer -= dt;
       cam.position.copy(this.tvPoint);

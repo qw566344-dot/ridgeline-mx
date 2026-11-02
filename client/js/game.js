@@ -321,13 +321,19 @@ export class Game {
   freeCamUpdate(dt) {
     const F = this.replay.free, inp = this.input, cam = this.R.camera, m = inp.mouse;
     const key = (a) => KEYS[a].some((k) => inp.down.has(k) && !k.startsWith('Arrow')); // arrows seek the replay
-    if (m.dx || m.dy) { F.yaw -= m.dx * 0.004; F.pitch = Math.max(-1.45, Math.min(1.45, F.pitch - m.dy * 0.004)); }
-    F.yaw += ((key('left') ? 1 : 0) - (key('right') ? 1 : 0)) * 1.8 * dt;
-    const sp = (inp.down.has('ShiftLeft') || inp.down.has('ShiftRight') ? 45 : 16) * dt;
+    // smooth: the mouse and keys set where the camera wants to look and how fast it wants to go;
+    // the camera eases there (no jerky starts, stops or snaps)
+    if (F.tyaw === undefined) { F.tyaw = F.yaw; F.tpitch = F.pitch; F.v = new THREE.Vector3(); }
+    if (m.dx || m.dy) { F.tyaw -= m.dx * 0.004; F.tpitch = Math.max(-1.45, Math.min(1.45, F.tpitch - m.dy * 0.004)); }
+    F.tyaw += ((key('left') ? 1 : 0) - (key('right') ? 1 : 0)) * 1.6 * dt;
+    const look = 1 - Math.exp(-dt * 10);
+    F.yaw += (F.tyaw - F.yaw) * look; F.pitch += (F.tpitch - F.pitch) * look;
+    const top = inp.down.has('ShiftLeft') || inp.down.has('ShiftRight') ? 45 : 16;
     const fx = Math.sin(F.yaw) * Math.cos(F.pitch), fy = Math.sin(F.pitch), fz = Math.cos(F.yaw) * Math.cos(F.pitch);
-    const go = (key('throttle') ? 1 : 0) - (key('brake') ? 1 : 0);
-    F.pos.x += fx * go * sp; F.pos.y += fy * go * sp; F.pos.z += fz * go * sp;
-    F.pos.y += ((key('leanFwd') ? 1 : 0) - (key('leanBack') ? 1 : 0)) * sp;
+    const go = (key('throttle') ? 1 : 0) - (key('brake') ? 1 : 0), lift = (key('leanFwd') ? 1 : 0) - (key('leanBack') ? 1 : 0);
+    const want = _v.set(fx * go * top, fy * go * top + lift * top, fz * go * top);
+    F.v.lerp(want, 1 - Math.exp(-dt * 4));
+    F.pos.addScaledVector(F.v, dt);
     const half = this.world.half - 2;
     F.pos.x = Math.max(-half, Math.min(half, F.pos.x)); F.pos.z = Math.max(-half, Math.min(half, F.pos.z));
     F.pos.y = Math.max(heightAt(this.world, F.pos.x, F.pos.z) + 0.6, Math.min(F.pos.y, 400));
