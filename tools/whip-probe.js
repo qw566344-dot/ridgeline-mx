@@ -6,7 +6,7 @@ import { Vehicle, FIXED_DT } from '../client/js/sim/vehicle.js';
 import { AIDriver } from '../client/js/sim/ai.js';
 import { pointAt } from '../shared/trackgen.js';
 
-const [id = 'mx450', hold = '0.7', steer = '1'] = process.argv.slice(2);
+const [id = 'mx450', hold = '0.7', steer = '1', leanArg = '0'] = process.argv.slice(2); // lean 1 = E held with the whip (a scrub)
 const W = makeWorld(getTrack('ridgeline'));
 const T = W.T;
 const D = 180 / Math.PI;
@@ -18,7 +18,7 @@ let took = false, tick = 0;
 for (let i = 0; i < 120 * 12; i++) {
   if (!v.grounded && v.airTime > 0.12 && (took || v.trackS > tbl.s0 - 3)) {
     took = true;
-    v.input.throttle = 0.3; v.input.brake = 0; v.input.lean = 0; v.input.clutch = false;
+    v.input.throttle = 0.3; v.input.brake = 0; v.input.clutch = false; v.input.lean = v.airTime < Number(hold) ? Number(leanArg) : 0;
     v.input.steer = v.airTime < Number(hold) ? Number(steer) : 0;
   } else { ai.update(FIXED_DT); }
   v.step(FIXED_DT);

@@ -87,6 +87,10 @@
           <i class="edit">Change</i>
         </button>
         <button id="play-btn" class="play-btn">PLAY</button>
+        <div class="mm-row" id="mm-row">
+          <button id="mm-casual" class="mm-btn" title="Race whoever else is searching on your server">Casual match</button>
+          <button id="mm-ranked" class="mm-btn ranked" title="Race riders of your rank - your rating goes up or down">Ranked match <small id="mm-tier"></small></button>
+        </div>
         <div id="dock-note" class="dock-note"></div>
       </div>
     </section>
@@ -213,7 +217,8 @@
     <!-- LEADERBOARD -->
     <section id="leaderboard" class="screen overlay" hidden>
       <div class="sheet wide">
-        <div class="sheet-head"><h2>Leaderboard</h2><span id="lb-note" class="hint">Trick points - land tricks in any mode to climb</span></div>
+        <div class="sheet-head"><h2>Leaderboard</h2><div class="seg" id="lb-tabs"><button data-lb="tricks" class="sel">Trick points</button><button data-lb="ranked">Ranked</button></div></div>
+        <p id="lb-note" class="hint">Trick points - land tricks in any mode to climb</p>
         <div id="lb-podium" class="lb-podium"></div>
         <ol id="lb-tricks" class="lb-list"></ol>
         <div id="lb-mine" class="lb-mine" hidden></div>
@@ -293,8 +298,11 @@
           <tr><td><kbd>W</kbd> / <kbd>&uarr;</kbd></td><td>Throttle</td></tr>
           <tr><td><kbd>S</kbd> / <kbd>&darr;</kbd></td><td>Brake (hold when stopped to reverse)</td></tr>
           <tr><td><kbd>A</kbd> <kbd>D</kbd></td><td>Steer &bull; in the air: whip / scrub (bikes)</td></tr>
-          <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>Lean back / forward &bull; in the air: backflip / front flip</td></tr>
+          <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>Lean back / forward (back: more drive, forward: sharper turns) &bull; in the air: backflip / front flip</td></tr>
           <tr><td><kbd>Shift</kbd> + <kbd>A</kbd>/<kbd>D</kbd> in the air</td><td>Flat spin (360s)</td></tr>
+          <tr><td>Hold <kbd>E</kbd>, let go on the lip</td><td>Preload pop: squat into the jump face, release to spring off it (or hop on the flat)</td></tr>
+          <tr><td><kbd>A</kbd>/<kbd>D</kbd> + <kbd>E</kbd> off the lip</td><td>Scrub: the bike lays flat and stays low and fast</td></tr>
+          <tr><td><kbd>M</kbd> &bull; <kbd>X</kbd> / <kbd>Z</kbd></td><td>Manual / automatic gears &bull; shift up / down (manual)</td></tr>
           <tr><td>Hold <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> in the air</td><td>Superman, Nac-Nac, Heel Clicker, Cliffhanger - let go before you land!</td></tr>
           <tr><td><kbd>Shift</kbd></td><td>Clutch - hold, rev, release for a burst (wheelies)</td></tr>
           <tr><td><kbd>Space</kbd></td><td>Rear brake - locks the rear for slides</td></tr>

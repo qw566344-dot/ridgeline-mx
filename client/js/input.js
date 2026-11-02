@@ -12,6 +12,9 @@ export const KEYS = {
   clutch: ['ShiftLeft', 'ShiftRight'],
   leanBack: ['KeyQ'],
   leanFwd: ['KeyE'],
+  shiftUp: ['KeyX'],      // manual gears
+  shiftDown: ['KeyZ'],
+  gearMode: ['KeyM'],     // manual / automatic gears
   reset: ['KeyR'],
   camera: ['KeyC'],
   retry: ['KeyY'],
@@ -98,6 +101,8 @@ export class Input {
     c.rearBrake = ramp(c.rearBrake, rear, 10, 12);
     c.clutch = clutch;
     c.trick = trick;
+    if (this.enabled && this.pressed('shiftUp')) c.shiftUpN = (c.shiftUpN || 0) + 1;
+    if (this.enabled && this.pressed('shiftDown')) c.shiftDownN = (c.shiftDownN || 0) + 1;
     return c;
   }
 }

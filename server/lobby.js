@@ -13,7 +13,7 @@ import { getTrack, TRACKS } from '../shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, isSpecial } from '../shared/vehicles.js';
 import { buildTrack, buildFields, locatePrecise } from '../shared/trackgen.js';
 import { LapTracker, GAME } from '../shared/rules.js';
-import { GEAR_SETS } from '../shared/shop.js';
+import { GEAR_SETS, RANK_START, rankTier } from '../shared/shop.js';
 import { CODE_CHARS, CODE_LENGTH, validCode, cleanName, STATE_LEN, MODES, SNAPSHOT_RATE, PROTOCOL_VERSION } from '../shared/protocol.js';
 
 const LOAD_WAIT_MS = 15000; // longest wait for a slow rider to load the track
@@ -58,6 +58,8 @@ export class Lobby {
     setInterval(() => this.heartbeat(), 10_000);
     this.live = new Set();
     this.pending = new Map(); // rider account key -> admin waiting to join them
+    this.mm = { casual: [], ranked: [] }; // matchmaking queues (see matchmake)
+    setInterval(() => this.matchmake(), 1000);
   }
 
   // ------------------------------------------------------------- connections
@@ -116,7 +118,9 @@ export class Lobby {
     switch (m.t) {
       case 'ping': conn.send({ t: 'pong', c: m.c, s: Date.now() }); if (Number.isFinite(m.rtt)) p.ping = Math.max(0, Math.min(9999, Math.round(m.rtt))); break;
       case 'profile': this.profile(p, m); break;
-      case 'create': this.create(p); break;
+      case 'create': this.unqueue(p, true); this.create(p); break;
+      case 'queue': this.queue(p, m); break;
+      case 'unqueue': this.unqueue(p); break;
       case 'join': this.join(p, m.code); break;
       case 'leave': this.leave(p, true); break;
       case 'ready': p.ready = !!m.ready; if (p.party) this.broadcastParty(p.party); break;
@@ -171,6 +175,93 @@ export class Lobby {
     if (m.color === 'stock' || BIKE_COLORS.some((c) => c.id === m.color)) p.color = m.color;
     if (GEAR_SETS.some((g) => g.id === m.gear)) p.gear = m.gear;
     if (!quiet && p.party) this.broadcastParty(p.party);
+  }
+
+  // ------------------------------------------------------------- matchmaking
+  // Casual: whoever is queued on this server, 2-8 riders, a random race track. Nobody else
+  // after 40 s: the rider is told to race the AI instead. Ranked: needs an online account
+  // (only the home server has accounts), 2-6 riders of a similar rating - the window widens
+  // the longer they wait - and the result moves everyone's rating (see rate).
+  queue(p, m) {
+    const mode = m.mode === 'ranked' ? 'ranked' : 'casual';
+    this.unqueue(p, true);
+    if (p.party && p.party.session && !p.party.session.over) return this.err(p, 'IN_RACE', 'Finish your race first.');
+    let rating = RANK_START, key = null;
+    if (mode === 'ranked') {
+      const u = this.accounts && this.accounts.user(String(m.auth || ''));
+      if (!u) return this.err(p, 'RANKED_LOGIN', 'Ranked needs an online account - log in first.');
+      key = u.key; rating = u.rating || RANK_START;
+    }
+    if (p.party) this.leave(p, false);
+    this.mm[mode].push({ p, since: Date.now(), rating, key });
+    this.queueStatus(mode);
+  }
+  unqueue(p, quiet) {
+    for (const mode of ['casual', 'ranked']) {
+      const n = this.mm[mode].length;
+      this.mm[mode] = this.mm[mode].filter((e) => e.p !== p);
+      if (n !== this.mm[mode].length) { if (!quiet && p.conn) p.conn.send({ t: 'queue', state: 'off', mode }); this.queueStatus(mode); }
+    }
+  }
+  queueStatus(mode) {
+    const n = this.mm[mode].length, now = Date.now();
+    for (const e of this.mm[mode]) if (e.p.conn) e.p.conn.send({ t: 'queue', state: 'waiting', mode, n, waited: now - e.since });
+  }
+  matchmake() {
+    const now = Date.now();
+    for (const mode of ['casual', 'ranked']) {
+      const Q = this.mm[mode] = this.mm[mode].filter((e) => e.p.connected && !e.p.party);
+      if (mode === 'casual') {
+        // a few seconds for more riders to turn up, then go with whoever is here
+        if (Q.length >= 2 && (Q.length >= 8 || now - Q[0].since > 6000)) this.makeMatch(mode, Q.splice(0, 8));
+        else if (Q.length === 1 && now - Q[0].since > 40000) { const e = Q.shift(); if (e.p.conn) e.p.conn.send({ t: 'queue', state: 'solo', mode }); }
+      } else {
+        Q.sort((a, b) => a.rating - b.rating);
+        const win = (e) => 150 + ((now - e.since) / 1000) * 8; // rating window, wider the longer you wait
+        for (let i = 0; i < Q.length - 1; i++) {
+          const group = [Q[i]];
+          for (let j = i + 1; j < Q.length && group.length < 6; j++) if (Math.abs(Q[j].rating - Q[i].rating) <= Math.min(win(Q[i]), win(Q[j]))) group.push(Q[j]);
+          if (group.length >= 2 && (group.length >= 6 || now - Math.min(...group.map((g) => g.since)) > 8000)) {
+            for (const g of group) Q.splice(Q.indexOf(g), 1);
+            this.makeMatch(mode, group);
+            i = -1;
+          }
+        }
+      }
+    }
+    if (now - (this.mmStatusAt || 0) > 3000) { this.mmStatusAt = now; this.queueStatus('casual'); this.queueStatus('ranked'); }
+  }
+  makeMatch(mode, entries) {
+    const lead = entries[0].p;
+    this.create(lead);
+    const party = lead.party;
+    party.match = { mode, keys: new Map(entries.map((e) => [e.p.id, e.key])) };
+    for (const e of entries.slice(1)) this.addMember(party, e.p);
+    const pool = TRACKS.filter((t) => !t.freestyle && !t.open && t.difficulty !== 'Freestyle' && t.id !== 'practice');
+    party.settings = { track: pool[Math.floor(Math.random() * pool.length)].id, mode: 'race', laps: 2 };
+    this.log(`[${party.code}] ${mode} match: ${entries.map((e) => e.p.name).join(', ')} on ${party.settings.track}`);
+    for (const e of entries) if (e.p.conn) e.p.conn.send({ t: 'queue', state: 'found', mode, n: entries.length, track: party.settings.track });
+    this.start(lead);
+  }
+  // ranked result: every pair of riders is a head-to-head (Elo), split over the field
+  rate(party, rows) {
+    const A = this.accounts, keys = party.match.keys;
+    const field = rows.map((r) => ({ r, u: A.db.users[keys.get(r.id)] })).filter((x) => x.u);
+    if (field.length < 2) return;
+    const K = 40 / (field.length - 1);
+    const R = field.map((x) => x.u.rating || RANK_START), d = field.map(() => 0);
+    for (let i = 0; i < field.length; i++) for (let j = i + 1; j < field.length; j++) {
+      const e = 1 / (1 + 10 ** ((R[j] - R[i]) / 400)); // chance i beats j; i finished ahead
+      d[i] += K * (1 - e); d[j] -= K * (1 - e);
+    }
+    field.forEach((x, i) => {
+      const u = x.u, before = R[i];
+      u.rating = Math.max(100, Math.round(before + d[i]));
+      u.ranked = { races: ((u.ranked && u.ranked.races) || 0) + 1, wins: ((u.ranked && u.ranked.wins) || 0) + (i === 0 ? 1 : 0) };
+      const p = this.players.get(x.r.id);
+      if (p && p.conn) p.conn.send({ t: 'rank', rating: u.rating, delta: u.rating - before, tier: rankTier(u.rating), was: rankTier(before), pos: x.r.pos });
+    });
+    A.save();
   }
 
   // ------------------------------------------------------------- parties
@@ -488,6 +579,7 @@ export class Lobby {
     if (S.mode === 'freeride') return;
     const rows = this.sendRace(party);
     S.results = rows;
+    if (party.match && party.match.mode === 'ranked' && S.mode === 'race' && this.accounts && !party.match.rated) { party.match.rated = true; this.rate(party, rows); }
     for (const m of party.members.values()) if (m.conn) m.conn.send({ t: 'results', mode: S.mode, rows });
     this.log(`[${party.code}] session over`);
   }

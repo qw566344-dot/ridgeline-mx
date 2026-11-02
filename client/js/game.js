@@ -281,6 +281,7 @@ export class Game {
     if (this.paused) { this.render(0, 1); return; }
     if (playing && this.player && this.player.veh) {
       if (inp.pressed('reset')) this.requestReset();
+      if (inp.pressed('gearMode')) { const m = !this.settings.get('manualGears'); this.settings.set('manualGears', m); this.toast(m ? 'Manual gears: X up, Z down, Shift = clutch' : 'Automatic gears', 2); }
       if (inp.pressed('retry')) this.quickRetry();
       const v = this.player.veh;
       if (C.jump && inp.pressed('jump') && !v.crashed) { v.vel.y = Math.max(v.vel.y, 0) + 11; this.toast('Super jump!', 0.8); }
@@ -325,7 +326,7 @@ export class Game {
         const C = this.adminCheats();
         const ev = this.liveEvent();
         // moon tracks have their own gravity (tracks.js gravity)
-        v.noCrash = !!C.god; v.gravityScale = C.moon || ev === 'moon' ? 0.35 : this.world.def.gravity || 1; v.boost = C.hyper ? 18 : C.turbo || ev === 'turbo' ? 7 : 0;
+        v.manual = this.settings.get('manualGears') === true; v.noCrash = !!C.god; v.gravityScale = C.moon || ev === 'moon' ? 0.35 : this.world.def.gravity || 1; v.boost = C.hyper ? 18 : C.turbo || ev === 'turbo' ? 7 : 0;
         // auto reset after a crash
         if (v.crashed && v.crashTime > GAME.resetDelay) this.resetRider(r);
         if (!v.crashed && v.offTrack > 0.9) { this.resetRider(r); this.toast('Out of bounds - back on the track', 1.6); }
@@ -483,6 +484,7 @@ export class Game {
             const pts = Math.round(e.score * mult);
             this.trickScore = (this.trickScore || 0) + pts;
             this.ui.trickPopup(e, pts, this.combo, mult);
+            this.audio.cheer(Math.min(1, pts / 1500)); // the crowd likes it
             if (this.net && this.mode === 'freestyle') this.net.sendEvent({ t: 'trick', v: pts });
             this.audio.beep(true);
             this.award('trick', Math.round((pts / 100) * REWARDS.trickPer100));
@@ -722,7 +724,14 @@ export class Game {
       const gog = this.cam.mode === 2 && focus.rider.attached && v && v.cfg.type !== 'car';
       if (gog !== this.gogOn) { this.gogOn = gog; const g = document.getElementById('goggles'); if (g) g.hidden = !gog; }
       this.R.followShadow(focus.vis.root.position);
-      if (this.player === focus && v) this.audio.player(v, cam);
+      if (this.player === focus && v) {
+        this.audio.player(v, cam);
+        // the crowd murmurs louder the closer you are to the start / finish straight
+        const T = this.world.T;
+        if (!this.finishPt || this.finishPtT !== T) { this.finishPt = pointAt(T, T.finishS); this.finishPtT = T; }
+        const d = Math.hypot(v.pos.x - this.finishPt.x, v.pos.z - this.finishPt.z);
+        this.audio.crowd(Math.max(0, 1 - d / 140));
+      }
     }
     this.audio.others(others, cam);
     this.ui.updateNameTags(this);

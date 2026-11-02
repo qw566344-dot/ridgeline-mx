@@ -18,7 +18,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel } from '../shared/shop.js';
+import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel, RANK_START, rankTier } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS, ownsSpecials } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
 import { Chat } from './chat.js';
@@ -140,7 +140,7 @@ export class Accounts {
   hash(password, salt) { return crypto.scryptSync(String(password), salt, 32).toString('hex'); }
 
   profile(u) {
-    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, admin: this.admin.isAdmin(u) };
+    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, admin: this.admin.isAdmin(u) };
   }
 
   issue(u) {
@@ -370,7 +370,9 @@ export class Accounts {
     const now = Date.now();
     if (this.lbCache && now - this.lbCache.at < 30_000) return this.lbCache.data;
     const users = Object.values(this.db.users).filter((u) => !u.banned);
-    const data = { tricks: users.map((u) => ({ name: u.name, v: (u.stats && u.stats.tp) || 0, level: levelInfo(u.xp || 0).level })).filter((r) => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 25) };
+    const data = { tricks: users.map((u) => ({ name: u.name, v: (u.stats && u.stats.tp) || 0, level: levelInfo(u.xp || 0).level })).filter((r) => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 25),
+      // ranked: riders who have played at least one ranked race, by rating
+      ranked: users.filter((u) => u.ranked && u.ranked.races).map((u) => ({ name: u.name, v: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), races: u.ranked.races, wins: u.ranked.wins })).sort((a, b) => b.v - a.v).slice(0, 25) };
     this.lbCache = { at: now, data };
     return data;
   }

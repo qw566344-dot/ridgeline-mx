@@ -68,6 +68,8 @@ social.onChange(() => {
   if (ui.screen === 'home') ui.renderFriendsMini();
 });
 social.onAnnounce((a) => ui.announce(a));
+// matchmaking (casual / ranked buttons under PLAY)
+ui.on('queue', (mode) => net.queue(mode));
 social.onPull(() => net.answerPull(account.token));
 // DEV tags an admin handed out: fetched now and every minute (name tags, chat, lobby)
 async function loadTags() {

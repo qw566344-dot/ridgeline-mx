@@ -131,17 +131,38 @@ export class CameraRig {
       if (target.lean) _u.applyAxisAngle(_f, -target.lean * 0.45);    // lean into turns, but less than the bike
       _m.lookAt(_v2.set(0, 0, 0), _f, _u); // camera looks down its -z: from the origin toward _f
       _q.setFromRotationMatrix(_m);
-      // Settings > first person turns with flips and whips: in the air the view locks to the bike
-      // (looking down its nose, a little toward the bars), so a backflip rolls the sky past you.
-      // On the ground it eases back to the level view above.
-      const lockOn = this.followFlips && !target.grounded && (target.airTime || 0) > 0.12;
-      this.airLock = (this.airLock || 0) + ((lockOn ? 1 : 0) - (this.airLock || 0)) * Math.min(1, dt * (lockOn ? 6 : 4));
-      if (this.airLock > 0.001) {
-        _ql.setFromEuler(_eu.set(car ? -0.08 : -0.3, Math.PI, 0, 'YXZ')).premultiply(target.quat);
-        _q.slerp(_ql, this.airLock);
+      // Settings > first person follows tricks: in the air the view goes round with flips and 360s
+      // but NOT with whips. The view's heading comes from the bike's side axis (it turns in a
+      // spin, stays put in a flip), blended back to where you are flying while the bike is laid
+      // over in a whip; its nose angle follows the flip all the way round; the view never rolls
+      // sideways. It eases in after take-off and back out on landing, so it never snaps.
+      let followW = 0;
+      if (this.followFlips && !target.grounded && (target.airTime || 0) > 0.1) {
+        followW = 1;
+        _w.set(1, 0, 0).applyQuaternion(target.quat);                    // the bike's left side
+        const lay = Math.abs(_w.y);                                       // how far it is laid over (whips)
+        _w.y = 0;
+        _h.copy(this.heading).setY(0);
+        if (_h.lengthSq() < 1e-4) _h.copy(fwd).setY(0);
+        _h.normalize();
+        if (_w.lengthSq() > 0.04) {
+          _l.crossVectors(_w.normalize(), THREE.Object3D.DEFAULT_UP).normalize(); // the bike's own heading (spins turn it)
+          const whip = Math.min(1, Math.max(0, (lay - 0.2) / 0.3));       // a whip: keep looking where you are flying
+          _h.lerp(_l, 1 - whip * whip * (3 - 2 * whip)).normalize();
+        }
+        const th = Math.atan2(fwd.y, fwd.dot(_h));                        // nose angle round the flip (+ = up), all the way round
+        const pitch = th - (car ? 0.08 : 0.3);
+        _w.crossVectors(_h, THREE.Object3D.DEFAULT_UP).normalize();      // the flip axis (level, square to the heading)
+        _f.copy(_h).applyAxisAngle(_w, pitch);
+        _u.set(0, 1, 0).applyAxisAngle(_w, pitch);
+        _m.lookAt(_v2.set(0, 0, 0), _f, _u);
+        if (!this.flipQ) this.flipQ = new THREE.Quaternion();
+        this.flipQ.setFromRotationMatrix(_m);                            // kept while fading out after landing
       }
+      this.flipLock = (this.flipLock || 0) + (followW - (this.flipLock || 0)) * Math.min(1, dt * 3.5);
+      if (this.flipLock > 0.001 && this.flipQ) _q.slerp(this.flipQ, this.flipLock);
       if (!this.helmQ || this.snapNext) this.helmQ = _q.clone();
-      this.helmQ.slerp(_q, Math.min(1, dt * (this.airLock > 0.5 ? 26 : target.grounded ? 9 : 5)));
+      this.helmQ.slerp(_q, Math.min(1, dt * (this.flipLock > 0.3 ? 12 : target.grounded ? 9 : 5)));
       cam.quaternion.copy(this.helmQ);
       if (this.orbitPitch) cam.rotateX(-this.orbitPitch * 0.8);
       fovTarget = this.baseFov + 28 + Math.min(8, spd * 0.2);

@@ -194,6 +194,7 @@ export class Scenery {
     this.buildFences();
     this.buildStartFinish();
     this.buildPaddock();
+    this.reserveRamps();
     this.buildVenue();
     this.buildSpectators();
     this.buildTrees();
@@ -234,6 +235,7 @@ export class Scenery {
   // --- fences: wooden stakes + plastic tape along both edges of the track
   buildFences() {
     const T = this.world.T, W = this.world;
+    if (W.def.open) return; // open maps: no barriers, so no tape either
     const posts = [];
     const tapePos = [], tapeCol = [], tapeIdx = [];
     const spacing = 3.2;
@@ -504,6 +506,16 @@ export class Scenery {
     mesh.matrixAutoUpdate = false;
     this.group.add(mesh);
     this.disposables.push(all);
+  }
+
+  // keep trees, rocks and props off the ramps (terrain.js rampsAt)
+  reserveRamps() {
+    for (const R of this.world.def.terrain.ramps || []) {
+      const a0 = R.type === 'kicker' ? -R.len : R.type === 'quarter' ? -4 - R.r : -(R.top / 2 + R.s);
+      const a1 = R.type === 'kicker' ? R.gap + (R.landLen || R.landH * 4) : R.type === 'quarter' ? R.r + 2 : R.top / 2 + R.s;
+      const sn = Math.sin(R.dir || 0), cs = Math.cos(R.dir || 0);
+      for (let a = a0; a <= a1; a += 5) this.occupy(R.x + sn * a, R.z + cs * a, R.w / 2 + 4);
+    }
   }
 
   // --- venue tracks (tracks look.venue): what makes each one a different place

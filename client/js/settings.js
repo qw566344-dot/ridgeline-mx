@@ -23,7 +23,8 @@ const DEFAULTS = {
   cameraShake: 1.0,
   fov: 62,                // field of view of the chase cams (first person gets +28)
   screenEffects: true,
-  fpFollowFlips: true,    // first person: the view turns with the bike through flips and whips
+  manualGears: false,     // M while riding switches; X / Z shift
+  fpFollowFlips: true,    // first person: the view pitches with the bike through flips and 360s (not whips)
   masterVolume: 0.8,
   engineVolume: 0.8,
   effectsVolume: 0.8,

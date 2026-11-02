@@ -493,7 +493,7 @@ export class Rider {
     else if (spd > 5 && Math.abs(steer) < 0.2) stand = 0.5;
     if (!isBike) stand *= 0.75;
     const compAvg = veh.wheels ? veh.wheels.reduce((a, w) => a + w.comp / w.cfg.travel, 0) / veh.wheels.length : 0.3;
-    const crouch = Math.max(0, compAvg - 0.35) * 1.6 + (air ? 0.15 : 0);
+    const crouch = Math.max(0, compAvg - 0.35) * 1.6 + (air ? 0.15 : 0) + (veh.preload || 0) * 0.55; // preload: squat into the face
     let fore = (inp.lean || 0) * 0.8 + (inp.brake || 0) * -0.25 + (inp.throttle || 0) * 0.2;
     if (air) fore = (inp.lean || 0) * 1.0;
     const k = Math.min(1, dt * 6);

@@ -297,8 +297,17 @@ export class Vehicle {
     e.load = throttle;
     e.force = force;
 
+    // manual gears (Settings, or M while riding): X up, Z down - the box only shifts when you
+    // ask, so you can hold a gear into the rev limiter. Counters, so no press is lost or doubled
+    // however many physics steps a frame takes
+    if (this.manual) {
+      const upN = inp.shiftUpN || 0, dnN = inp.shiftDownN || 0;
+      if (e.upSeen === undefined) { e.upSeen = upN; e.dnSeen = dnN; }
+      while (e.upSeen < upN) { e.upSeen++; if (!e.reverse && e.gear < ec.ratios.length) { e.gear++; e.shift = ec.shiftTime * 0.7; } }
+      while (e.dnSeen < dnN) { e.dnSeen++; if (e.gear > 1) { e.gear--; e.shift = ec.shiftTime * 0.5; } }
+    } else { e.upSeen = undefined; }
     // automatic gearbox
-    if (!e.reverse && e.shift <= 0 && anyDrivenContact && !clutchIn) {
+    if (!this.manual && !e.reverse && e.shift <= 0 && anyDrivenContact && !clutchIn) {
       if (e.rpm > ec.redline * ec.shiftUp && e.gear < ec.ratios.length && slip < 0.3) { e.gear++; e.shift = ec.shiftTime; }
       else if (e.gear > 1 && wheelRpm * (ec.ratios[e.gear - 2] / ratio) < ec.redline * 0.88 && e.rpm < ec.redline * ec.shiftDown) { e.gear--; e.shift = ec.shiftTime * 0.6; }
     }
@@ -482,6 +491,15 @@ export class Vehicle {
     const W = this.world, T = W.T;
     let loc = locatePrecise(T, W.F, this.pos.x, this.pos.z, this.trackS);
     if (!loc || Math.abs(loc.u) > 40) loc = locatePrecise(T, W.F, this.pos.x, this.pos.z, null);
+    // open maps (free ride, the stunt park): ride anywhere - no barriers, only the edge of the world
+    // sends you back (AI riders still keep to the trail)
+    if (W.def.open && !this.isAI) {
+      if (loc && Math.abs(loc.u) < 60) { this.trackS = loc.s; this.trackU = loc.u; }
+      const edge = W.def.worldSize / 2 - 8;
+      this.offTrack = Math.abs(this.pos.x) > edge || Math.abs(this.pos.z) > edge ? 1 : 0;
+      this.airOut = 0;
+      return;
+    }
     if (!loc) { this.offTrack += dt; return; }
     this.trackS = loc.s; this.trackU = loc.u;
     const half = this.cfg.halfWidth || 0.5;

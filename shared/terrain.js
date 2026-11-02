@@ -37,6 +37,41 @@ export function makeBaseFn(def) {
   };
 }
 
+// Ramp shapes, each at (x, z) facing dir (radians, 0 = +z), w wide:
+//   kicker  {len, h, gap, landH, landLen}  a curved take-off, an open gap, a landing hill
+//   quarter {r}                            a quarter pipe: flat ground curving up to near
+//                                          vertical (r high) with a deck behind the lip
+//   box     {h, top, s}                    a funbox: flat top (top long), sloped on all sides
+// The tallest shape wins where two overlap. Edges are rounded off over 2.5 m.
+export function rampsAt(ramps, x, z) {
+  let best = 0;
+  for (const R of ramps) {
+    const dx = x - R.x, dz = z - R.z, sn = Math.sin(R.dir || 0), cs = Math.cos(R.dir || 0);
+    const a = dx * sn + dz * cs, b = dx * cs - dz * sn;          // a: along dir, b: across
+    if (Math.abs(a) > 80 || Math.abs(b) > 40) continue;
+    const m = 1 - smoothstep(R.w / 2, R.w / 2 + 2.5, Math.abs(b));
+    if (m <= 0) continue;
+    let y = 0;
+    if (R.type === 'kicker') {
+      const L = R.landLen || R.landH * 4;
+      if (a >= -R.len && a <= 0) y = R.h * Math.pow((a + R.len) / R.len, 1.6);
+      else if (a > 0 && a < 1) y = R.h * (1 - a);                   // the back of the lip
+      else if (a >= R.gap - 3 && a < R.gap) y = R.landH * ((a - (R.gap - 3)) / 3);   // knuckle face
+      else if (a >= R.gap && a <= R.gap + L) y = R.landH * (1 - smoothstep(0, 1, (a - R.gap) / L));
+    } else if (R.type === 'quarter') {
+      const r = R.r, top = r * 0.9;
+      if (a >= 0 && a <= r) { const q = r - a; y = Math.min(top, r - Math.sqrt(Math.max(0, r * r - q * q))); }
+      else if (a < 0 && a >= -4) y = top;                             // the deck
+      else if (a < -4 && a >= -4 - top * 1.2) y = top * (1 - (-4 - a) / (top * 1.2)); // back slope
+    } else if (R.type === 'box') {
+      const d = Math.max(Math.abs(a) - R.top / 2, Math.abs(b) - R.w / 2 + R.s);
+      y = R.h * Math.min(1, Math.max(0, 1 - d / R.s));
+    }
+    if (y * m > best) best = y * m;
+  }
+  return best;
+}
+
 // Everything the game needs to know about the ground for one track.
 export function makeWorld(def, opts = {}) {
   const t0 = Date.now();
@@ -70,6 +105,14 @@ export function makeWorld(def, opts = {}) {
     const w = trackWeight(T, s, u);
     if (w > 0) H[i] += (trackSurface(T, s, u) - H[i]) * w;
     DIRT[i] = Math.round(255 * dirtAmount(T, s, u));
+  }
+  // ramps off the track (free-ride secret jumps, the stunt park), at full detail so lips stay
+  // sharp; they are packed dirt
+  if (def.terrain.ramps) {
+    for (let gz = 0; gz < cells; gz++) for (let gx = 0; gx < cells; gx++) {
+      const y = rampsAt(def.terrain.ramps, gx * res - half, gz * res - half);
+      if (y > 0.02) { const i = gz * cells + gx; H[i] += y; DIRT[i] = Math.max(DIRT[i], Math.min(235, Math.round(y * 200))); }
+    }
   }
   const world = { def, T, F, res, cells, half, H, DIRT, base, size: def.worldSize };
   world.buildMs = Date.now() - t0;

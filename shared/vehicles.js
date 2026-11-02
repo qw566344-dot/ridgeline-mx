@@ -425,7 +425,7 @@ export const VEHICLES = [
     air: { ...BIKE_BASE.air, flipRate: 5.6, spinRate: 4.8, whip: 85 },
     wheels: BIKE_BASE.wheels.map((w) => ({ ...w, freq: w.freq * 0.9 })),
     engine: engine({ idle: 2200, redline: 14000, torque: [[2000, 8], [5000, 12], [9000, 20], [12000, 23], [13500, 21], [14500, 16]], gearSpeeds: [10.5, 15.5, 20.5, 25, 29] }),
-    audio: { kind: 'bike', pitch: 1.35 },
+    audio: { kind: 'bike', pitch: 1.35, stroke: 2 },
   },
   {
     ...BIKE_BASE,
@@ -446,7 +446,7 @@ export const VEHICLES = [
     steer: { ...BIKE_BASE.steer, rate: 3.2, latAcc: 10.2 },
     air: { ...BIKE_BASE.air, flipRate: 4.2, spinRate: 3.4, whip: 74 },
     engine: engine({ idle: 1500, redline: 9500, torque: [[1500, 22], [3500, 40], [6000, 58], [7500, 56], [9000, 44], [10000, 34]], gearSpeeds: [13.5, 20, 26.5, 32.5, 38] }),
-    audio: { kind: 'bike', pitch: 0.8 },
+    audio: { kind: 'bike', pitch: 0.8, stroke: 2 },
   },
   {
     ...BIKE_BASE,
@@ -503,7 +503,7 @@ export const VEHICLES = [
     air: { ...BIKE_BASE.air, flipRate: 6.0, spinRate: 5.2, whip: 88 },
     wheels: BIKE_BASE.wheels.map((w) => ({ ...w, freq: w.freq * 0.9 })),
     engine: engine({ idle: 2300, redline: 14500, torque: [[2000, 6], [5000, 10], [9000, 16], [12000, 18.5], [14000, 17], [15000, 13]], gearSpeeds: [9.5, 14, 18, 22, 25.5] }),
-    audio: { kind: 'bike', pitch: 1.55 },
+    audio: { kind: 'bike', pitch: 1.55, stroke: 2 },
   },
   {
     ...BIKE_BASE,
@@ -514,7 +514,7 @@ export const VEHICLES = [
     steer: { ...BIKE_BASE.steer, rate: 4.2, latAcc: 11.0 },
     air: { ...BIKE_BASE.air, flipRate: 5.0, spinRate: 4.2, whip: 80 },
     engine: engine({ idle: 600, redline: 12000, torque: [[500, 40], [3000, 40], [6000, 38], [9000, 33], [11000, 27], [12500, 20]], gearSpeeds: [33], shiftTime: 0.05, engineBrake: 14 }),
-    audio: { kind: 'bike', pitch: 1.9 },
+    audio: { kind: 'bike', pitch: 1.9, electric: true },
   },
   {
     ...BIKE_BASE,

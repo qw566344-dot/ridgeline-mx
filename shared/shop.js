@@ -306,6 +306,11 @@ export function xpFor(kind, coins) {
   if (kind === 'trick') return Math.min(XP.maxTrick, Math.round(coins * XP.trickPerCoin));
   return 0;
 }
+// ranked: everyone starts on 1000; the rating moves after every ranked race (server/lobby.js)
+export const RANK_START = 1000;
+export const RANK_TIERS = [['Bronze', 0], ['Silver', 1100], ['Gold', 1250], ['Platinum', 1400], ['Diamond', 1550], ['Pro', 1700]];
+export function rankTier(rating = RANK_START) { let t = RANK_TIERS[0][0]; for (const [n, min] of RANK_TIERS) if (rating >= min) t = n; return t; }
+
 export function levelInfo(xp = 0) {
   let level = 1;
   while (150 * (level + 1) * level <= xp) level++;

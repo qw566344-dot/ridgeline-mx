@@ -83,6 +83,23 @@ export class BikeController {
     // turn rate target; sliding lets the back come round more
     this.bankBoost = bankBoost(v, this.steer);
     this.yawTarget = this.steer * this.yawMax(spd) * Math.sign(spd || 1) * (sliding ? 1.35 : 1);
+    // WEIGHT SHIFT on the ground: E (forward) loads the front tyre - tighter turns; Q (back)
+    // loads the rear - more drive out of a turn
+    const both = front.contact && rear.contact;
+    const fwdW = both ? Math.max(0, inp.lean) : 0, backW = both ? Math.max(0, -inp.lean) : 0;
+    this.yawTarget *= 1 + 0.18 * fwdW - 0.08 * backW;
+    // PRELOAD: hold E into a jump face to compress, let go to pop off the lip (or hop on the flat)
+    const pressing = v.grounded && inp.lean > 0.3 && Math.abs(spd) > 3;
+    if (pressing) this.preload = Math.min(1, (this.preload || 0) + dt * 2.2);
+    else if (this.preload > 0) {
+      const lipped = v.grounded || v.airTime < 0.22; // let go on the lip or just after it
+      if (inp.lean < 0.3 && lipped && this.preload > 0.2) {
+        v.vel.addScaledVector(v.up, 2.4 * this.preload);
+        v.events.push({ type: 'pop', amount: this.preload });
+      }
+      if (inp.lean < 0.3 || !lipped) this.preload = 0;
+    }
+    v.preload = this.preload || 0;
     // front wheel angle that gives that turn (for the tyres and the bars)
     let delta = 0;
     if (v.grounded && Math.abs(spd) > 0.2) delta = Math.atan((this.yawTarget * c.wheelbase) / Math.abs(spd)) * Math.sign(spd);
@@ -110,6 +127,7 @@ export class BikeController {
     }
     // a held wheelie is for show: it costs a little drive, so it is never the fast way round
     if (v.assist.wheelie && this.wheelieUp) rear.drive *= 0.8;
+    rear.drive *= 1 + 0.12 * backW;
   }
 
   afterWheels() {}
@@ -204,9 +222,14 @@ export class BikeController {
       tr.yaw += yawW * dt;
       tr.peak = Math.max(tr.peak, v.pos.y - tr.y0);
       trackPose(tr, inp, dt);
+      // SCRUB: whip (A / D) with E held right off the lip - the bike lays flat and stays low and
+      // fast. While it is on, E is the scrub, not a front flip (until you let go of E)
+      if (!inp.clutch && Math.abs(inp.steer) > 0.15 && inp.lean > 0.3 && v.airTime < 0.45 && Math.abs(tr.pitch) < 0.8) tr.scrubLock = true;
+      if (inp.lean < 0.1) tr.scrubLock = false;
+      const lean = tr.scrubLock ? 0 : inp.lean;
       // flips: Q / E set a spin rate, the rider gets there quickly
-      const spinTarget = inp.lean * A.flipRate;
-      let ap = (spinTarget - pitchW) * (Math.abs(inp.lean) > 0.1 ? A.flipAccel : A.spinDamp);
+      const spinTarget = lean * A.flipRate;
+      let ap = (spinTarget - pitchW) * (Math.abs(lean) > 0.1 ? A.flipAccel : A.spinDamp);
       ap += -inp.throttle * A.gyro * 0.4 + inp.rearBrake * A.gyro;   // throttle lifts the nose, rear brake drops it
       const spinning = Math.abs(tr.pitch) > 1.2;
       const desiredDir = this.landingDirection(); // also measures time until we land
@@ -215,12 +238,12 @@ export class BikeController {
       // pitch, and long whips nose-dived
       const lvl = _lv.set(fwd.z, 0, -fwd.x);
       if (lvl.lengthSq() > 0.05 && Math.abs(tr.pitch) < 2.0) lvl.normalize(); else lvl.copy(left);
-      if (Math.abs(inp.lean) < 0.1 && v.airTime > 0.08) {
+      if (Math.abs(lean) < 0.1 && v.airTime > 0.08) {
         _c.crossVectors(fwd, desiredDir);
         const e = Math.atan2(_c.dot(lvl), fwd.dot(desiredDir));
         const pitchW = v.angVel.dot(lvl);
         // mid-flip and still far from wheels-down: let it keep rotating
-        if (spinning && Math.abs(e) > 1.1) ap = (inp.lean * A.flipRate - pitchW) * 0.35;
+        if (spinning && Math.abs(e) > 1.1) ap = (lean * A.flipRate - pitchW) * 0.35;
         else if (v.assist.landing > 0) ap += (e * 14 - pitchW * 3) * v.assist.landing;
       }
       addAccel(v, lvl, ap);
@@ -241,12 +264,12 @@ export class BikeController {
         this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 4.2) : Math.max(0, (this.whipAmt || 0) - dt * 9);
         // the swing spring keeps the bike lined up for the landing - but never in the middle of a flip
         // (a normal jump tips the nose down ~50 degrees - that is not a flip; pointing near vertical it is)
-        const flipping = Math.abs(tr.pitch) > 2.0 || Math.abs(inp.lean) > 0.1 || Math.abs(pitchW) > 2.2;
+        const flipping = Math.abs(tr.pitch) > 2.0 || Math.abs(lean) > 0.1 || Math.abs(pitchW) > 2.2;
         const swingK = flipping ? 0 : clamp((0.985 - Math.abs(fwd.y)) / 0.12, 0, 1);
         if (holding) this.whipSide = Math.sign(inp.steer);
         const amt = this.whipAmt * late;
         const side = this.whipSide || 0;
-        const rollT = -side * Math.min(95, A.whip * 1.25) * DEG * amt; // lay it over (up to flat sideways)
+        const rollT = -side * Math.min(95, A.whip * (tr.scrubLock ? 1.5 : 1.25)) * DEG * amt; // lay it over (up to flat sideways; a scrub goes flatter)
         const yawT = side * 72 * DEG * amt;                 // rear kicks well out, nose into the whip
         // how far the bike points away from the direction it is flying (+ = nose to the left)
         let yawOff = 0;
@@ -287,7 +310,9 @@ export class BikeController {
         // the lay-over about the bike's own length (with the nose down, the lean from level reads smaller)
         const rollAx = Math.asin(clamp(left.y / Math.sqrt(Math.max(0.05, 1 - fwd.y * fwd.y)), -1, 1));
         tr.whip = Math.max(tr.whip, Math.abs(rollAx)); // only real whips count, not the wobble of a spin
-        if (v.airTime < 0.35 && Math.abs(roll) > 25 * DEG) { tr.scrub = true; v.force.y -= c.mass * 9.81 * 0.3 * Math.min(1, Math.abs(roll) / (45 * DEG)); }
+        // a held scrub pulls the bike down hard (low and fast); a plain early whip a little
+        if (tr.scrubLock && Math.abs(roll) > 20 * DEG) { tr.scrub = true; v.force.y -= c.mass * 9.81 * 0.55 * Math.min(1, Math.abs(roll) / (40 * DEG)); }
+        else if (v.airTime < 0.35 && Math.abs(roll) > 25 * DEG) { tr.scrub = true; v.force.y -= c.mass * 9.81 * 0.3 * Math.min(1, Math.abs(roll) / (45 * DEG)); }
       }
       this.rollErr = 0;
     }

@@ -85,6 +85,8 @@ export class UI {
     $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
     $('dock-setup').addEventListener('click', () => this.show('play'));
     $('play-btn').addEventListener('click', () => this.onPlay());
+    $('mm-casual').addEventListener('click', () => this.emit('queue', 'casual'));
+    $('mm-ranked').addEventListener('click', () => this.emit('queue', 'ranked'));
     $('play-confirm').addEventListener('click', () => this.show('home'));
     $('settings-back').addEventListener('click', () => this.show(this.settingsReturn || 'home'));
     $('p-resume').addEventListener('click', () => this.emit('resume'));
@@ -178,7 +180,7 @@ export class UI {
     const A = this.account;
     if (!A || !A.profile) return;
     const s = A.profile.stats || {};
-    $('profile-stats').innerHTML = `<b>${escapeHtml(A.profile.name)}</b><br>${A.mode === 'online' ? 'Online account' : A.mode === 'guest' ? 'Guest - progress saved in this browser' : 'Offline account (this computer)'}<br>Level <b>${levelInfo(A.profile.xp || 0).level}</b> &bull; Laps <b>${s.laps || 0}</b> &bull; Wins <b>${s.wins || 0}</b> &bull; Tricks <b>${s.tricks || 0}</b>`;
+    $('profile-stats').innerHTML = `<b>${escapeHtml(A.profile.name)}</b><br>${A.mode === 'online' ? 'Online account' : A.mode === 'guest' ? 'Guest - progress saved in this browser' : 'Offline account (this computer)'}<br>Level <b>${levelInfo(A.profile.xp || 0).level}</b> &bull; Laps <b>${s.laps || 0}</b> &bull; Wins <b>${s.wins || 0}</b> &bull; Tricks <b>${s.tricks || 0}</b>${A.profile.ranked && A.profile.ranked.races ? `<br>Ranked <b>${A.profile.tier} ${A.profile.rating}</b>` : ""}`;
     $('logout-btn').textContent = A.mode === 'guest' ? 'Log in / create account' : 'Log out';
   }
 
@@ -272,8 +274,20 @@ export class UI {
       if (me && me.ready) btn.classList.add('ready');
       note.textContent = 'The party leader picks the mode and starts';
     }
+    this.renderMatchmaking();
     this.renderFriendsMini();
     this.syncStage();
+  }
+
+  // matchmaking: the two buttons under PLAY, and what they show while searching
+  renderMatchmaking() {
+    const q = this.mmState, A = this.account;
+    $('mm-tier').textContent = A && A.profile && A.profile.ranked && A.profile.ranked.races ? `${A.profile.tier} ${A.profile.rating}` : '';
+    $('mm-casual').textContent = q && q.mode === 'casual' ? 'Cancel search' : 'Casual match';
+    $('mm-ranked').firstChild.textContent = q && q.mode === 'ranked' ? 'Cancel search ' : 'Ranked match ';
+    $('mm-casual').classList.toggle('searching', !!q && q.mode === 'casual');
+    $('mm-ranked').classList.toggle('searching', !!q && q.mode === 'ranked');
+    if (q) $('dock-note').textContent = q.found ? 'Match found - loading the track...' : `Searching for a ${q.mode} match... ${q.n > 1 ? q.n + ' riders searching' : 'waiting for riders'} (${Math.round((q.waited || 0) / 1000)} s)`;
   }
 
   onPlay() {
@@ -656,9 +670,19 @@ export class UI {
   // ------------------------------------------------------------- leaderboard
   async renderLeaderboard() {
     $('lb-podium').innerHTML = ''; $('lb-tricks').innerHTML = '<li class="hint">Loading...</li>'; $('lb-mine').hidden = true;
+    const tab = this.lbTab || 'tricks';
+    $('lb-tabs').querySelectorAll('[data-lb]').forEach((b) => { b.classList.toggle('sel', b.dataset.lb === tab); b.onclick = () => { this.lbTab = b.dataset.lb; this.renderLeaderboard(); }; });
+    $('lb-note').textContent = tab === 'ranked' ? 'Ranked rating - win ranked matches to climb from Bronze to Pro' : 'Trick points - land tricks in any mode to climb';
     let d = null;
     try { d = await (await fetch(serverBase() + '/api/leaderboard')).json(); } catch { /* offline */ }
     const P = this.account && this.account.profile, me = P ? P.name.toLowerCase() : '';
+    if (tab === 'ranked') {
+      const rows = d && d.ranked;
+      if (!rows) { $('lb-tricks').innerHTML = '<li class="hint">Can\'t reach the server</li>'; return; }
+      $('lb-tricks').innerHTML = rows.length ? rows.map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 1}</span><b>${escapeHtml(r.name)} <em class="tier ${r.tier}">${r.tier}</em></b><span class="v">${r.v} <small>${r.wins}/${r.races} wins</small></span></li>`).join('') : '<li class="hint">Nobody has played ranked yet - be the first!</li>';
+      if (P && this.account.mode === 'online' && !rows.some((r) => r.name.toLowerCase() === me)) { $('lb-mine').hidden = false; $('lb-mine').innerHTML = P.ranked && P.ranked.races ? `You: <b>${P.tier} ${P.rating}</b>` : 'Play a ranked match to get a rank'; }
+      return;
+    }
     const rows = d && d.tricks;
     if (!rows) { $('lb-tricks').innerHTML = '<li class="hint">Can\'t reach the server</li>'; return; }
     if (!rows.length) { $('lb-tricks').innerHTML = '<li class="hint">Nobody yet - land some tricks!</li>'; return; }
@@ -963,7 +987,8 @@ export class UI {
       range('cameraShake', 'Camera shake', 0, 1.5, 0.05, pct);
       range('fov', 'Field of view', 45, 95, 1, (x) => `${Math.round(x)}° (first person ${Math.round(x + 28)}°)`);
       seg('screenEffects', 'Speed effects (FOV, landing dip)', [[true, 'On'], [false, 'Off']]);
-      seg('fpFollowFlips', 'First person turns with flips and whips', [[true, 'On'], [false, 'Off']]);
+      seg('manualGears', 'Gears (M switches while riding: X up, Z down, Shift clutch)', [[false, 'Automatic'], [true, 'Manual']]);
+      seg('fpFollowFlips', 'First person follows flips and 360s (not whips)', [[true, 'On'], [false, 'Off']]);
     } else if (this.settingsTab === 'Riding Assists') {
       range('landingAssist', 'Landing assist (auto-level in the air)', 0, 1, 0.05, (x) => (x > 0 ? pct(x) : 'off'));
       seg('tractionAssist', 'Traction control', [[true, 'On'], [false, 'Off']]);

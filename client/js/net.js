@@ -80,6 +80,41 @@ export class Net {
   isLeader() { return !!this.party && this.party.leader === this.id; }
   me() { return this.party ? this.party.members.find((m) => m.id === this.id) : null; }
 
+  // ------------------------------------------------------------- matchmaking
+  // casual: on this region's server; ranked: needs your account, which lives on the home server,
+  // so ranked always queues there
+  queue(mode) {
+    const A = this.ui.account;
+    if (this.ui.mmState && this.ui.mmState.mode === mode) { this.send({ t: 'unqueue' }); this.ui.mmState = null; this.ui.renderMatchmaking(); this.ui.renderHome(); return; }
+    if (mode === 'ranked' && !(A && A.mode === 'online' && A.token)) { this.ui.popup('Ranked needs an online account - log in first.', 'bad'); return; }
+    if (this.code) this.leave();
+    const home = regionList()[0];
+    if (mode === 'ranked' && home && this.region.id !== home.id) { this.useRegion(home.id, true); this.ui.popup(`Ranked is played on the <b>${escapeHtml(home.name)}</b> server`); }
+    this.ui.mmState = { mode, n: 1, waited: 0 };
+    this.ui.renderMatchmaking();
+    this.whenOnline(() => { this.sendProfile(); this.send({ t: 'queue', mode, auth: A && A.token }); });
+  }
+  onQueue(m) {
+    const ui = this.ui;
+    if (m.state === 'off') ui.mmState = null;
+    else if (m.state === 'waiting') ui.mmState = { mode: m.mode, n: m.n, waited: m.waited };
+    else if (m.state === 'found') ui.mmState = { mode: m.mode, n: m.n, found: true };
+    else if (m.state === 'solo') {
+      ui.mmState = null;
+      ui.popup('Nobody else is searching right now - racing the AI instead', '', null, 5);
+      this.settings.set('mode', 'race');
+      if (ui.screen === 'home') setTimeout(() => ui.onPlay(), 300);
+    }
+    if (ui.screen === 'home') { ui.renderMatchmaking(); if (!ui.mmState) ui.renderHome(); }
+  }
+  onRank(m) {
+    const up = m.delta >= 0;
+    const tierUp = m.tier !== m.was;
+    this.ui.popup(`<b>Ranked: ${m.pos === 1 ? 'you won!' : 'finished #' + m.pos}</b><br>Rating ${m.rating} (${up ? '+' : ''}${m.delta})${tierUp ? ` - <b>${up ? 'promoted to' : 'down to'} ${m.tier}</b>` : ` - ${m.tier}`}`, up ? 'good' : 'bad', null, 9);
+    const A = this.ui.account;
+    if (A && A.init) A.init();
+  }
+
   // ------------------------------------------------------------- connection
   connect() {
     if (this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) return;
@@ -185,7 +220,9 @@ export class Net {
       }
       case 'summoned': if (this.onSummoned) this.onSummoned(m); break;
       case 'kicked': if (this.game.opts && this.game.opts.mp && this.game.state === 'running') this.ui.emit('mainMenu'); break;
-      case 'session': this.onSession(m); break;
+      case 'session': if (this.ui.mmState) { this.ui.mmState = null; this.ui.renderMatchmaking(); } this.onSession(m); break;
+      case 'queue': this.onQueue(m); break;
+      case 'rank': this.onRank(m); break;
       case 'go': // everyone has loaded: start the 3-2-1
         if (this.session && this.session.id === m.id) {
           this.session.goAt = m.goAt; this.session.waiting = false;
