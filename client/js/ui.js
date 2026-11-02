@@ -301,13 +301,13 @@ export class UI {
     $('rk-badge').innerHTML = rankBadge(tier, 150);
     $('rk-tier').textContent = tier; $('rk-tier').className = 'tier-name ' + tier;
     $('rk-rating').textContent = rating;
-    $('rk-record').textContent = R.races ? `${R.wins} wins in ${R.races} races` : 'no ranked races yet';
+    $('rk-record').textContent = R.races ? `${R.wins}W / ${R.races}` : 'Unranked';
     const nx = nextTier(tier), from = tierStart(tier);
     $('rk-fill').style.width = (nx ? Math.max(3, Math.min(100, ((rating - from) / (nx[1] - from)) * 100)) : 100) + '%';
     $('rk-next').textContent = nx ? `${nx[1] - rating} rating to ${nx[0]}` : 'Top rank - stay there!';
-    $('rk-ladder').innerHTML = RANK_TIERS.map(([n, min], i) => { const hi = RANK_TIERS[i + 1] ? RANK_TIERS[i + 1][1] - 1 : null; return `<div class="rung${n === tier ? ' me' : ''}">${rankBadge(n, 44)}<div><b class="tier-name ${n}">${n}</b><small>${hi ? min + ' - ' + hi : min + '+'}</small></div></div>`; }).join('');
+    if ($('rk-ladder')) $('rk-ladder').innerHTML = RANK_TIERS.map(([n, min], i) => { const hi = RANK_TIERS[i + 1] ? RANK_TIERS[i + 1][1] - 1 : null; return `<div class="rung${n === tier ? ' me' : ''}">${rankBadge(n, 44)}<div><b class="tier-name ${n}">${n}</b><small>${hi ? min + ' - ' + hi : min + '+'}</small></div></div>`; }).join('');
     const q = this.mmState;
-    $('rk-find').textContent = q && q.mode === 'ranked' ? (q.found ? 'MATCH FOUND...' : 'CANCEL SEARCH') : 'FIND RANKED MATCH';
+    $('rk-find').textContent = q && q.mode === 'ranked' ? (q.found ? 'FOUND!' : 'CANCEL') : 'FIND MATCH';
     $('rk-find').classList.toggle('searching', !!(q && q.mode === 'ranked'));
     $('rk-find').disabled = !online;
     $('rk-status').textContent = !online ? 'Ranked needs an online account - log in to play.' : q && q.mode === 'ranked' ? (q.found ? 'Loading the track...' : `Searching for riders of your rank... ${q.n > 1 ? q.n + ' searching' : ''} (${Math.round((q.waited || 0) / 1000)} s)`) : 'Race 2-6 riders of your rank. Win to climb, lose and you drop.';

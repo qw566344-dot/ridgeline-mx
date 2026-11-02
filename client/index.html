@@ -275,27 +275,34 @@
 
     <!-- RANKED (ready on the server, switched on later) -->
     <section id="ranked" class="screen menu-screen ranked-screen" hidden>
-      <div class="rk-wrap">
-        <div class="rk-main card">
+      <!-- laid out like the lobby: your rider on the track behind, cards on the side, a big button bottom right -->
+      <div class="rk-side">
+        <div class="card rk-card">
+          <div class="card-head"><h3>Your rank</h3><span id="rk-record" class="status"></span></div>
           <div class="rk-me">
             <div id="rk-badge" class="rk-badge"></div>
             <div class="rk-info">
-              <small>YOUR RANK</small>
               <h2 id="rk-tier">Bronze</h2>
-              <div class="rk-rating"><b id="rk-rating">1000</b> rating <span id="rk-record" class="hint"></span></div>
-              <div class="rk-bar"><i id="rk-fill"></i></div>
-              <div id="rk-next" class="hint"></div>
+              <div class="rk-rating"><b id="rk-rating">1000</b> rating</div>
             </div>
           </div>
-          <button id="rk-find" class="primary rk-find">FIND RANKED MATCH</button>
-          <div id="rk-status" class="rk-status hint">Race 2-6 riders of your rank. Win to climb, lose and you drop.</div>
-          <h4>Ranks</h4>
-          <div id="rk-ladder" class="rk-ladder"></div>
+          <div class="rk-bar"><i id="rk-fill"></i></div>
+          <div id="rk-next" class="hint"></div>
         </div>
-        <aside class="rk-top card">
-          <h4>Top ranked</h4>
-          <ol id="rk-list" class="lb-list"></ol>
-        </aside>
+      </div>
+
+      <aside class="card rk-top">
+        <div class="card-head"><h3>Top ranked</h3></div>
+        <ol id="rk-list" class="lb-list"></ol>
+      </aside>
+
+      <div class="play-dock rk-dock">
+        <div class="dock-sel rk-sel">
+          <small>MODE</small><b>Ranked Race</b>
+          <small>RIDERS</small><b>2 - 6</b>
+        </div>
+        <button id="rk-find" class="play-btn rk-find">FIND MATCH</button>
+        <div id="rk-status" class="dock-note"></div>
       </div>
     </section>
 
