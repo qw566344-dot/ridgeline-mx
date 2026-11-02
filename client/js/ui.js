@@ -963,6 +963,7 @@ export class UI {
       range('cameraShake', 'Camera shake', 0, 1.5, 0.05, pct);
       range('fov', 'Field of view', 45, 95, 1, (x) => `${Math.round(x)}° (first person ${Math.round(x + 28)}°)`);
       seg('screenEffects', 'Speed effects (FOV, landing dip)', [[true, 'On'], [false, 'Off']]);
+      seg('fpFollowFlips', 'First person turns with flips and whips', [[true, 'On'], [false, 'Off']]);
     } else if (this.settingsTab === 'Riding Assists') {
       range('landingAssist', 'Landing assist (auto-level in the air)', 0, 1, 0.05, (x) => (x > 0 ? pct(x) : 'off'));
       seg('tractionAssist', 'Traction control', [[true, 'On'], [false, 'Off']]);

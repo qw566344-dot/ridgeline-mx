@@ -60,6 +60,7 @@ export class Game {
     this.cam.shakeScale = s.get('cameraShake');
     this.cam.baseFov = s.get('fov') || 62;
     this.cam.effects = s.get('screenEffects') !== false;
+    this.cam.followFlips = s.get('fpFollowFlips') !== false;
     if (this.effects) this.effects.setQuality(s.quality());
     for (const r of this.riders) if (r.veh) this.applyAssists(r.veh, r.isPlayer);
     this.audio.applyVolumes();

@@ -13,7 +13,7 @@ import { pointAt } from '/shared/trackgen.js';
 export const CAMERA_MODES = ['Chase', 'Close Chase', 'Helmet', 'Trackside'];
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion();
-const _e = new THREE.Vector3(), _f = new THREE.Vector3(), _u = new THREE.Vector3(), _m = new THREE.Matrix4(), _qi = new THREE.Quaternion();
+const _e = new THREE.Vector3(), _f = new THREE.Vector3(), _u = new THREE.Vector3(), _m = new THREE.Matrix4(), _qi = new THREE.Quaternion(), _ql = new THREE.Quaternion(), _eu = new THREE.Euler();
 const _w = new THREE.Vector3(), _h = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _l = new THREE.Vector3(); // scratch (no garbage per frame)
 
 export class CameraRig {
@@ -131,8 +131,17 @@ export class CameraRig {
       if (target.lean) _u.applyAxisAngle(_f, -target.lean * 0.45);    // lean into turns, but less than the bike
       _m.lookAt(_v2.set(0, 0, 0), _f, _u); // camera looks down its -z: from the origin toward _f
       _q.setFromRotationMatrix(_m);
+      // Settings > first person turns with flips and whips: in the air the view locks to the bike
+      // (looking down its nose, a little toward the bars), so a backflip rolls the sky past you.
+      // On the ground it eases back to the level view above.
+      const lockOn = this.followFlips && !target.grounded && (target.airTime || 0) > 0.12;
+      this.airLock = (this.airLock || 0) + ((lockOn ? 1 : 0) - (this.airLock || 0)) * Math.min(1, dt * (lockOn ? 6 : 4));
+      if (this.airLock > 0.001) {
+        _ql.setFromEuler(_eu.set(car ? -0.08 : -0.3, Math.PI, 0, 'YXZ')).premultiply(target.quat);
+        _q.slerp(_ql, this.airLock);
+      }
       if (!this.helmQ || this.snapNext) this.helmQ = _q.clone();
-      this.helmQ.slerp(_q, Math.min(1, dt * (target.grounded ? 9 : 5)));
+      this.helmQ.slerp(_q, Math.min(1, dt * (this.airLock > 0.5 ? 26 : target.grounded ? 9 : 5)));
       cam.quaternion.copy(this.helmQ);
       if (this.orbitPitch) cam.rotateX(-this.orbitPitch * 0.8);
       fovTarget = this.baseFov + 28 + Math.min(8, spd * 0.2);
