@@ -1421,7 +1421,7 @@ export class UI {
       $('results-table').innerHTML = `<tr><th>Pos</th><th>Rider</th><th>Vehicle</th><th>Time</th><th>Best lap</th></tr>` +
         rows.map((r) => `<tr class="${r.me ? 'me' : ''}"><td>${r.pos}</td><td>${escapeHtml(r.name)}</td><td>${r.vehicle}</td><td>${r.time != null ? fmtTime(r.time) : r.laps + ' laps'}</td><td>${fmtTime(r.best)}</td></tr>`).join('');
     }
-    $('r-again').hidden = !!(game.opts && game.opts.mp && !game.net.isLeader());
+    $('r-again').hidden = !!(game.opts && game.opts.mp && !(game.net && game.net.isLeader()));
   }
   hideResults() { $('results').hidden = true; }
 }

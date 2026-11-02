@@ -502,6 +502,9 @@ export class Net {
   onResults(m) {
     this.toldFinish = false;
     const g = this.game;
+    // you already went back to the lobby (leaving ends the session, and the server then sends the
+    // results): nothing to show. Showing them anyway threw an error and left a broken screen.
+    if (g.state !== 'running' || !g.net) return;
     const rows = m.rows.map((r) => {
       const rider = g.riders.find((x) => x.id === r.id);
       return { pos: r.pos, name: r.name, vehicle: rider ? getVehicle(rider.vehicleId).name : '', time: m.mode === 'race' ? r.time : r.best, best: r.best, laps: r.laps, score: r.score, me: r.id === this.id };
@@ -510,7 +513,7 @@ export class Net {
     const mine = rows.find((r) => r.me);
     if (mine && m.mode === 'race') g.award(mine.pos === 1 ? 'win' : 'race', [500, 320, 220, 150, 110, 90, 80, 70][Math.min(mine.pos, 8) - 1]);
     if (mine && m.mode === 'freestyle') this.settings.saveScore(g.trackId, mine.score || 0);
-    setTimeout(() => this.ui.showResults(rows, g), m.mode === 'race' ? 1500 : 600);
+    setTimeout(() => { if (g.state === 'running' && g.net) this.ui.showResults(rows, g); }, m.mode === 'race' ? 1500 : 600);
   }
 
   requestRestart() {
