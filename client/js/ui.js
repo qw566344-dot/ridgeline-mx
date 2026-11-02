@@ -131,6 +131,7 @@ export class UI {
     $('topbar').hidden = !showTop;
     void menu;
     document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('sel', b.dataset.go === NAV[name]));
+    const gear = $('settings-btn'); if (gear) gear.classList.toggle('sel', name === 'settings');
     if (name === 'pause') $('pause').hidden = false;
     if (name === 'home') { this.renderHome(); this.autoUpdates(); }
     if (name === 'play') this.renderPlay();

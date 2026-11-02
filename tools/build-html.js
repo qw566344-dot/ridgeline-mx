@@ -33,6 +33,8 @@ const css = fs.readFileSync(path.join(client, 'css', 'style.css'), 'utf8');
 let html = fs.readFileSync(path.join(client, 'index.html'), 'utf8');
 html = html.replace(/<link rel="stylesheet" href="css\/style.css">/, () => `<style>\n${css}\n</style>`);
 html = html.replace(/<script type="importmap">[\s\S]*?<\/script>/, '');
+// images in the page (the logo) go inside the file too
+html = html.replace(/src="(img\/[\w.-]+\.png)"/g, (m, f) => `src="data:image/png;base64,${fs.readFileSync(path.join(client, f)).toString('base64')}"`);
 // the vehicle models go inside the file too (base64), so it works when double-clicked
 const models = {};
 const mdir = path.join(client, 'models');
