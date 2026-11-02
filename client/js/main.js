@@ -205,11 +205,11 @@ let lastTick = 0, tickMs = 16.7, tickN = 0;
 function loop(now) {
   if (lastTick) { const d = now - lastTick; if (d > 2 && d < 50) tickMs += (d - tickMs) * 0.05; }
   lastTick = now;
-  // frame cap: riding at the chosen limit (60 by default, so 120/144 Hz screens don't burn
-  // twice the battery), menus and the pause screen at 30. Frames are skipped evenly (every 2nd
-  // or 3rd screen refresh), never unevenly - that stuttered (a 144 Hz screen got a jerky 48 fps).
-  const riding = game.state === 'running' && !game.paused && !STAGE_SCREENS.has(ui.screen);
-  const cap = riding ? Number(settings.get('maxFps')) || 0 : 30;
+  // frame cap: the chosen limit (60 by default, so 120/144 Hz screens don't burn twice the
+  // battery), the same in the lobby and menus as on the track (30 in the lobby felt choppy).
+  // Frames are skipped evenly (every 2nd or 3rd screen refresh), never unevenly - that
+  // stuttered (a 144 Hz screen got a jerky 48 fps).
+  const cap = Number(settings.get('maxFps')) || 0;
   const every = cap ? Math.max(1, Math.floor(1000 / tickMs / (cap * 0.9))) : 1;
   if (++tickN % every !== 0) { requestAnimationFrame(loop); return; }
   const raw = (now - last) / 1000;

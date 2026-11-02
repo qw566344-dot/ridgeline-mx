@@ -257,7 +257,8 @@ export class BikeController {
         // and turn springs pulled against each other with the nose down, so letting go rolled the bike
         // over the other way, flipped it or landed it crooked. The pitch stays with the landing assist.
         const hk = holding ? amt : 0;     // near the ground the whip fades: pulled straight as if let go
-        const K = 90 + (30 - 90) * hk, C = 18 + (7.5 - 18) * hk;
+        // let go: straightens in about half a second (was quicker - it snapped back)
+        const K = 55 + (30 - 55) * hk, C = 14 + (7.5 - 14) * hk;
         const vh = Math.hypot(vx, vz);
         const lvlA = _lv.set(fwd.z, 0, -fwd.x);
         if (swingK > 0 && Math.abs(fwd.y) < 0.95 && lvlA.lengthSq() > 0.01) {

@@ -591,10 +591,11 @@ export class Rider {
     setBone(b[B.ftL], J.anL, J.toeL, t.a.set(0, 1, 0));
     setBone(b[B.thR], J.hipR, J.knR, fwd); setBone(b[B.shR], J.knR, J.anR, fwd);
     setBone(b[B.ftR], J.anR, J.toeR, t.a.set(0, 1, 0));
-    // first person: shrink away the head, chest and upper arms (the camera is inside them); the forearms, gloves
-    // and legs stay, so you see your hands on the bars / steering wheel
+    // first person: shrink away the head, chest, hips and upper arms (the camera is inside them, and the hips
+    // showed as a dark lump under the bars); the forearms, gloves and legs stay, so you see your hands on the
+    // bars / steering wheel and your knees
     const fp = this.firstPerson ? 0.0001 : 1;
-    b[B.head].scale.setScalar(fp); b[B.torso].scale.setScalar(fp);
+    b[B.head].scale.setScalar(fp); b[B.torso].scale.setScalar(fp); b[B.pelvis].scale.setScalar(fp);
     b[B.uaL].scale.setScalar(fp); b[B.uaR].scale.setScalar(fp); // no upper arms poking into view: forearms and gloves only
     if (this.helmet) this.helmet.visible = !this.firstPerson;
     if (this.helmetShadow) this.helmetShadow.visible = !this.firstPerson;
