@@ -19,6 +19,7 @@ import { CAMERA_MODES } from './camera.js';
 import { escapeHtml, ordinal, hex, ago, staffTags } from './util.js';
 import { liveTrick } from './sim/tricks.js';
 import { KEYS, DEFAULT_KEYS, applyBindings, keyName } from './input.js';
+import { UPDATES } from './updates.js';
 import { regionList, customServer, setServerBase, serverBase } from './config.js';
 
 export { escapeHtml };
@@ -86,6 +87,7 @@ export class UI {
     document.addEventListener('click', (e) => { if (!$('profile-menu').hidden && !$('profile-menu').contains(e.target)) $('profile-menu').hidden = true; });
     $('logout-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('logout'); });
     $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
+    $('updates-btn').addEventListener('click', () => this.showUpdates());
     $('dock-setup').addEventListener('click', () => this.show('play'));
     $('play-btn').addEventListener('click', () => this.onPlay());
 
@@ -129,7 +131,7 @@ export class UI {
     void menu;
     document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('sel', b.dataset.go === NAV[name]));
     if (name === 'pause') $('pause').hidden = false;
-    if (name === 'home') this.renderHome();
+    if (name === 'home') { this.renderHome(); this.autoUpdates(); }
     if (name === 'play') this.renderPlay();
     if (name === 'garage') { this.gView = null; this.renderGarage(); }
     if (name === 'shop') this.renderShop();
@@ -824,8 +826,9 @@ export class UI {
 
   // a box in the middle of the screen that waits for a button: actions [label, f, kind]
   // (kind 'primary' / 'danger'); f gets the box and may return false to keep it open
-  modal(html, actions) {
+  modal(html, actions, cls = '') {
     const box = $('modal-box');
+    box.className = 'sheet narrow modal-box' + (cls ? ' ' + cls : '');
     box.innerHTML = html + '<div class="row end modal-acts"></div>';
     const row = box.querySelector('.modal-acts');
     for (const [label, f, kind] of actions) {
@@ -838,6 +841,30 @@ export class UI {
     $('modal').hidden = false;
     const inp = box.querySelector('input'); if (inp) inp.focus();
     return box;
+  }
+
+  // ---- update log (the ! button). It opens by itself once for each new update - the first
+  // time you reach the lobby after it was posted - and any time you click the !
+  seenUpdate() { try { return localStorage.getItem('mx.seenUpdate'); } catch { return UPDATES[0].id; } }
+  markUpdatesSeen() { try { localStorage.setItem('mx.seenUpdate', UPDATES[0].id); } catch { /* private mode */ } $('updates-dot').hidden = true; }
+  autoUpdates() {
+    $('updates-dot').hidden = this.seenUpdate() === UPDATES[0].id;
+    if (this.updatesShown || this.seenUpdate() === UPDATES[0].id) return;
+    this.updatesShown = true;
+    setTimeout(() => { if (this.screen === 'home') this.showUpdates(); }, 600);
+  }
+  showUpdates() {
+    const seen = this.seenUpdate();
+    const si = UPDATES.findIndex((x) => x.id === seen); // NEW on everything posted since your last look
+    const isNew = (i) => i === 0 || (si > 0 && i < si);
+    this.modal(`<div class="upd-head"><span class="upd-mark">!</span><h2>What's new</h2></div>
+      <div class="upd-list">${UPDATES.map((u, i) => `<section class="upd${i === 0 ? ' latest' : ''}">
+        <div class="upd-top"><b>${escapeHtml(u.title)}</b>${isNew(i) ? '<span class="upd-new">NEW</span>' : ''}<small>${escapeHtml(u.date)}</small></div>
+        <ul>${u.items.map((t) => `<li>${escapeHtml(t)}</li>`).join('')}</ul></section>`).join('')}</div>`,
+      [['Got it', null, 'primary']], 'updates-modal');
+    const list = $('modal-box').querySelector('.upd-list');
+    list.scrollTop = 0; requestAnimationFrame(() => { list.scrollTop = 0; }); // open at the newest
+    this.markUpdatesSeen();
   }
 
   // what a banned rider sees

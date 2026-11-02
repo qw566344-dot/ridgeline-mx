@@ -1,0 +1,61 @@
+// =====================================================================
+//  UPDATE LOG: what's new, shown to players (the ! button in the top bar).
+//  Newest first. Only things players see - nothing about admin tools.
+//  To post an update: add an entry at the TOP with a new id. Everyone
+//  sees it pop up once, the next time they open the game.
+// =====================================================================
+export const UPDATES = [
+  {
+    id: '2026-11-01-d', date: 'Nov 1, 2026', title: 'Free ride, a stunt park and new moves',
+    items: [
+      'New map: Wildwood Free Ride - a huge open valley you can ride anywhere, with 12 secret jumps hidden off the trail',
+      'New map: Mega Ramp Park - a 50 m mega ramp off a big roll-in hill, quarter pipes, funboxes and a spine',
+      'Preload pop: hold E into a jump and let go on the lip to spring off it',
+      'Scrubs: whip with E held right off the lip to lay the bike flat and stay low',
+      'Weight shift: lean forward for sharper turns, back for more drive out of corners',
+      'Manual gears: press M while riding (X up, Z down, Shift clutch)',
+      'New sounds: two-strokes, the electric bike, rev limiter, roost, chain slap and a crowd that cheers your tricks',
+      'Change your keys in Settings > Controls',
+      'Ranked is coming soon',
+    ],
+  },
+  {
+    id: '2026-11-01-c', date: 'Nov 1, 2026', title: 'Camera, tricks and smoother riding',
+    items: [
+      'First person now follows flips and 360s (Settings > Camera)',
+      'Bigger whips that straighten out smoothly when you let go',
+      'Trick points leaderboard with a top-3 podium',
+      'Smoother frame rate in the lobby and on the track',
+      'Riders bounce on their suspension when they land',
+    ],
+  },
+  {
+    id: '2026-11-01-b', date: 'Nov 1, 2026', title: 'Four new places to ride',
+    items: [
+      'Steel Dome Arenacross - indoors under the lights',
+      'Midnight Lights - a night race under floodlights and stars',
+      'Lunar Base One - on the Moon, with low gravity',
+      'Steel Yard - a construction yard with containers and cranes',
+      'New Central US server for lower ping',
+    ],
+  },
+  {
+    id: '2026-11-01-a', date: 'Nov 1, 2026', title: 'New look, levels and the garage',
+    items: [
+      'A cleaner new look for every menu',
+      'Buy vehicles right in the garage - bigger ones need a higher level',
+      'Earn XP from laps, wins and tricks to level up',
+      'Party and Add a friend now live in the Friends tab',
+      'New skins with real designs',
+    ],
+  },
+  {
+    id: '2026-10-31', date: 'Oct 31, 2026', title: 'New vehicles and maps',
+    items: [
+      'New quad, Viper and Dune Runner models',
+      '8 new maps, including a figure 8',
+      'Real first person with your hands on the bars',
+      'Bigger jumps and steering that goes where you point it',
+    ],
+  },
+];

@@ -797,3 +797,21 @@ button.primary:hover:not(:disabled) { background: linear-gradient(135deg, #ff8a5
 /* Ranked: its own full screen, just "Coming soon" (no pop-up box) */
 .ranked-screen { display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 45%, #1a1f2b 0%, #0b0d12 75%); pointer-events: auto; }
 .ranked-screen .ranked-soon { font-size: clamp(56px, 11vw, 140px); margin: 0 0 6vh; letter-spacing: 0.01em; }
+
+/* update log: the ! button in the top bar and the What's new box */
+.updates-btn { width: 32px; height: 32px; padding: 0; border-radius: 50%; display: inline-grid; place-items: center; position: relative; background: var(--card-2); border: 1.5px solid var(--line-2); font-weight: 800; font-size: 16px; color: var(--text); }
+.updates-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-2); }
+.updates-dot { position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid #12151c; }
+.modal-box.updates-modal { width: min(560px, 100%); max-height: 82vh; display: flex; flex-direction: column; }
+.upd-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.upd-head h2 { margin: 0; }
+.upd-mark { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: var(--accent); color: #fff; }
+.upd-list { overflow: auto; padding-right: 6px; display: flex; flex-direction: column; gap: 12px; }
+.upd { padding: 14px 16px; border-radius: 12px; background: var(--card-2); border: 1px solid var(--line); }
+.upd.latest { border-color: rgba(240, 116, 62, 0.45); background: rgba(240, 116, 62, 0.07); }
+.upd-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.upd-top b { font-size: 15px; }
+.upd-top small { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.upd-new { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 6px; background: var(--accent); color: #fff; }
+.upd-new.soft { background: rgba(240, 116, 62, 0.25); color: var(--accent-2); }
+.upd ul { margin: 0; padding-left: 18px; color: #d1d5db; font-size: 13.5px; line-height: 1.55; }
