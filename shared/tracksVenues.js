@@ -180,13 +180,13 @@ export const VENUE_TRACKS = [
     // open, like Wildwood: the oval is the mega ramp line, the rest of the park is free
     id: 'megapark', recommend: ['Dirt Bikes', 'Quads'], open: true, freestyle: true,
     name: 'Mega Ramp Park', difficulty: 'Freestyle',
-    desc: 'A stunt park: a 30 m mega ramp gap on the main line, quarter pipes round the walls, funboxes and a spine. Ride anywhere, send everything.',
+    desc: 'A stunt park: a 50 m mega ramp gap off a big roll-in hill, quarter pipes round the walls, funboxes and a spine. Ride anywhere, send everything.',
     worldSize: 520,
     seed: 7606,
-    start: { x: -115, z: 34, heading: 0 },
+    start: { x: -150, z: 34, heading: 0 },
     defaultWidth: 26,
     look: { venue: 'yard', dirt: [0.95, 0.8, 0.66], floor: [0.42, 0.4, 0.37], trees: 0, rocks: 0, fog: 0xd8d2c6, skyTop: 0x4f86c9, horizon: 0xe2dccf },
-    terrain: { hills: 0, hillScale: 100, rim: 26, rimStart: 215, rimSharp: true, bumps: [], ramps: [
+    terrain: { hills: 0, hillScale: 100, rim: 26, rimStart: 215, rimSharp: true, bumps: [{ x: 200, z: 0, r: 65, h: 24 }], ramps: [ // bumps: the roll-in hill (speed for the mega ramp)
         // quarter pipes along both long sides, funboxes in the infield, a spine, two side kickers
         { type: 'quarter', x: -120, z: 150, dir: 3.14, w: 22, r: 6 },
         { type: 'quarter', x: -120, z: -150, dir: 0, w: 22, r: 6 },
@@ -200,15 +200,15 @@ export const VENUE_TRACKS = [
         { type: 'quarter', x: 120, z: -150, dir: 0, w: 22, r: 6 },
         { type: 'box', x: -60, z: 0, dir: 1.57, w: 12, top: 10, s: 6, h: 2.2 },
         { type: 'box', x: 60, z: 0, dir: 1.57, w: 12, top: 10, s: 6, h: 2.2 },
-        { type: 'quarter', x: -200, z: 0, dir: 1.57, w: 20, r: 5 },
-        { type: 'quarter', x: -208, z: 0, dir: -1.57, w: 20, r: 5 },
+        { type: 'quarter', x: 0, z: -100, dir: 0, w: 20, r: 5 },
+        { type: 'quarter', x: 0, z: -108, dir: 3.14, w: 20, r: 5 },
         { type: 'kicker', x: 170, z: 100, dir: 3.14, w: 8, len: 11, h: 3, gap: 14, landH: 3.4, landLen: 15 },
         { type: 'kicker', x: 170, z: -100, dir: 0, w: 8, len: 11, h: 3, gap: 14, landH: 3.4, landLen: 15 },
       ] },
     segments: [
-      { len: 230, w: 26, free: true, name: 'Run-up', features: [{ at: 60, type: 'kicker', h: 3.0, face: 10.5, gap: 12, landH: 3.5, land: 13 }] },
+      { len: 300, w: 26, free: true, name: 'Run-up', features: [{ at: 60, type: 'kicker', h: 3.0, face: 10.5, gap: 12, landH: 3.5, land: 13 }] },
       { turn: 180, r: 34, berm: 0.6 },
-      { len: 230, w: 26, free: true, name: 'Mega Ramp', features: [{ at: 40, type: 'kicker', h: 5.0, face: 17, gap: 30, landH: 6.0, land: 26 }] },
+      { len: 300, w: 26, free: true, name: 'Mega Ramp', features: [{ at: 30, type: 'kicker', h: 6.5, face: 18, gap: 36, landH: 8, land: 32 }] },
       { turn: 180, r: 34, berm: 0.6 },
     ],
     gateAt: 14,

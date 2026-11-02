@@ -779,3 +779,18 @@ button.primary:hover:not(:disabled) { background: linear-gradient(135deg, #ff8a5
 .tier.Bronze { color: #d49a6a; } .tier.Silver { color: #cfd6e0; } .tier.Gold { color: var(--gold); }
 .tier.Platinum { color: #7fd6d0; } .tier.Diamond { color: #9cc3ff; } .tier.Pro { color: #ff8f6b; }
 #lb-tabs { margin-left: auto; }
+
+/* Ranked tab (coming soon) and the ranks */
+.ranked-soon { font-size: 44px; font-weight: 700; text-align: center; margin: 26px 0 8px; letter-spacing: 0.02em; background: linear-gradient(90deg, var(--accent), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ranked-sub { text-align: center; max-width: 560px; margin: 0 auto 22px; }
+.rank-ladder { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 760px; margin: 0 auto; }
+.rung { padding: 14px 16px; border-radius: 12px; background: var(--card-2); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.rung .tier { font-size: 16px; margin-left: 0; align-self: flex-start; padding: 3px 10px; }
+.rung .rr { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+.rung .rd { color: var(--muted); font-size: 12px; min-height: 15px; }
+@media (max-width: 720px) { .rank-ladder { grid-template-columns: 1fr 1fr; } .ranked-soon { font-size: 34px; } }
+/* Settings > Controls */
+.setting.bind .seg { align-items: center; }
+.keycap { min-width: 96px; font-family: var(--font); }
+.keycap.waiting { border-color: var(--accent); background: rgba(240, 116, 62, 0.2); animation: mmpulse 1.2s ease-in-out infinite; }
+.keyalt { font-size: 12px; color: var(--muted); padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; }

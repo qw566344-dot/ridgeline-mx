@@ -51,10 +51,10 @@
         <button data-go="garage">Garage</button>
         <button data-go="shop">Shop</button>
         <button data-go="leaderboard">Leaderboard</button>
+        <button data-go="ranked">Ranked</button>
         <button data-go="casino">Casino</button>
         <button data-go="friends">Friends <b id="friends-badge" class="badge" hidden></b></button>
         <button data-go="settings">Settings</button>
-        <button data-go="controls">Controls</button>
       </nav>
       <div class="top-right">
         <button id="region-chip" class="chip" title="Server region and ping"><i class="dot"></i><span id="region-text">Offline</span></button>
@@ -87,10 +87,6 @@
           <i class="edit">Change</i>
         </button>
         <button id="play-btn" class="play-btn">PLAY</button>
-        <div class="mm-row" id="mm-row">
-          <button id="mm-casual" class="mm-btn" title="Race whoever else is searching on your server">Casual match</button>
-          <button id="mm-ranked" class="mm-btn ranked" title="Race riders of your rank - your rating goes up or down">Ranked match <small id="mm-tier"></small></button>
-        </div>
         <div id="dock-note" class="dock-note"></div>
       </div>
     </section>
@@ -217,11 +213,22 @@
     <!-- LEADERBOARD -->
     <section id="leaderboard" class="screen overlay" hidden>
       <div class="sheet wide">
-        <div class="sheet-head"><h2>Leaderboard</h2><div class="seg" id="lb-tabs"><button data-lb="tricks" class="sel">Trick points</button><button data-lb="ranked">Ranked</button></div></div>
+        <div class="sheet-head"><h2>Leaderboard</h2></div>
         <p id="lb-note" class="hint">Trick points - land tricks in any mode to climb</p>
         <div id="lb-podium" class="lb-podium"></div>
         <ol id="lb-tricks" class="lb-list"></ol>
         <div id="lb-mine" class="lb-mine" hidden></div>
+        <div class="row end"><button data-go="home">Back</button></div>
+      </div>
+    </section>
+
+    <!-- RANKED (ready on the server, switched on later) -->
+    <section id="ranked" class="screen overlay" hidden>
+      <div class="sheet wide">
+        <div class="sheet-head"><h2>Ranked</h2></div>
+        <div class="ranked-soon">Coming soon...</div>
+        <p class="hint ranked-sub">Race riders of your skill. Win to climb the ranks, lose and you drop. Everyone starts in Bronze at a rating of 1000.</p>
+        <div class="rank-ladder" id="rank-ladder"></div>
         <div class="row end"><button data-go="home">Back</button></div>
       </div>
     </section>
@@ -290,34 +297,7 @@
       </div>
     </section>
 
-    <!-- CONTROLS -->
-    <section id="controls" class="screen overlay" hidden>
-      <div class="sheet">
-        <div class="sheet-head"><h2>Controls</h2></div>
-        <table class="keys">
-          <tr><td><kbd>W</kbd> / <kbd>&uarr;</kbd></td><td>Throttle</td></tr>
-          <tr><td><kbd>S</kbd> / <kbd>&darr;</kbd></td><td>Brake (hold when stopped to reverse)</td></tr>
-          <tr><td><kbd>A</kbd> <kbd>D</kbd></td><td>Steer &bull; in the air: whip / scrub (bikes)</td></tr>
-          <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>Lean back / forward (back: more drive, forward: sharper turns) &bull; in the air: backflip / front flip</td></tr>
-          <tr><td><kbd>Shift</kbd> + <kbd>A</kbd>/<kbd>D</kbd> in the air</td><td>Flat spin (360s)</td></tr>
-          <tr><td>Hold <kbd>E</kbd>, let go on the lip</td><td>Preload pop: squat into the jump face, release to spring off it (or hop on the flat)</td></tr>
-          <tr><td><kbd>A</kbd>/<kbd>D</kbd> + <kbd>E</kbd> off the lip</td><td>Scrub: the bike lays flat and stays low and fast</td></tr>
-          <tr><td><kbd>M</kbd> &bull; <kbd>X</kbd> / <kbd>Z</kbd></td><td>Manual / automatic gears &bull; shift up / down (manual)</td></tr>
-          <tr><td>Hold <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> in the air</td><td>Superman, Nac-Nac, Heel Clicker, Cliffhanger - let go before you land!</td></tr>
-          <tr><td><kbd>Shift</kbd></td><td>Clutch - hold, rev, release for a burst (wheelies)</td></tr>
-          <tr><td><kbd>Space</kbd></td><td>Rear brake - locks the rear for slides</td></tr>
-          <tr><td><kbd>R</kbd></td><td>Reset onto the track</td></tr>
-          <tr><td><kbd>Y</kbd></td><td>Quick retry (Time Trial / Practice / Freestyle)</td></tr>
-          <tr><td><kbd>T</kbd></td><td>Chat (online accounts)</td></tr>
-          <tr><td><kbd>C</kbd></td><td>Change camera</td></tr>
-          <tr><td>Right mouse + drag</td><td>Look around</td></tr>
-          <tr><td><kbd>Esc</kbd> / <kbd>P</kbd></td><td>Pause</td></tr>
-          <tr><td><kbd>F3</kbd></td><td>FPS counter</td></tr>
-        </table>
-        <p class="hint">Tricks: land several in a row for a combo multiplier (up to x4). Land with the wheels matching the slope for a Perfect landing (x1.5).<br>Gamepad: triggers = throttle/brake, left stick = steer/lean, A = reset, Y = camera, X = rear brake, RB = clutch.</p>
-        <div class="row end"><button data-go="back">Back</button></div>
-      </div>
-    </section>
+    <!-- (Controls live in Settings > Controls now, where keys can be changed) -->
 
     <!-- CREDITS -->
     <section id="credits" class="screen overlay" hidden>

@@ -18,15 +18,18 @@ import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
 import { escapeHtml, ordinal, hex, ago, staffTags } from './util.js';
 import { liveTrick } from './sim/tricks.js';
+import { KEYS, DEFAULT_KEYS, applyBindings, keyName } from './input.js';
 import { regionList, customServer, setServerBase, serverBase } from './config.js';
 
 export { escapeHtml };
 import { Vector3 } from 'three';
 const $ = (id) => document.getElementById(id);
 const _tv = new Vector3();
-const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'friends', 'settings', 'controls', 'credits', 'pause', 'results'];
-const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'friends', 'settings', 'controls', 'credits']);
-const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', leaderboard: 'leaderboard', friends: 'friends', settings: 'settings', controls: 'controls' };
+const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'ranked', 'friends', 'settings', 'credits', 'pause', 'results'];
+const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'ranked', 'friends', 'settings', 'credits']);
+const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', leaderboard: 'leaderboard', ranked: 'ranked', friends: 'friends', settings: 'settings' };
+// Settings > Controls: what each key does (the actions you can rebind), in order
+const BINDABLE = [['throttle', 'Throttle'], ['brake', 'Brake / reverse'], ['left', 'Steer left'], ['right', 'Steer right'], ['leanBack', 'Lean back / backflip'], ['leanFwd', 'Lean forward / front flip / preload'], ['clutch', 'Clutch / flat spin'], ['rearBrake', 'Rear brake'], ['trick1', 'Superman'], ['trick2', 'Nac-Nac'], ['trick3', 'Heel Clicker'], ['trick4', 'Cliffhanger'], ['gearMode', 'Manual / automatic gears'], ['shiftUp', 'Shift up'], ['shiftDown', 'Shift down'], ['reset', 'Reset onto the track'], ['retry', 'Quick retry'], ['camera', 'Change camera'], ['pause', 'Pause']];
 
 export const MODES = [
   { id: 'freeride', name: 'Free Ride', desc: 'Ride at your own pace. No timer, no pressure.', party: true },
@@ -85,8 +88,7 @@ export class UI {
     $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
     $('dock-setup').addEventListener('click', () => this.show('play'));
     $('play-btn').addEventListener('click', () => this.onPlay());
-    $('mm-casual').addEventListener('click', () => this.emit('queue', 'casual'));
-    $('mm-ranked').addEventListener('click', () => this.emit('queue', 'ranked'));
+
     $('play-confirm').addEventListener('click', () => this.show('home'));
     $('settings-back').addEventListener('click', () => this.show(this.settingsReturn || 'home'));
     $('p-resume').addEventListener('click', () => this.emit('resume'));
@@ -116,6 +118,7 @@ export class UI {
 
   show(name) {
     if (name === 'menu' || name === 'mp') name = 'home';
+    if (name === 'controls') { this.settingsTab = 'Controls'; name = 'settings'; } // Controls live in Settings
     if (name === 'settings') this.settingsReturn = this.screen === 'pause' ? 'pause' : (this.screen === 'settings' ? this.settingsReturn : (MENUS.has(this.screen) ? this.screen : 'home'));
     if (name !== this.screen && MENUS.has(this.screen)) this.prev = this.screen;
     this.screen = name;
@@ -132,6 +135,7 @@ export class UI {
     if (name === 'shop') this.renderShop();
     if (name === 'casino' && this.casino) this.casino.show();
     if (name === 'leaderboard') this.renderLeaderboard();
+    if (name === 'ranked') this.renderRanked();
     if (name === 'friends') { this.renderHome(); this.renderFriends(); if (this.social) this.social.refresh(); }
     if (name === 'settings') this.renderSettings();
     this.renderTop();
@@ -279,8 +283,15 @@ export class UI {
     this.syncStage();
   }
 
+  // the Ranked tab: "coming soon" for now, and the ranks you will climb through
+  renderRanked() {
+    const tiers = [['Bronze', '0 - 1099', 'Where everyone starts (rating 1000)'], ['Silver', '1100 - 1249', ''], ['Gold', '1250 - 1399', ''], ['Platinum', '1400 - 1549', ''], ['Diamond', '1550 - 1699', ''], ['Pro', '1700 +', 'The best riders in the game']];
+    $('rank-ladder').innerHTML = tiers.map(([n, r, d]) => `<div class="rung"><em class="tier ${n}">${n}</em><span class="rr">${r}</span><span class="rd">${d}</span></div>`).join('');
+  }
+
   // matchmaking: the two buttons under PLAY, and what they show while searching
   renderMatchmaking() {
+    if (!$('mm-casual')) return; // the buttons are off until Ranked opens
     const q = this.mmState, A = this.account;
     $('mm-tier').textContent = A && A.profile && A.profile.ranked && A.profile.ranked.races ? `${A.profile.tier} ${A.profile.rating}` : '';
     $('mm-casual').textContent = q && q.mode === 'casual' ? 'Cancel search' : 'Casual match';
@@ -670,8 +681,7 @@ export class UI {
   // ------------------------------------------------------------- leaderboard
   async renderLeaderboard() {
     $('lb-podium').innerHTML = ''; $('lb-tricks').innerHTML = '<li class="hint">Loading...</li>'; $('lb-mine').hidden = true;
-    const tab = this.lbTab || 'tricks';
-    $('lb-tabs').querySelectorAll('[data-lb]').forEach((b) => { b.classList.toggle('sel', b.dataset.lb === tab); b.onclick = () => { this.lbTab = b.dataset.lb; this.renderLeaderboard(); }; });
+    const tab = 'tricks'; // the ranked list waits for Ranked to open (see renderRanked)
     $('lb-note').textContent = tab === 'ranked' ? 'Ranked rating - win ranked matches to climb from Bronze to Pro' : 'Trick points - land tricks in any mode to climb';
     let d = null;
     try { d = await (await fetch(serverBase() + '/api/leaderboard')).json(); } catch { /* offline */ }
@@ -953,9 +963,31 @@ export class UI {
   }
 
   // ------------------------------------------------------------- settings
+  // Settings > Controls: wait for the next key and give it to this action
+  startBinding(action) {
+    this.binding = action;
+    this.renderSettings();
+    const onKey = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      window.removeEventListener('keydown', onKey, true);
+      this.binding = null;
+      if (e.code !== 'Escape' || action === 'pause') {
+        const map = {};
+        for (const k of Object.keys(DEFAULT_KEYS)) map[k] = (KEYS[k] || []).filter((c) => c !== e.code); // one key, one job
+        const rest = (KEYS[action] || []).slice(1).filter((c) => c !== e.code);
+        map[action] = [e.code, ...rest];
+        this.settings.set('keybinds', map);
+        applyBindings(map);
+      }
+      this.renderSettings();
+    };
+    window.addEventListener('keydown', onKey, true);
+  }
+
   renderSettings() {
     const S = this.settings;
-    const tabs = ['Graphics', 'Audio', 'Camera & Controls', 'Riding Assists', 'Online'];
+    const tabs = ['Graphics', 'Audio', 'Camera', 'Controls', 'Riding Assists', 'Online'];
+    if (!tabs.includes(this.settingsTab)) this.settingsTab = 'Graphics';
     $('settings-tabs').innerHTML = tabs.map((t) => `<button class="${t === this.settingsTab ? 'sel' : ''}" data-tab="${t}">${t}</button>`).join('');
     $('settings-tabs').querySelectorAll('button').forEach((b) => b.onclick = () => { this.settingsTab = b.dataset.tab; this.renderSettings(); });
     const body = $('settings-body');
@@ -980,7 +1012,17 @@ export class UI {
       range('masterVolume', 'Master volume', 0, 1, 0.05, pct);
       range('engineVolume', 'Engine volume', 0, 1, 0.05, pct);
       range('effectsVolume', 'Effects volume', 0, 1, 0.05, pct);
-    } else if (this.settingsTab === 'Camera & Controls') {
+    } else if (this.settingsTab === 'Controls') {
+      // click a key, then press the new one (Esc cancels). Each action has its own key; one key
+      // used twice is taken off the other action.
+      rows.push(`<p class="hint">Click a key, then press the new key. Esc cancels.</p>`);
+      for (const [a, label] of BINDABLE) {
+        const keys = KEYS[a] || [];
+        rows.push(`<div class="setting bind"><span>${label}</span><div class="seg"><button class="keycap${this.binding === a ? ' waiting' : ''}" data-bind="${a}">${this.binding === a ? 'Press a key...' : escapeHtml(keyName(keys[0] || ''))}</button>${keys.slice(1).map((k) => `<span class="keyalt">${escapeHtml(keyName(k))}</span>`).join('')}</div><span class="val"></span></div>`);
+      }
+      rows.push(`<div class="row"><button id="keys-reset" class="small">Reset all keys</button></div>`);
+      rows.push(`<p class="hint">Tricks: hold E into a jump and let go on the lip to pop; whip with E held off the lip to scrub; Shift + steer in the air spins. Land tricks in a row for a combo (up to x4), wheels matching the slope for a Perfect landing (x1.5). Also: T chat, right mouse look around, F3 FPS counter.<br>Gamepad: triggers throttle / brake, left stick steer / lean, A reset, Y camera, X rear brake, RB clutch.</p>`);
+    } else if (this.settingsTab === 'Camera') {
       seg('camera', 'Default camera', CAMERA_MODES.map((m, i) => [i, m]));
       range('cameraSensitivity', 'Camera follow speed', 0.4, 2, 0.05, (x) => x.toFixed(2) + 'x');
       range('mouseSensitivity', 'Mouse look sensitivity', 0.2, 3, 0.1, (x) => x.toFixed(1) + 'x');
@@ -998,6 +1040,8 @@ export class UI {
       this.renderOnline(rows);
     }
     body.innerHTML = rows.join('');
+    body.querySelectorAll('[data-bind]').forEach((b) => b.onclick = () => this.startBinding(b.dataset.bind));
+    if ($('keys-reset')) $('keys-reset').onclick = () => { S.set('keybinds', null); applyBindings(null); this.binding = null; this.renderSettings(); };
     body.querySelectorAll('[data-preset]').forEach((b) => b.onclick = () => { S.applyPreset(b.dataset.preset); this.emit('quality'); this.renderSettings(); });
     body.querySelectorAll('.seg button[data-key]').forEach((b) => b.onclick = () => {
       let v = b.dataset.val;

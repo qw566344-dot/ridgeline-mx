@@ -27,6 +27,17 @@ export const KEYS = {
   fps: ['F3'],
 };
 
+// the bindings as shipped; Settings > Controls changes KEYS (applyBindings), saved per browser
+export const DEFAULT_KEYS = Object.fromEntries(Object.entries(KEYS).map(([k, v]) => [k, [...v]]));
+export function applyBindings(map) {
+  for (const k of Object.keys(DEFAULT_KEYS)) KEYS[k] = map && Array.isArray(map[k]) && map[k].length ? [...map[k]] : [...DEFAULT_KEYS[k]];
+}
+// a key code as people know it (KeyW -> W, ArrowUp -> Up, ShiftLeft -> Shift ...)
+export function keyName(code) {
+  return ({ Space: 'Space', Escape: 'Esc', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', ShiftLeft: 'Shift', ShiftRight: 'R-Shift', ControlLeft: 'Ctrl', ControlRight: 'R-Ctrl', AltLeft: 'Alt', AltRight: 'R-Alt', Enter: 'Enter', Tab: 'Tab', Backspace: 'Backspace' })[code]
+    || code.replace(/^Key/, '').replace(/^Digit/, '').replace(/^Numpad/, 'Num ');
+}
+
 export class Input {
   constructor() {
     this.down = new Set();

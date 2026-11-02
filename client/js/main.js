@@ -5,7 +5,7 @@
 // =====================================================================
 import { Renderer } from './render/renderer.js';
 import { Settings } from './settings.js';
-import { Input } from './input.js';
+import { Input, applyBindings } from './input.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
 import { Game } from './game.js';
@@ -25,6 +25,7 @@ const settings = new Settings();
 const R = new Renderer(document.getElementById('game'));
 R.applyQuality(settings.quality());
 const input = new Input();
+applyBindings(settings.get('keybinds')); // keys changed in Settings > Controls
 const audio = new Audio(settings);
 const ui = new UI(settings);
 const game = new Game({ renderer: R, settings, audio, input, ui });

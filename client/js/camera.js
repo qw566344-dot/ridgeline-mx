@@ -150,7 +150,10 @@ export class CameraRig {
           const whip = Math.min(1, Math.max(0, (lay - 0.2) / 0.3));       // a whip: keep looking where you are flying
           _h.lerp(_l, 1 - whip * whip * (3 - 2 * whip)).normalize();
         }
-        const th = Math.atan2(fwd.y, fwd.dot(_h));                        // nose angle round the flip (+ = up), all the way round
+        // nose angle round the flip (+ = up), all the way round. Measured against the nose's whole
+        // level length (with the sign from the heading), not just the part along the heading: in a
+        // whip the nose swings sideways, and that read as "nose down" and tipped the view down
+        const th = Math.atan2(fwd.y, Math.hypot(fwd.x, fwd.z) * (fwd.dot(_h) < 0 ? -1 : 1));
         const pitch = th - (car ? 0.08 : 0.3);
         _w.crossVectors(_h, THREE.Object3D.DEFAULT_UP).normalize();      // the flip axis (level, square to the heading)
         _f.copy(_h).applyAxisAngle(_w, pitch);
