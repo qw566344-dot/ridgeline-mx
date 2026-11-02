@@ -170,11 +170,16 @@
     </section>
 
     <!-- CASINO -->
-    <section id="casino" class="screen overlay" hidden>
-      <div class="sheet wide casino-sheet">
-        <div class="sheet-head"><h2>Casino</h2><span class="chip coins"><i class="coin"></i><b id="casino-coins">0</b></span></div>
-        <div class="casino-grid">
-          <div class="cgame">
+    <section id="casino" class="screen menu-screen casino-screen" hidden>
+      <!-- one game fills the screen; the little tabs switch between them -->
+      <div class="cs-bar">
+        <div class="cs-tabs">
+          <button data-cgame="roulette" class="sel">Roulette</button><button data-cgame="blackjack">Blackjack</button><button data-cgame="crash">Crash</button>
+        </div>
+        <span class="chip coins"><i class="coin"></i><b id="casino-coins">0</b></span>
+      </div>
+      <div class="casino-stage">
+          <div class="cgame" data-game="roulette">
             <h3>Roulette</h3>
             <div class="rl-wheel"><span id="rl-ball" class="rl-ball green">0</span></div>
             <div id="rl-hist" class="hist"></div>
@@ -189,7 +194,7 @@
             <button id="rl-spin" class="primary big wide">SPIN</button>
             <div id="rl-msg" class="cmsg"></div>
           </div>
-          <div class="cgame">
+          <div class="cgame" data-game="blackjack" hidden>
             <h3>Blackjack</h3>
             <div class="bj-table">
               <div class="bj-row"><small>Dealer <b id="bj-dtotal"></b></small><div id="bj-dealer" class="bj-cards"></div></div>
@@ -199,9 +204,9 @@
             <div class="bj-acts"><button id="bj-deal" class="primary">DEAL</button><button id="bj-hit" disabled>Hit</button><button id="bj-stand" disabled>Stand</button><button id="bj-double" disabled>Double</button></div>
             <div id="bj-msg" class="cmsg"></div>
           </div>
-          <div class="cgame">
+          <div class="cgame" data-game="crash" hidden>
             <h3>Crash</h3>
-            <div class="cr-box"><canvas id="cr-canvas" width="420" height="200"></canvas><div id="cr-mult" class="cr-mult">1.00x</div></div>
+            <div class="cr-box"><canvas id="cr-canvas" width="760" height="300"></canvas><div id="cr-mult" class="cr-mult">1.00x</div></div>
             <div id="cr-hist" class="hist"></div>
             <div class="hint">The multiplier climbs until it crashes. Cash out before it does!</div>
             <div class="bet-row"><input id="cr-bet" type="number" min="10" value="100"><button class="small" data-chip="100" data-for="cr-bet">+100</button><button class="small" data-chip="1000" data-for="cr-bet">+1K</button><button class="small" data-chip="x2" data-for="cr-bet">x2</button><button class="small" data-chip="half" data-for="cr-bet">1/2</button><button class="small" data-chip="max" data-for="cr-bet">Max</button></div>
@@ -209,10 +214,8 @@
             <button id="cr-go" class="primary big wide">BET</button>
             <div id="cr-msg" class="cmsg"></div>
           </div>
-        </div>
-        <p class="hint">Coins only - just for fun. Results are decided by the game server.</p>
-        <div class="row end"><button data-go="home">Back</button></div>
       </div>
+      <p class="hint cs-foot">Coins only - just for fun. Results are decided by the game server.</p>
     </section>
 
     <!-- ADMIN (press - , admin accounts only) -->

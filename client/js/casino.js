@@ -74,7 +74,19 @@ export class CasinoUI {
     return { error: 'Unknown' };
   }
 
+  // switch the game on screen (Roulette / Blackjack / Crash tabs)
+  setGame(id) {
+    this.game = id;
+    try { localStorage.setItem('mx.casinoGame', id); } catch { /* private mode */ }
+    document.querySelectorAll('[data-cgame]').forEach((b) => b.classList.toggle('sel', b.dataset.cgame === id));
+    document.querySelectorAll('.casino-stage [data-game]').forEach((g) => (g.hidden = g.dataset.game !== id));
+    if (id === 'crash' && !this.round) this.drawCrash(1, false);
+  }
+
   wire() {
+    document.querySelectorAll('[data-cgame]').forEach((b) => b.onclick = () => this.setGame(b.dataset.cgame));
+    let last = null; try { last = localStorage.getItem('mx.casinoGame'); } catch { /* private mode */ }
+    this.setGame(['roulette', 'blackjack', 'crash'].includes(last) ? last : 'roulette');
     document.querySelectorAll('[data-chip]').forEach((b) => b.onclick = () => {
       const inp = $(b.dataset.for);
       const v = b.dataset.chip;
