@@ -1404,7 +1404,8 @@ export class UI {
   }
 
   showPause() { $('pause').hidden = false; this.screen = 'pause'; }
-  hidePause() { $('pause').hidden = true; $('settings').hidden = true; $('controls').hidden = true; this.settingsReturn = null; this.screen = 'hud'; }
+  hidePause() { $('pause').hidden = true; $('settings').hidden = true; if ($('controls')) $('controls').hidden = true; // (controls now live in Settings)
+    this.settingsReturn = null; this.screen = 'hud'; }
 
   showResults(rows, game) {
     $('results').hidden = false;
