@@ -135,7 +135,6 @@ export class UI {
     if (name === 'shop') this.renderShop();
     if (name === 'casino' && this.casino) this.casino.show();
     if (name === 'leaderboard') this.renderLeaderboard();
-    if (name === 'ranked') this.renderRanked();
     if (name === 'friends') { this.renderHome(); this.renderFriends(); if (this.social) this.social.refresh(); }
     if (name === 'settings') this.renderSettings();
     this.renderTop();
@@ -281,12 +280,6 @@ export class UI {
     this.renderMatchmaking();
     this.renderFriendsMini();
     this.syncStage();
-  }
-
-  // the Ranked tab: "coming soon" for now, and the ranks you will climb through
-  renderRanked() {
-    const tiers = [['Bronze', '0 - 1099', 'Where everyone starts (rating 1000)'], ['Silver', '1100 - 1249', ''], ['Gold', '1250 - 1399', ''], ['Platinum', '1400 - 1549', ''], ['Diamond', '1550 - 1699', ''], ['Pro', '1700 +', 'The best riders in the game']];
-    $('rank-ladder').innerHTML = tiers.map(([n, r, d]) => `<div class="rung"><em class="tier ${n}">${n}</em><span class="rr">${r}</span><span class="rd">${d}</span></div>`).join('');
   }
 
   // matchmaking: the two buttons under PLAY, and what they show while searching

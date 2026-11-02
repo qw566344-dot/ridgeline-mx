@@ -48,10 +48,10 @@
       <div class="brand">RIDGELINE <span>MX</span></div>
       <nav id="nav">
         <button data-go="home">Lobby</button>
+        <button data-go="ranked">Ranked</button>
         <button data-go="garage">Garage</button>
         <button data-go="shop">Shop</button>
         <button data-go="leaderboard">Leaderboard</button>
-        <button data-go="ranked">Ranked</button>
         <button data-go="casino">Casino</button>
         <button data-go="friends">Friends <b id="friends-badge" class="badge" hidden></b></button>
         <button data-go="settings">Settings</button>
@@ -223,14 +223,8 @@
     </section>
 
     <!-- RANKED (ready on the server, switched on later) -->
-    <section id="ranked" class="screen overlay" hidden>
-      <div class="sheet wide">
-        <div class="sheet-head"><h2>Ranked</h2></div>
-        <div class="ranked-soon">Coming soon...</div>
-        <p class="hint ranked-sub">Race riders of your skill. Win to climb the ranks, lose and you drop. Everyone starts in Bronze at a rating of 1000.</p>
-        <div class="rank-ladder" id="rank-ladder"></div>
-        <div class="row end"><button data-go="home">Back</button></div>
-      </div>
+    <section id="ranked" class="screen menu-screen ranked-screen" hidden>
+      <div class="ranked-soon">Coming soon</div>
     </section>
 
     <!-- FRIENDS -->
