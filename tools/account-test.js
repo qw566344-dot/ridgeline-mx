@@ -31,6 +31,22 @@ try {
     const lb = await (await fetch(BASE + '/api/leaderboard')).json(), tg = await (await fetch(BASE + '/api/tags')).json();
     ok(lb.tricks && lb.tricks[0].name === 'TrickTester' && lb.tricks[0].v === 500, 'trick coins add trick points to the leaderboard');
     ok(tg.tags.TrickTester && tg.tags.TrickTester[0][0] === '#1 LEADERBOARD', 'the top rider gets the #1 LEADERBOARD tag'); }
+  { // challenges: progress from rewards, claim once for coins + XP
+    const tk = (await api(null, 'register', { name: 'ChalTester', password: pw })).token;
+    let c = await api(tk, 'challenges');
+    ok(c.daily && c.daily.length === 3 && c.weekly.length === 3, 'three daily and three weekly challenges');
+    const lapC = [...c.daily, ...c.weekly].find((x) => x.text.includes('laps')) || null;
+    const early = await api(tk, 'challenges/claim', { id: c.daily[0].id });
+    ok(/not done/i.test(early.error || ''), 'an unfinished challenge can not be claimed');
+    const kinds = { laps: 'lap', wins: 'win', races: 'race', tricks: 'trick', tp: 'trick', airs: 'air' };
+    const target = c.daily[0], stat = Object.keys(kinds).find((k) => target.text.toLowerCase().includes(k === 'tp' ? 'trick points' : k === 'airs' ? 'big air' : k === 'races' ? 'races' : k.slice(0, -1))) || 'laps';
+    for (let i = 0; i < 40 && !(c.daily[0].progress >= c.daily[0].goal); i++) { await api(tk, 'reward', { kind: kinds[stat], amount: stat === 'tp' ? 1500 : 10 }); c = await api(tk, 'challenges'); }
+    const coins0 = (await api(tk, 'me')).profile.coins;
+    const got = await api(tk, 'challenges/claim', { id: target.id });
+    const twice = await api(tk, 'challenges/claim', { id: target.id });
+    ok(got.ok && got.profile.coins === coins0 + target.coins && /already/i.test(twice.error || ''), 'a finished challenge pays out once (' + target.text + ')');
+    void lapC;
+  }
   r = await api(null, 'register', { name: 'savetester', password: pw });
   ok(r.error && /taken/.test(r.error), 'same name (any case) is refused');
   r = await api(null, 'register', { name: 'ab', password: pw });

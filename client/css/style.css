@@ -1084,3 +1084,31 @@ button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 .casino-stage #cr-go.cash { background: linear-gradient(135deg, #facc15, #d97706); color: #1a1408; }
 
 .rl-ball.spin { background: radial-gradient(circle at 40% 35%, #6b4524, #3b2410); border-color: rgba(255, 215, 120, 0.6); }
+
+/* top bar: soft square icon buttons (friends, settings, what's new) */
+.updates-btn, .updates-btn.sq-btn, #settings-btn, #friends-btn { border-radius: 10px !important; }
+.sq-btn svg { display: block; }
+#friends-btn.sel, #settings-btn.sel { border-color: var(--accent); color: var(--accent-2); }
+.sq-badge { margin-left: 0; position: absolute; top: -6px; right: -7px; min-width: 16px; height: 16px; padding: 0 4px; font-size: 10px; line-height: 16px; border-radius: 8px; }
+.rank-badge { display: inline-block; vertical-align: middle; object-fit: contain; }
+
+/* ---------- challenges ---------- */
+.ch-head { display: flex; align-items: baseline; justify-content: space-between; margin: 14px 0 8px; }
+.ch-head h3 { margin: 0; font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; }
+.ch-head small { color: var(--muted); }
+.ch-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 760px) { .ch-grid { grid-template-columns: 1fr; } }
+.ch-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 12px; background: var(--card-2); border: 1px solid var(--line); }
+.ch-card.done { border-color: rgba(124, 196, 154, 0.6); box-shadow: 0 0 18px rgba(124, 196, 154, 0.12); }
+.ch-card.claimed { opacity: 0.6; }
+.ch-text { display: flex; flex-direction: column; gap: 4px; }
+.ch-text b { font-size: 15px; }
+.ch-prize { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--gold); }
+.ch-bar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.ch-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--gold)); transition: width 0.4s ease; }
+.ch-card.done .ch-bar i, .ch-card.claimed .ch-bar i { background: var(--good); }
+.ch-foot { display: flex; align-items: center; justify-content: space-between; min-height: 28px; }
+.ch-foot small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ch-ok { color: var(--good); font-weight: 700; font-size: 13px; }
+#nav button { position: relative; }
+#chal-dot { position: absolute; top: 5px; right: 6px; width: 8px; height: 8px; background: var(--gold); min-width: 0; padding: 0; margin: 0; border-radius: 50%; font-size: 0; box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.9); }

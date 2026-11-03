@@ -29,9 +29,9 @@ export { escapeHtml };
 import { Vector3 } from 'three';
 const $ = (id) => document.getElementById(id);
 const _tv = new Vector3();
-const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'ranked', 'friends', 'settings', 'credits', 'pause', 'results'];
-const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'ranked', 'friends', 'settings', 'credits']);
-const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', leaderboard: 'leaderboard', replays: 'replays', ranked: 'ranked', friends: 'friends', settings: 'settings' };
+const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'challenges', 'ranked', 'friends', 'settings', 'credits', 'pause', 'results'];
+const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'challenges', 'ranked', 'friends', 'settings', 'credits']);
+const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', leaderboard: 'leaderboard', replays: 'replays', challenges: 'challenges', ranked: 'ranked', friends: 'friends', settings: 'settings' };
 // Settings > Controls: what each key does (the actions you can rebind), in order
 const BINDABLE = [['throttle', 'Throttle'], ['brake', 'Brake / reverse'], ['left', 'Steer left'], ['right', 'Steer right'], ['leanBack', 'Lean back / backflip'], ['leanFwd', 'Lean forward / front flip / preload'], ['clutch', 'Clutch / flat spin'], ['rearBrake', 'Rear brake'], ['trick1', 'Superman'], ['trick2', 'Nac-Nac'], ['trick3', 'Heel Clicker'], ['trick4', 'Cliffhanger'], ['trick5', 'Can-Can'], ['trick6', 'Lazy Boy'], ['trick7', 'Seat Grab'], ['trick8', 'Rock Solid'], ['gearMode', 'Manual / automatic gears'], ['shiftUp', 'Shift up'], ['shiftDown', 'Shift down'], ['reset', 'Reset onto the track'], ['retry', 'Quick retry'], ['camera', 'Change camera'], ['pause', 'Pause']];
 
@@ -136,6 +136,7 @@ export class UI {
     void menu;
     document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('sel', b.dataset.go === NAV[name]));
     const gear = $('settings-btn'); if (gear) gear.classList.toggle('sel', name === 'settings');
+    const fr = $('friends-btn'); if (fr) fr.classList.toggle('sel', name === 'friends');
     if (name === 'pause') $('pause').hidden = false;
     if (name === 'home') { this.renderHome(); this.autoUpdates(); }
     if (name === 'play') this.renderPlay();
@@ -145,6 +146,7 @@ export class UI {
     if (name === 'leaderboard') this.renderLeaderboard();
     if (name === 'ranked') this.renderRanked();
     if (name === 'replays') this.renderReplays();
+    if (name === 'challenges') this.renderChallenges();
     if (name === 'friends') { this.renderHome(); this.renderFriends(); if (this.social) this.social.refresh(); }
     if (name === 'settings') this.renderSettings();
     this.renderTop();
@@ -736,6 +738,41 @@ export class UI {
     $('lb-tricks').innerHTML = rows.slice(3).map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 4}</span><b>${escapeHtml(r.name)} ${lv(r)}</b><span class="v">${pts(r.v)}</span></li>`).join('');
     const mine = rows.findIndex((r) => r.name.toLowerCase() === me);
     if (P && this.account.mode === 'online' && mine < 0) { $('lb-mine').hidden = false; $('lb-mine').innerHTML = `You: <b>${pts((P.stats && P.stats.tp) || 0)}</b> - the top 25 are shown`; }
+  }
+
+  // ------------------------------------------------------------- challenges
+  async renderChallenges() {
+    const el = $('ch-body'), A = this.account;
+    if (!A || A.mode !== 'online') { el.innerHTML = '<p class="hint">Challenges need an <b>online account</b> - log in to take part.</p>'; return; }
+    if (!this.chData) el.innerHTML = '<p class="hint">Loading...</p>';
+    const d = await A.api('challenges').catch(() => null);
+    if (!d || d.error) { el.innerHTML = '<p class="hint">Can\'t reach the server right now.</p>'; return; }
+    this.chData = d;
+    this.drawChallenges(d);
+  }
+
+  drawChallenges(d) {
+    const el = $('ch-body'), skew = Date.now() - (d.now || Date.now());
+    const left = (end) => { const ms = Math.max(0, end - (Date.now() - skew)), h = Math.floor(ms / 3600000); return h >= 24 ? `${Math.floor(h / 24)}d ${h % 24}h` : `${h}h ${Math.floor((ms % 3600000) / 60000)}m`; };
+    const card = (c) => {
+      const done = c.progress >= c.goal, pct = Math.round((c.progress / c.goal) * 100);
+      return `<div class="ch-card${c.claimed ? ' claimed' : done ? ' done' : ''}">
+        <div class="ch-text"><b>${escapeHtml(c.text)}</b><span class="ch-prize"><i class="coin"></i>${c.coins.toLocaleString()} &bull; +${c.xp} XP</span></div>
+        <div class="ch-bar"><i style="width:${pct}%"></i></div>
+        <div class="ch-foot"><small>${c.progress.toLocaleString()} / ${c.goal.toLocaleString()}</small>${c.claimed ? '<span class="ch-ok">Claimed</span>' : done ? `<button class="small primary" data-claim="${c.id}">Claim</button>` : ''}</div></div>`;
+    };
+    el.innerHTML = `<div class="ch-head"><h3>Daily</h3><small>New in ${left(d.dayEnds)}</small></div><div class="ch-grid">${d.daily.map(card).join('')}</div>
+      <div class="ch-head"><h3>Weekly</h3><small>New in ${left(d.weekEnds)}</small></div><div class="ch-grid">${d.weekly.map(card).join('')}</div>`;
+    el.querySelectorAll('[data-claim]').forEach((b) => b.onclick = async () => {
+      b.disabled = true;
+      const r = await this.account.api('challenges/claim', { id: b.dataset.claim }).catch(() => null);
+      if (!r || r.error) { this.popup((r && r.error) || 'Could not claim', 'bad'); b.disabled = false; return; }
+      if (r.profile) { this.account.profile = r.profile; this.account.persistLocal && this.account.persistLocal(); this.account.changed(); }
+      this.popup(`Challenge complete! <b>${r.ok}</b>`, 'good');
+      this.chData = r; this.drawChallenges(r);
+    });
+    const ready = [...d.daily, ...d.weekly].some((c) => c.progress >= c.goal && !c.claimed);
+    if ($('chal-dot')) $('chal-dot').hidden = !ready;
   }
 
   // ------------------------------------------------------------- replays

@@ -25,6 +25,7 @@ import { Chat } from './chat.js';
 import { cloudEnabled, cloudLoad, cloudSave } from './store.js';
 import { Casino } from './casino.js';
 import { hasBadWords } from '../shared/badwords.js';
+import { todaysChallenges, statsFor, dayNo, weekNo, dayEnds, weekEnds } from '../shared/challenges.js';
 import { Admin, ADMINS } from './admin.js';
 
 const splitKey = (k) => { const [s, ...rest] = String(k).split(':'); return [s, rest.join(':')]; };
@@ -360,9 +361,37 @@ export class Accounts {
       if (kind === 'win') u.stats.wins++;
       if (kind === 'trick') u.stats.tricks++;
       u.xp = (u.xp || 0) + xpFor(kind, amount);
+      const C = this.chal(u);
+      for (const [k, n] of Object.entries(statsFor(kind, amount))) { C.d[k] = (C.d[k] || 0) + n; C.w[k] = (C.w[k] || 0) + n; }
       this.save();
     }
     return { profile: this.profile(u), added: amount + bonus };
+  }
+
+  // ---- challenges: today's / this week's counters (reset when the day / week turns over, UTC)
+  chal(u) {
+    const d = dayNo(), w = weekNo();
+    const C = u.chal || (u.chal = { day: d, week: w, d: {}, w: {}, claimed: [] });
+    if (C.day !== d) { C.day = d; C.d = {}; C.claimed = C.claimed.filter((id) => id.startsWith('w-')); }
+    if (C.week !== w) { C.week = w; C.w = {}; C.claimed = C.claimed.filter((id) => id.startsWith('d-')); }
+    return C;
+  }
+  challenges(u) {
+    const C = this.chal(u), T = todaysChallenges();
+    const row = (c, counts) => ({ id: c.id, text: c.text, goal: c.goal, progress: Math.min(c.goal, counts[c.stat] || 0), coins: c.coins, xp: c.xp, claimed: C.claimed.includes(c.id) });
+    return { daily: T.daily.map((c) => row(c, C.d)), weekly: T.weekly.map((c) => row(c, C.w)), dayEnds: dayEnds(), weekEnds: weekEnds(), now: Date.now() };
+  }
+  claimChallenge(u, id) {
+    const C = this.chal(u), T = todaysChallenges();
+    const c = T.daily.find((x) => x.id === id) || T.weekly.find((x) => x.id === id);
+    if (!c) return { error: 'That challenge is over' };
+    if (C.claimed.includes(id)) return { error: 'Already claimed' };
+    const counts = id.startsWith('w-') ? C.w : C.d;
+    if ((counts[c.stat] || 0) < c.goal) return { error: 'Not done yet' };
+    C.claimed.push(id);
+    u.coins += c.coins; u.xp = (u.xp || 0) + c.xp;
+    this.save();
+    return { ok: `+${c.coins.toLocaleString()} coins and +${c.xp} XP`, profile: this.profile(u), ...this.challenges(u) };
   }
 
   // top 25 riders by trick points (cached for 30 s)
@@ -433,6 +462,8 @@ export class Accounts {
       if (r === 'buy') return send(200, this.buy(u, m.slot, m.id));
       if (r === 'equip') return send(200, this.equip(u, m.slot, m.id));
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));
+      if (r === 'challenges') return send(200, this.challenges(u));
+      if (r === 'challenges/claim') return send(200, this.claimChallenge(u, String(m.id || '')));
       if (r === 'logout') return send(200, this.logout(token));
       if (r.startsWith('casino/')) { const out = this.casino.handle(r, u, m); if (out) return send(200, out); }
       if (r === 'chat' || r.startsWith('chat/')) { const out = this.chat.handle(r, u, m, url); if (out) return send(200, out); }

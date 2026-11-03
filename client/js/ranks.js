@@ -10,6 +10,7 @@
 //  Also the rank-up animation shown after a ranked race.
 // =====================================================================
 import { RANK_TIERS } from '/shared/shop.js';
+import { RANK_IMG } from './rankImages.js';
 
 // [light, mid, dark, deepest, accent gem] per tier
 const COLORS = {
@@ -33,7 +34,14 @@ const starPath = (cx, cy, r, k = 0.45, pts = 5) => {
 };
 const sparkle = (cx, cy, r) => `<path d="${starPath(cx, cy, r, 0.18, 4)}" fill="#fff"/>`;
 
+// the rank badge: the tier's emblem image
 export function rankBadge(tier, size = 64) {
+  const src = RANK_IMG[tier] || RANK_IMG.Bronze;
+  return `<img class="rank-badge" src="${src}" width="${size}" height="${size}" alt="${tier}" draggable="false">`;
+}
+
+// (the older drawn crest, kept for reference)
+export function rankCrestSvg(tier, size = 64) {
   const [hi, mid, lo, deep, gem] = COLORS[tier] || COLORS.Bronze;
   const L = LEVEL[tier] || 0;
   const id = 'rb' + (uid++);

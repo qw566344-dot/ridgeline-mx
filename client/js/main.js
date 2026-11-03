@@ -217,7 +217,7 @@ window.addEventListener('keydown', () => audio.unlock());
 
 // ---- frame loop
 let last = performance.now();
-const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits', 'replays', 'ranked']);
+const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits', 'replays', 'ranked', 'challenges']);
 // the screen's refresh interval, measured from every animation frame (ms)
 let lastTick = 0, tickMs = 16.7, tickN = 0;
 function loop(now) {

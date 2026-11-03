@@ -57,11 +57,12 @@
         <button data-go="shop">Shop</button>
         <button data-go="leaderboard">Leaderboard</button>
         <button data-go="replays">Replays</button>
+        <button data-go="challenges">Challenges <b id="chal-dot" class="badge" hidden>!</b></button>
         <button data-go="casino">Casino</button>
-        <button data-go="friends">Friends <b id="friends-badge" class="badge" hidden></b></button>
       </nav>
       <div class="top-right">
-        <button id="settings-btn" class="updates-btn gear-btn" data-go="settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button id="friends-btn" class="updates-btn sq-btn" data-go="friends" title="Friends" aria-label="Friends"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18 14.4c2.1.7 3.5 2.6 3.5 5.6"/></svg><b id="friends-badge" class="badge sq-badge" hidden></b></button>
+        <button id="settings-btn" class="updates-btn sq-btn gear-btn" data-go="settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         <button id="updates-btn" class="updates-btn" title="What's new"><span>!</span><i id="updates-dot" class="updates-dot" hidden></i></button>
         <button id="region-chip" class="chip" title="Server region and ping"><i class="dot"></i><span id="region-text">Offline</span></button>
         <div class="chip level" id="level-chip" title="Your level - earn XP from laps, wins and tricks"><b id="top-level">Lv 1</b><i class="xpbar"><i id="top-xp"></i></i></div>
@@ -262,6 +263,16 @@
         <div id="lb-podium" class="lb-podium"></div>
         <ol id="lb-tricks" class="lb-list"></ol>
         <div id="lb-mine" class="lb-mine" hidden></div>
+        <div class="row end"><button data-go="home">Back</button></div>
+      </div>
+    </section>
+
+    <!-- CHALLENGES -->
+    <section id="challenges" class="screen overlay" hidden>
+      <div class="sheet wide">
+        <div class="sheet-head"><h2>Challenges</h2></div>
+        <p class="hint">New goals every day and every week - finish them by riding, then claim the prize.</p>
+        <div id="ch-body"></div>
         <div class="row end"><button data-go="home">Back</button></div>
       </div>
     </section>
