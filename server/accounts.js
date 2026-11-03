@@ -348,6 +348,10 @@ export class Accounts {
       const tp = Math.min(amount * 5, Math.max(0, 250_000 - u.tpLog.reduce((a, r) => a + r[1], 0)));
       if (tp > 0) { u.stats.tp = (u.stats.tp || 0) + tp; u.tpLog.push([now, tp]); this.lbCache = null; this.save(); }
     }
+    // challenge progress counts the ride itself, so it keeps going after the coin cap is hit
+    // (trick points from the amount asked for, which MAX_REWARD already limits)
+    const C = this.chal(u);
+    for (const [k, n] of Object.entries(statsFor(kind, amount))) { C.d[k] = (C.d[k] || 0) + n; C.w[k] = (C.w[k] || 0) + n; }
     u.rewardLog = (u.rewardLog || []).filter((r) => now - r[0] < 600_000);
     const recent = u.rewardLog.reduce((a, r) => a + r[1], 0);
     const allowed = Math.max(0, 6000 - recent);
@@ -361,10 +365,8 @@ export class Accounts {
       if (kind === 'win') u.stats.wins++;
       if (kind === 'trick') u.stats.tricks++;
       u.xp = (u.xp || 0) + xpFor(kind, amount);
-      const C = this.chal(u);
-      for (const [k, n] of Object.entries(statsFor(kind, amount))) { C.d[k] = (C.d[k] || 0) + n; C.w[k] = (C.w[k] || 0) + n; }
-      this.save();
     }
+    this.save();
     return { profile: this.profile(u), added: amount + bonus };
   }
 
