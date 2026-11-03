@@ -9,7 +9,7 @@
 //    a ribbon across the bottom (Gold up), plus sparkles at the top tiers.
 //  Also the rank-up animation shown after a ranked race.
 // =====================================================================
-import { RANK_TIERS } from '/shared/shop.js';
+import { RANK_TIERS, rankTier } from '/shared/shop.js';
 import { RANK_IMG } from './rankImages.js';
 
 // [light, mid, dark, deepest, accent gem] per tier
@@ -167,4 +167,73 @@ export function rankUpAnimation(from, to, rating, delta) {
   const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 400); };
   el.onclick = close;
   setTimeout(() => el.isConnected && close(), 6500);
+}
+
+// ---------------------------------------------------------------------
+// after a ranked race: a full screen with how it went and what it did to your rating.
+// VICTORY / DEFEAT, your badge, the rating counting from before to after with a +/- pill,
+// and the bar toward the next rank filling (or draining). A promotion fills the bar, flashes and
+// swaps the badge for the new one; a demotion drains it and swaps down. Every number and the bar
+// are driven frame by frame here (not CSS animations), so it always plays all the way through.
+const ease3 = (x) => 1 - (1 - x) ** 3;
+function tierFrac(rating) {
+  const tier = rankTier(rating), nx = nextTier(tier), from = tierStart(tier);
+  return nx ? Math.max(0, Math.min(1, (rating - from) / (nx[1] - from))) : 1;
+}
+export function rankResult(m) {
+  const before = m.rating - m.delta, won = m.pos === 1, up = m.delta >= 0;
+  const el = document.createElement('div');
+  el.className = 'rr ' + (won ? 'win' : 'lose');
+  el.innerHTML = `<div class="rr-glow"></div><div class="rr-box">
+      <div class="rr-kind">RANKED RACE</div>
+      <div class="rr-title">${won ? 'VICTORY' : 'DEFEAT'}</div>
+      <div class="rr-badge"></div>
+      <div class="rr-tier"></div>
+      <div class="rr-num"><b>${before}</b><i class="rr-delta ${up ? 'up' : 'down'}">${up ? '+' : ''}${m.delta}</i></div>
+      <div class="rr-bar"><i></i></div>
+      <div class="rr-next"></div>
+      <div class="rr-hint">click to continue</div></div>`;
+  document.getElementById('ui').appendChild(el);
+  const $q = (s) => el.querySelector(s);
+  const badge = $q('.rr-badge'), tierEl = $q('.rr-tier'), num = $q('.rr-num b'), fill = $q('.rr-bar i'), next = $q('.rr-next'), delta = $q('.rr-delta');
+  const showTier = (t) => { badge.innerHTML = rankBadge(t, 170); tierEl.textContent = t.toUpperCase(); tierEl.className = 'rr-tier tier-name ' + t; };
+  const showNext = (r) => { const nx = nextTier(rankTier(r)); next.textContent = nx ? `${nx[1] - r} to ${nx[0]}` : 'Top rank'; };
+  showTier(m.was || rankTier(before)); showNext(before);
+  fill.style.width = tierFrac(before) * 100 + '%';
+  requestAnimationFrame(() => el.classList.add('in'));
+  // the sequence: hold, count + bar, (promotion / demotion swap), settle
+  const t0 = performance.now() + 900, dur = 1500;
+  const changed = m.tier !== (m.was || rankTier(before));
+  let swapped = false;
+  const step = (now) => {
+    if (!el.isConnected) return;
+    const k = Math.max(0, Math.min(1, (now - t0) / dur)), e = ease3(k);
+    const r = Math.round(before + m.delta * e);
+    num.textContent = r;
+    if (k > 0) delta.classList.add('show');
+    if (changed && !swapped) {
+      // fill to the end (or drain to nothing) first, then swap to the new rank
+      const goal = up ? 1 : 0, f0 = tierFrac(before);
+      const kk = Math.min(1, e * 1.8);
+      fill.style.width = (f0 + (goal - f0) * kk) * 100 + '%';
+      if (kk >= 1) {
+        swapped = true; showTier(m.tier); el.classList.add(up ? 'promoted' : 'demoted');
+        fill.style.transition = 'none'; fill.style.width = (up ? 0 : 100) + '%';
+        $q('.rr-kind').textContent = up ? 'PROMOTED' : 'DEMOTED';
+      }
+    } else {
+      const fStart = swapped ? (up ? 0 : 1) : tierFrac(before), fEnd = tierFrac(m.rating);
+      const kk = swapped ? Math.min(1, Math.max(0, (e - 0.55) / 0.45)) : e;
+      fill.style.width = (fStart + (fEnd - fStart) * kk) * 100 + '%';
+    }
+    showNext(r);
+    if (k < 1) requestAnimationFrame(step);
+    else { num.textContent = m.rating; showNext(m.rating); fill.style.width = tierFrac(m.rating) * 100 + '%'; }
+  };
+  requestAnimationFrame(step);
+  // timers too: if the page is in the background frames stop, but the end state still lands
+  setTimeout(() => { if (el.isConnected && !el.classList.contains('done')) { el.classList.add('done'); step(t0 + dur + 1); } }, 900 + dur + 400);
+  const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 450); };
+  el.onclick = close;
+  setTimeout(() => el.isConnected && close(), 9000);
 }

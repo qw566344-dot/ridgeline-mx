@@ -51,19 +51,19 @@
     <header id="topbar" hidden>
       <div class="brand"><img src="img/logo.png" alt="Ridgeline MX" class="brand-logo"></div>
       <nav id="nav">
-        <button data-go="home">Lobby</button>
-        <button data-go="ranked">Ranked</button>
-        <button data-go="garage">Garage</button>
-        <button data-go="shop">Shop</button>
-        <button data-go="leaderboard">Leaderboard</button>
-        <button data-go="replays">Replays</button>
-        <button data-go="challenges">Challenges <b id="chal-dot" class="badge" hidden>!</b></button>
-        <button data-go="casino">Casino</button>
+        <button data-go="home"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4"/><path d="M4 4h13l-2.5 4L17 12H4"/></svg><span>Lobby</span></button>
+        <button data-go="ranked"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M8.5 12.5l3.5-3 3.5 3"/></svg><span>Ranked</span></button>
+        <button data-go="garage"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span>Garage</span></button>
+        <button data-go="shop"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span>Shop</span></button>
+        <button data-go="leaderboard"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21V11"/><path d="M12 21V5"/><path d="M16 21v-7"/><path d="M4 21h16"/></svg><span>Leaderboard</span></button>
+        <button data-go="replays"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4"/></svg><span>Replays</span></button>
+        <button data-go="challenges"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.6"/></svg><span>Challenges</span><b id="chal-dot" class="badge" hidden>!</b></button>
+        <button data-go="casino"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="9" cy="15" r="1"/></svg><span>Casino</span></button>
+        <button id="updates-btn" class="nav-updates" title="What's new"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M18 8h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2"/><path d="M8.5 8h6M8.5 12h6M8.5 16h4"/></svg><span>Updates</span><i id="updates-dot" class="new-pill" hidden>NEW</i></button>
       </nav>
       <div class="top-right">
         <button id="friends-btn" class="updates-btn sq-btn" data-go="friends" title="Friends" aria-label="Friends"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18 14.4c2.1.7 3.5 2.6 3.5 5.6"/></svg><b id="friends-badge" class="badge sq-badge" hidden></b></button>
         <button id="settings-btn" class="updates-btn sq-btn gear-btn" data-go="settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
-        <button id="updates-btn" class="updates-btn" title="What's new"><span>!</span><i id="updates-dot" class="updates-dot" hidden></i></button>
         <button id="region-chip" class="chip" title="Server region and ping"><i class="dot"></i><span id="region-text">Offline</span></button>
         <div class="chip level" id="level-chip" title="Your level - earn XP from laps, wins and tricks"><b id="top-level">Lv 1</b><i class="xpbar"><i id="top-xp"></i></i></div>
         <div class="chip coins" title="Coins - earn them by riding"><i class="coin"></i><b id="top-coins">0</b></div>

@@ -188,33 +188,32 @@ export class Audio {
   }
 
   // exhaust backfire: n pops, each a sharp crack with a low thump (k = how hard)
-  // a backfire: for each pop a sharp CRACK (bright noise, a couple of ms to full), a BANG under it
-  // (a sine dropping fast through the low end, slightly overdriven) and a short rumbling tail
+  // a backfire / overrun burble: a quick run of round, low pops out of the pipe - "brap-pap-pop" -
+  // not a gunshot. Each pop is a short burst of dark (low-passed) noise with a soft low thump under
+  // it; the run gets quieter and a touch higher as it dies away. Harder (k) = more and fuller pops.
   backfire(n, k) {
     if (!this.ready) return;
     const c = this.ctx, t0 = c.currentTime;
-    if (!this.bangShape) { // soft clipper: makes the thump punchy instead of a clean beep
-      const cv = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 127.5 - 1; cv[i] = Math.tanh(x * 3) / Math.tanh(3); }
+    if (!this.bangShape) {
+      const cv = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 127.5 - 1; cv[i] = Math.tanh(x * 2) / Math.tanh(2); }
       this.bangShape = cv;
     }
-    const v = Math.min(1.2, 0.55 + k * 0.6);
-    for (let j = 0; j < n; j++) {
-      const t = t0 + j * (0.045 + Math.random() * 0.05);
-      // crack
+    const v = Math.min(1, 0.45 + k * 0.45);
+    const pops = Math.max(2, Math.round(n * (1.6 + Math.random())));
+    let t = t0;
+    for (let j = 0; j < pops; j++) {
+      const fade = 1 - (j / pops) * 0.55, a = v * fade * (0.7 + Math.random() * 0.3);
+      // the pop: dark noise, quick in, quick out
       const src = c.createBufferSource(); src.buffer = this.noise;
-      const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900 + Math.random() * 500;
-      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.58 * v, t + 0.002); g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-      src.connect(hp); hp.connect(g); g.connect(this.fxBus); src.start(t, Math.random()); src.stop(t + 0.07);
-      // bang
-      const o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(150 + Math.random() * 30, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.09);
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 650 + Math.random() * 450 + j * 60; lp.Q.value = 1.4;
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.42 * a, t + 0.004); g.gain.exponentialRampToValueAtTime(0.001, t + 0.05 + Math.random() * 0.02);
+      src.connect(lp); lp.connect(g); g.connect(this.fxBus); src.start(t, Math.random()); src.stop(t + 0.08);
+      // the thump under it
+      const o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(95 + Math.random() * 30 + j * 6, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.06);
       const sh = c.createWaveShaper(); sh.curve = this.bangShape;
-      const og = c.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.52 * v, t + 0.003); og.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
-      o.connect(sh); sh.connect(og); og.connect(this.fxBus); o.start(t); o.stop(t + 0.14);
-      // tail
-      const tl = c.createBufferSource(); tl.buffer = this.noise;
-      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
-      const tg = c.createGain(); tg.gain.setValueAtTime(0.0001, t); tg.gain.linearRampToValueAtTime(0.28 * v, t + 0.01); tg.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      tl.connect(lp); lp.connect(tg); tg.connect(this.fxBus); tl.start(t, Math.random()); tl.stop(t + 0.24);
+      const og = c.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.32 * a, t + 0.005); og.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      o.connect(sh); sh.connect(og); og.connect(this.fxBus); o.start(t); o.stop(t + 0.08);
+      t += 0.035 + Math.random() * 0.045; // irregular, like a real burble
     }
   }
 

@@ -24,6 +24,7 @@ const PARTY_EXPIRY = 120_000;     // ms an empty party survives
 const MAX_PER_IP = 16;
 const MAX_CONNECTIONS = 600;
 const RACE_LIMIT_AFTER_WINNER = 60_000;
+const AFK_MS = Number(process.env.AFK_MS) || 45_000;            // a racer who has not moved this long is out (and a 1v1 ends there)
 
 const tracks = new Map();
 function trackInfo(id) {
@@ -417,6 +418,8 @@ export class Lobby {
   leave(p, notify) {
     const party = p.party;
     if (!party) return;
+    const S = party.session;
+    if (party.match && S && !S.over && S.mode === 'race' && Date.now() > S.goAt && !p.finished) { p.out = 'left'; this.finishSession(party); }
     party.members.delete(p.id);
     p.party = null; p.state = null; p.ready = false;
     if (party.session) party.session.players = party.session.players.filter((x) => x.id !== p.id);
@@ -448,7 +451,7 @@ export class Lobby {
     const info = trackInfo(S.track);
     p.lap = new LapTracker(info.T);
     p.lap.reset(S.mode === 'timetrial' ? 'flying' : 'race', 0);
-    p.finished = false; p.finishTime = null; p.score = 0; p.state = null; p.lastPos = null; p.sHint = null; p.flags = 0;
+    p.finished = false; p.out = null; p.activeAt = 0; p.afkPos = null; p.finishTime = null; p.score = 0; p.state = null; p.lastPos = null; p.sHint = null; p.flags = 0;
   }
 
   start(p) {
@@ -536,6 +539,7 @@ export class Lobby {
       const dist = Math.hypot(x - p.lastPos[0], z - p.lastPos[2]);
       if (dist > GAME.maxSpeed * dt + 6 && now - (p.resetAt || 0) > 1500) { trusted = false; p.flags = (p.flags || 0) + 1; }
     }
+    if (!p.afkPos || Math.hypot(x - p.afkPos[0], z - p.afkPos[2]) > 4) { p.afkPos = [x, y, z]; p.activeAt = now; }
     p.state = d; p.stateTime = now; p.lastPos = [x, y, z];
     // the server runs the lap rules itself
     if (p.lap && trusted && S.mode !== 'freeride' && S.mode !== 'freestyle' && now >= S.goAt && !p.finished) {
@@ -559,6 +563,7 @@ export class Lobby {
     if (S.mode === 'freestyle') return list.sort((a, b) => (b.score || 0) - (a.score || 0));
     if (S.mode === 'timetrial') return list.sort((a, b) => (a.lap.bestLap ?? 1e9) - (b.lap.bestLap ?? 1e9));
     return list.sort((a, b) => {
+      if (!!a.out !== !!b.out) return a.out ? 1 : -1;
       if (a.finished && b.finished) return a.finishTime - b.finishTime;
       if (a.finished) return -1; if (b.finished) return 1;
       return b.lap.progress(b.sHint ?? 0) - a.lap.progress(a.sHint ?? 0);
@@ -568,7 +573,7 @@ export class Lobby {
   sendRace(party) {
     const S = party.session;
     if (!S || S.mode === 'freeride') return;
-    const rows = this.standings(party).map((p, i) => ({ id: p.id, name: p.name, pos: i + 1, laps: p.lap.laps, best: p.lap.bestLap, last: p.lap.lastLap, finished: !!p.finished, time: p.finishTime, score: p.score || 0, connected: p.connected }));
+    const rows = this.standings(party).map((p, i) => ({ id: p.id, name: p.name, pos: i + 1, laps: p.lap.laps, best: p.lap.bestLap, last: p.lap.lastLap, finished: !!p.finished, time: p.finishTime, score: p.score || 0, connected: p.connected, out: p.out || null }));
     const msg = JSON.stringify({ t: 'race', mode: S.mode, laps: S.laps, rows, over: !!S.over });
     for (const m of party.members.values()) if (m.conn) m.conn.send(msg);
     return rows;
@@ -609,8 +614,20 @@ export class Lobby {
       if (S.waiting && now - S.started > LOAD_WAIT_MS) this.go(party);
       // race end conditions
       if (S.mode === 'race' && !S.over && now > S.goAt) {
-        const racers = S.players.map((sp) => this.players.get(sp.id)).filter((x) => x && x.party === party);
-        const live = racers.filter((x) => x.connected);
+        const racers = S.players.filter((sp) => !sp.spectator).map((sp) => this.players.get(sp.id)).filter((x) => x && x.party === party);
+        // AFK: not moved for AFK_MS (or never moved since the gate) = out. Fewer than two riders
+        // still in it (a 1v1, or everyone else gone) ends the match there and then.
+        for (const x of racers) {
+          if (x.finished || x.out) continue;
+          if (now - Math.max(x.activeAt || 0, S.goAt) > AFK_MS) {
+            x.out = 'afk';
+            this.log(`[${party.code}] ${x.name} AFK - out of the race`);
+            for (const m of party.members.values()) if (m.conn) m.conn.send({ t: 'afk', id: x.id, name: x.name });
+          }
+        }
+        const still = racers.filter((x) => x.connected && !x.out && !x.finished);
+        if (racers.some((x) => x.out === 'afk') && racers.length >= 2 && still.length + racers.filter((x) => x.finished).length < 2) { this.finishSession(party); continue; }
+        const live = racers.filter((x) => x.connected && !x.out);
         if ((live.length && live.every((x) => x.finished)) || (S.firstFinish && now - S.firstFinish > RACE_LIMIT_AFTER_WINNER)) this.finishSession(party);
       }
       if (S.mode === 'freestyle' && !S.over && now > S.goAt + S.laps * 60_000) this.finishSession(party);
@@ -644,7 +661,7 @@ export class Lobby {
 
   partyMsg(party) {
     return {
-      t: 'party', code: party.code, leader: party.leader, settings: party.settings,
+      t: 'party', code: party.code, leader: party.leader, settings: party.settings, match: party.match ? party.match.mode : null,
       session: party.session && !party.session.over ? { id: party.session.id, mode: party.session.mode } : null,
       members: [...party.members.values()].map((m) => ({ id: m.id, name: m.name, vehicle: m.vehicle, color: m.color, ready: m.ready, connected: m.connected, ping: m.ping, number: m.number })),
     };

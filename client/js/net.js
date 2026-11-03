@@ -21,7 +21,7 @@ import { PROTOCOL_VERSION, SEND_RATE, SNAPSHOT_RATE, INTERP_DELAY, packState, cl
 import { getVehicle } from '/shared/vehicles.js';
 import { regionList, wsUrlFor, measurePing } from './config.js';
 import { escapeHtml, ordinal } from './util.js';
-import { rankUpAnimation, rankBadge } from './ranks.js';
+import { rankResult } from './ranks.js';
 
 const $ = (id) => document.getElementById(id);
 const _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
@@ -109,11 +109,8 @@ export class Net {
     if (ui.screen === 'home') { ui.renderMatchmaking(); if (!ui.mmState) ui.renderHome(); }
   }
   onRank(m) {
-    const up = m.delta >= 0;
-    const tierUp = m.tier !== m.was;
-    // promoted: the full-screen rank up; otherwise a popup with the new rating
-    if (tierUp && up) setTimeout(() => rankUpAnimation(m.was, m.tier, m.rating, m.delta), 1800);
-    else this.ui.popup(`<div class="rk-pop">${rankBadge(m.tier, 40)}<div><b>Ranked: ${m.pos === 1 ? 'you won!' : 'finished #' + m.pos}</b><br>${m.tier} ${m.rating} (${up ? '+' : ''}${m.delta})${tierUp ? ' - down to ' + m.tier : ''}</div></div>`, up ? 'good' : 'bad', null, 9);
+    // the full-screen ranked result (rating counting, the bar filling, promotion / demotion)
+    setTimeout(() => rankResult(m), 1500);
     const A = this.ui.account;
     if (A && A.init) A.init();
   }
@@ -226,6 +223,7 @@ export class Net {
       case 'session': if (this.ui.mmState) { this.ui.mmState = null; this.ui.renderMatchmaking(); } this.onSession(m); break;
       case 'queue': this.onQueue(m); break;
       case 'rank': this.onRank(m); break;
+      case 'afk': if (this.game && this.game.toast) this.game.toast(m.id === this.id ? 'You were AFK too long - out of the race' : m.name + ' was AFK too long - out of the race', 3, m.id === this.id ? 'bad' : ''); break;
       case 'go': // everyone has loaded: start the 3-2-1
         if (this.session && this.session.id === m.id) {
           this.session.goAt = m.goAt; this.session.waiting = false;

@@ -5,7 +5,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import { PROTOCOL_VERSION } from '../shared/protocol.js';
 fs.rmSync('tools/out/mm-data', { recursive: true, force: true });
-const srv = spawn(process.execPath, ['server/server.js'], { env: { ...process.env, PORT: '5398', DATA_DIR: 'tools/out/mm-data' } });
+const srv = spawn(process.execPath, ['server/server.js'], { env: { ...process.env, PORT: '5398', DATA_DIR: 'tools/out/mm-data', AFK_MS: '3000' } });
 await new Promise((r) => setTimeout(r, 1500));
 const B = 'http://localhost:5398';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -57,6 +57,17 @@ for (const { acc, cl } of T) cl.send({ t: 'queue', mode: 'ranked', auth: acc.tok
 await wait(4000);
 const ses = T.map(({ cl }) => cl.msgs.find((m) => m.t === 'session'));
 check('ranked is 1v1: three queued -> one 2-rider race, one still waiting', ses.filter(Boolean).length === 2 && ses.filter(Boolean).every((s) => s.players.length === 2));
+// a ranked race is a match, not a party
+const inRace = T.filter(({ cl }) => cl.msgs.some((m) => m.t === 'session'));
+const pm = [...inRace[0].cl.msgs].reverse().find((m) => m.t === 'party');
+check('a ranked race is flagged as a match (no lobby party)', pm && pm.match === 'ranked');
+// nobody moves: once the gate drops they are AFK and the match ends (AFK_MS is 3 s here)
+const res = await until(inRace[0].cl, (m) => m.t === 'results', 30000);
+check('AFK riders are put out and the match ends', !!res && res.rows.some((r) => r.out === 'afk') && inRace[0].cl.msgs.some((m) => m.t === 'afk'));
+// going back to the lobby leaves the match: you are on your own again
+inRace[0].cl.send({ t: 'leave' });
+const left = await until(inRace[0].cl, (m) => m.t === 'left', 5000);
+check('leaving after a ranked race puts you back on your own', !!left);
 
 srv.kill();
 for (const x of [a, b, c, r1, r2, ...T.map((t) => t.cl)]) x.ws.close();

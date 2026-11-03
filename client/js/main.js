@@ -155,7 +155,9 @@ async function backToLobby() {
   input.enabled = true;
   if (game.opts && game.opts.mp) {
     // the leader heading back to the lobby ends the session for the party
-    if (net.isLeader() && net.session) net.send({ t: 'end' });
+    // a matchmade race (ranked / casual): you leave it and are on your own again
+    if (net.party && net.party.match) { net.send({ t: 'leave' }); net.party = null; net.code = null; }
+    else if (net.isLeader() && net.session) net.send({ t: 'end' });
     net.leaveSession();
   }
   game.stop();
