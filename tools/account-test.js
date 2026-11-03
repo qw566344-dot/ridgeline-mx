@@ -5,7 +5,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { shopRotation } from '../shared/shop.js';
+import { shopRotation, TP_PER_COIN } from '../shared/shop.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = path.join(ROOT, 'tools/out/account-data');
@@ -29,7 +29,7 @@ try {
   for (const bad of ['FuckBoy', 'big_ass', 'S_h_i_t']) { const b = await api(null, 'register', { name: bad, password: pw }); ok(/not allowed/.test(b.error || ''), `bad name "${bad}" is refused`); }
   { const tk = (await api(null, 'register', { name: 'TrickTester', password: pw })).token; await api(tk, 'reward', { kind: 'trick', amount: 100 });
     const lb = await (await fetch(BASE + '/api/leaderboard')).json(), tg = await (await fetch(BASE + '/api/tags')).json();
-    ok(lb.tricks && lb.tricks[0].name === 'TrickTester' && lb.tricks[0].v === 500, 'trick coins add trick points to the leaderboard');
+    ok(lb.tricks && lb.tricks[0].name === 'TrickTester' && lb.tricks[0].v === Math.round(100 * TP_PER_COIN), 'trick coins add trick points to the leaderboard');
     ok(tg.tags.TrickTester && tg.tags.TrickTester[0][0] === '#1 LEADERBOARD', 'the top rider gets the #1 LEADERBOARD tag'); }
   { // challenges: progress from rewards, claim once for coins + XP
     const tk = (await api(null, 'register', { name: 'ChalTester', password: pw })).token;

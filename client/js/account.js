@@ -8,7 +8,7 @@
 // =====================================================================
 import { serverBase } from './config.js';
 import { hasBadWords } from '/shared/badwords.js';
-import { STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel } from '/shared/shop.js';
+import { STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel, TP_PER_COIN } from '/shared/shop.js';
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -378,7 +378,7 @@ export class Account {
     if (kind === 'lap') this.profile.stats.laps++;
     if (kind === 'win') this.profile.stats.wins++;
     if (kind === 'trick') this.profile.stats.tricks++;
-    if (kind === 'trick') this.profile.stats.tp = (this.profile.stats.tp || 0) + amount * 5;
+    if (kind === 'trick') this.profile.stats.tp = (this.profile.stats.tp || 0) + Math.round(amount * TP_PER_COIN);
     this.profile.xp = (this.profile.xp || 0) + xpFor(kind, amount);
     this.profile.level = levelInfo(this.profile.xp).level;
     this.persistLocal();

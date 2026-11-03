@@ -288,17 +288,20 @@ export const REWARDS = {
   lap: 40,                 // any completed lap
   record: 150,             // new personal best lap
   race: [500, 320, 220, 150, 110, 90, 80, 70], // by finishing position
-  trickPer100: 20,         // per 100 trick points (a backflip = 500 points = 100 coins)
-  bigAir: 15,              // over 1.3 s in the air
+  trickPer100: 6,          // per 100 trick points (a backflip = 500 points = 30 coins, under a lap)
+  bigAir: 10,              // over 1.3 s in the air
   section: 25,             // practice section completed
 };
 export const MAX_REWARD = 1500; // the most a single reward can be worth
+export const COIN_CAP = 4000;     // the most coins riding can earn in 10 minutes (challenges come on top)
+// trick points per trick coin: the server works the points out from the coins the game asks for
+export const TP_PER_COIN = 100 / REWARDS.trickPer100;
 
 // ---------------------------------------------------------------------
 //  PLAYER LEVELS: XP from laps, race finishes, wins and tricks.
 //  Level L needs 150 * L * (L - 1) XP in total (300 for level 2, 900 for 3...)
 // ---------------------------------------------------------------------
-export const XP = { lap: 60, race: 120, win: 300, trickPerCoin: 1, maxTrick: 400 };
+export const XP = { lap: 60, race: 120, win: 300, trickPerCoin: 2, maxTrick: 300 };
 export function xpFor(kind, coins) {
   if (kind === 'lap') return XP.lap;
   if (kind === 'race') return XP.race;

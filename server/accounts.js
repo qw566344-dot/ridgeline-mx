@@ -18,7 +18,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel, RANK_START, rankTier } from '../shared/shop.js';
+import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel, RANK_START, rankTier, TP_PER_COIN, COIN_CAP } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS, ownsSpecials } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
 import { Chat } from './chat.js';
@@ -341,11 +341,11 @@ export class Accounts {
     if (!Number.isFinite(amount) || amount <= 0) return { error: 'Bad amount' };
     amount = Math.min(MAX_REWARD, amount);
     const now = Date.now();
-    // trick points for the leaderboard: the game pays 1 coin per 5 trick points, so the points
+    // trick points for the leaderboard: the game pays coins for trick points (REWARDS.trickPer100), so the points
     // come from the coins asked for (before the coin cap), with their own cap per 10 min
     if (kind === 'trick') {
       u.tpLog = (u.tpLog || []).filter((r) => now - r[0] < 600_000);
-      const tp = Math.min(amount * 5, Math.max(0, 250_000 - u.tpLog.reduce((a, r) => a + r[1], 0)));
+      const tp = Math.min(Math.round(amount * TP_PER_COIN), Math.max(0, 250_000 - u.tpLog.reduce((a, r) => a + r[1], 0)));
       if (tp > 0) { u.stats.tp = (u.stats.tp || 0) + tp; u.tpLog.push([now, tp]); this.lbCache = null; this.save(); }
     }
     // challenge progress counts the ride itself, so it keeps going after the coin cap is hit
@@ -354,7 +354,7 @@ export class Accounts {
     for (const [k, n] of Object.entries(statsFor(kind, amount))) { C.d[k] = (C.d[k] || 0) + n; C.w[k] = (C.w[k] || 0) + n; }
     u.rewardLog = (u.rewardLog || []).filter((r) => now - r[0] < 600_000);
     const recent = u.rewardLog.reduce((a, r) => a + r[1], 0);
-    const allowed = Math.max(0, 6000 - recent);
+    const allowed = Math.max(0, COIN_CAP - recent);
     amount = Math.min(amount, allowed);
     // Double Coins event: the bonus is on top of the normal cap
     const bonus = amount * ((this.admin ? this.admin.coinFactor() : 1) - 1);

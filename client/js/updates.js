@@ -9,7 +9,8 @@ export const UPDATES = [
     id: '2026-11-02-a', date: 'Nov 2, 2026', title: 'Ranked is here, blackjack and backfires',
     items: [
       'Ranked is open: 1v1 races against a rider of your rank from the Ranked tab - climb from Bronze to Pro, with new rank badges and a rank-up celebration',
-      'Challenges: 3 daily and 3 weekly goals - finish them by riding and claim coins and XP',
+      'Challenges: 3 daily and 3 weekly goals - finish them by riding and claim big coin and XP prizes',
+      'Tricks pay fewer coins now - challenges, laps and race results are the way to earn',
       'The casino has its own screen with a real roulette wheel, blackjack table and a new crash graph',
       'Backfires: lift off the gas at high revs and the exhaust pops - harder on the bigger bikes',
       'New upgrade: Anti-Lag - instant power after a lift and louder backfires',
