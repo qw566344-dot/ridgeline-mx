@@ -270,12 +270,17 @@
 
     <!-- PASS -->
     <section id="pass" class="screen menu-screen pass-screen" hidden>
-      <div class="pass-head">
-        <div class="pass-title"><small id="pass-season">SEASON 1 PASS</small><h2>Level <span id="pass-level">1</span></h2><div class="pass-xp"><i id="pass-xpfill"></i></div><div id="pass-xptext" class="hint"></div></div>
-        <div class="pass-actions"><div id="pass-next" class="pass-next"></div><button id="pass-claimall" class="primary" hidden>Claim all</button><div id="pass-buybox"></div></div>
+      <div class="ps-wrap">
+        <div class="ps-top"><h1 class="ps-title">SEASON PASS</h1><div id="ps-season" class="ps-season"></div></div>
+        <div class="ps-boxes">
+          <div class="ps-level"><div class="ps-lvnum"><small>LEVEL</small><b id="ps-lv">1</b><small id="ps-max">/ 31</small></div>
+            <div class="ps-xp"><div class="ps-xpbar"><i id="ps-xpfill"></i></div><div id="ps-xptext" class="ps-xptext"></div></div></div>
+          <div id="ps-prem" class="ps-premium"></div>
+        </div>
+        <div class="ps-bar"><div id="ps-info" class="ps-info"></div><div class="ps-arrows"><button id="ps-left" aria-label="Back">&lsaquo;</button><button id="ps-right" aria-label="Forward">&rsaquo;</button></div></div>
+        <div class="ps-grid"><div class="ps-rowlabels"><span></span><span>FREE</span><span id="ps-passlabel">PASS</span></div><div id="ps-track" class="ps-track"></div></div>
+        <div class="ps-foot"><div id="ps-next" class="ps-next"></div><button id="ps-action" class="ps-action"></button></div>
       </div>
-      <div class="pass-rows"><div class="pass-labels"><span class="pl-prem">PREMIUM</span><span class="pl-free">FREE</span></div><div id="pass-track" class="pass-track"></div></div>
-      <p class="hint pass-foot">Earn XP from laps, races, wins and tricks - every level is a tier. The Premium Pass is bought with coins.</p>
     </section>
 
     <!-- CHALLENGES -->

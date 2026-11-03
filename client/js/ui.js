@@ -13,7 +13,7 @@
 import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES, SPECIAL_VEHICLES, SPECIAL_CATEGORY } from '/shared/vehicles.js';
 import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop, BUNDLES, getBundle, bundlePrice, levelInfo, vehicleLevel } from '/shared/shop.js';
-import { PASS, PASS_PRICE, PASS_SEASON } from '/shared/pass.js';
+import { PASS, PASS_PRICE, PASS_SEASON, PASS_TIERS } from '/shared/pass.js';
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
@@ -754,70 +754,80 @@ export class UI {
   }
 
   // ------------------------------------------------------------- pass
-  // two rows, one column per tier: PREMIUM on top (a reward every level, a picture of your bike in
-  // the skin), FREE underneath (every few levels). Locked / claim / claimed on each card; the buy
-  // button and "claim all" in the header. The row scrolls to your next reward.
+  // laid out like a season pass: a column per level, FREE on top, PASS underneath; your level marked,
+  // a lock on pass rewards you have not unlocked, the next reward and one big action button below.
+  // The row scrolls with the mouse wheel and the arrow buttons.
   renderPass() {
     const A = this.account, P = A && A.profile, xp = (P && P.xp) || 0, L = levelInfo(xp), S = this.settings;
     const gotF = new Set((P && P.pass) || []), gotP = new Set((P && P.passP) || []), prem = !!(P && P.passPremium);
     const online = A && A.mode === 'online';
-    $('pass-season').textContent = PASS_SEASON.toUpperCase() + ' PASS' + (prem ? '  -  PREMIUM' : '');
-    $('pass-level').textContent = L.level;
-    $('pass-xpfill').style.width = Math.round((L.into / L.need) * 100) + '%';
-    $('pass-xptext').textContent = `${L.into.toLocaleString()} / ${L.need.toLocaleString()} XP to level ${L.level + 1}`;
-    const ready = PASS.filter((t) => L.level >= t.level && ((t.free && !gotF.has(t.tier)) || (prem && !gotP.has(t.tier))));
-    const nextUp = PASS.find((t) => L.level < t.level);
-    $('pass-next').innerHTML = ready.length ? '' : nextUp ? `Next tier at <b>level ${nextUp.level}</b>` : 'Pass complete!';
-    $('pass-claimall').hidden = !(online && ready.length);
-    $('pass-claimall').textContent = ready.length > 1 ? `Claim all (${ready.length})` : 'Claim';
-    $('pass-buybox').innerHTML = prem ? '<span class="pass-owned">PREMIUM OWNED</span>'
-      : `<button id="pass-buy" class="pass-buy" ${online ? '' : 'disabled title="Needs an online account"'}><small>UNLOCK PREMIUM</small><b><i class="coin"></i>${PASS_PRICE.toLocaleString()}</b></button>`;
+    const LOCK = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>', CHECK = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>';
+    $('ps-season').textContent = PASS_SEASON.toUpperCase() + ' · RIDGELINE MX';
+    $('ps-lv').textContent = Math.min(L.level, PASS_TIERS + 1); $('ps-max').textContent = '/ ' + (PASS_TIERS + 1);
+    $('ps-xpfill').style.width = Math.round((L.into / L.need) * 100) + '%';
+    $('ps-xptext').textContent = `${L.into.toLocaleString()} / ${L.need.toLocaleString()} XP · LEVEL ${L.level + 1} NEXT`;
+    $('ps-info').innerHTML = `${PASS_TIERS} LEVELS · ${prem ? 'PREMIUM PASS OWNED' : LOCK + ' PASS REWARDS NEED THE PREMIUM PASS'}`;
+    $('ps-passlabel').innerHTML = prem ? 'PASS' : 'PASS ' + LOCK;
+    $('ps-prem').innerHTML = prem ? '<b>PREMIUM PASS</b><small>EVERY LEVEL UNLOCKED</small>' : `<b>PREMIUM PASS</b><small>${PASS_PRICE.toLocaleString()} COINS · A REWARD EVERY LEVEL</small>`;
+    $('ps-prem').classList.toggle('owned', prem);
     const veh = S.get('vehicle'), col = S.get('color'), gear = S.get('gear') || 'match';
     const info = (R) => {
-      if (!R) return null;
-      if (R.coins) return { name: `${R.coins.toLocaleString()} Coins`, kind: 'Coins', rar: '', art: `<div class="pt-art coin-art"><i class="coin"></i><b>${R.coins.toLocaleString()}</b></div>` };
+      if (R.coins) return { name: R.coins.toLocaleString() + ' Coins', kind: 'Coins', rar: '', art: `<div class="pc-coin"><i class="coin"></i><b>${R.coins.toLocaleString()}</b></div>` };
       const it = shopItem(R.slot, R.id), r = rarityOf(it), rar = r && r !== 'Common' && r !== 'Uncommon' ? r : '';
-      const exclusive = it && it.pass;
       let name, img;
-      if (R.slot === 'color') { const c = BIKE_COLORS.find((q) => q.id === R.id); name = c ? c.name : R.id; img = this.thumbs && this.thumbs.get(veh, R.id, gear); }
+      if (R.slot === 'color') { const k = BIKE_COLORS.find((q) => q.id === R.id); name = k ? k.name : R.id; img = this.thumbs && this.thumbs.get(veh, R.id, gear); }
       else { const g = GEAR_SETS.find((q) => q.id === R.id); name = g ? g.name : R.id; img = this.thumbs && this.thumbs.get(veh, col, R.id); }
-      const art = img ? `<div class="pt-art pic"><img src="${img}" alt=""></div>` : '<div class="pt-art pic loading"></div>';
-      return { name, kind: (exclusive ? 'Pass exclusive ' : '') + (R.slot === 'gear' ? 'rider kit' : 'skin'), rar, art, exclusive };
+      return { name, kind: (it && it.pass ? 'Pass exclusive ' : '') + (R.slot === 'gear' ? 'rider kit' : 'skin'), rar, excl: !!(it && it.pass), art: img ? `<img src="${img}" alt="">` : '<div class="pc-wait"></div>' };
     };
-    const card = (t, R, track) => {
-      const I = info(R);
-      if (!I) return '<div class="pt empty"></div>';
-      const got = track === 'premium' ? gotP.has(t.tier) : gotF.has(t.tier);
+    const cell = (t, R, track) => {
+      if (!R) return '<div class="pc empty"></div>';
+      const I = info(R), got = (track === 'premium' ? gotP : gotF).has(t.tier);
       const st = got ? 'claimed' : L.level < t.level ? 'locked' : track === 'premium' && !prem ? 'needprem' : 'ready';
-      const foot = st === 'claimed' ? '<div class="pt-done">CLAIMED</div>' : st === 'ready' ? `<button class="small primary" data-pclaim="${t.tier}" data-track="${track}" ${online ? '' : 'disabled'}>Claim</button>`
-        : st === 'needprem' ? '<div class="pt-lock">PREMIUM</div>' : '<div class="pt-lock">LOCKED</div>';
-      return `<div class="pt ${track} ${st} ${I.rar.toLowerCase()}${I.exclusive ? ' excl' : ''}">${I.art}<div class="pt-name">${escapeHtml(I.name)}</div><div class="pt-rar">${I.rar ? I.rar + ' ' : ''}${I.kind}</div>${foot}</div>`;
+      const badge = got ? `<span class="pc-badge ok">${CHECK}</span>` : track === 'premium' && !prem ? `<span class="pc-badge">${LOCK}</span>` : '';
+      return `<button class="pc ${track} ${st} ${I.rar.toLowerCase()}${I.excl ? ' excl' : ''}" data-tier="${t.tier}" data-track="${track}" title="${escapeHtml(I.name)} - ${I.rar ? I.rar + ' ' : ''}${I.kind}">${I.art}${badge}${st === 'ready' ? '<span class="pc-claim">CLAIM</span>' : ''}</button>`;
     };
-    $('pass-track').innerHTML = PASS.map((t) => `<div class="pcol${L.level >= t.level ? ' reached' : ''}" data-tier="${t.tier}">
-        ${card(t, t.premium, 'premium')}<div class="pcol-lv"><b>${t.tier}</b><small>LV ${t.level}</small></div>${card(t, t.free, 'free')}</div>`).join('');
-    const claim = async (body) => {
-      const r = await A.api('pass/claim', body).catch(() => null);
-      if (!r || r.error) { this.popup((r && r.error) || 'Could not claim', 'bad'); return; }
+    const cur = Math.min(L.level - 1, PASS_TIERS); // the tier you are on
+    $('ps-track').innerHTML = PASS.map((t) => `<div class="pcl${t.tier === Math.max(1, cur) ? ' you' : ''}${L.level >= t.level ? ' reached' : ''}"><div class="pcl-n">${t.tier === Math.max(1, cur) ? 'YOU · ' : ''}${t.level}</div>${cell(t, t.free, 'free')}${cell(t, t.premium, 'premium')}</div>`).join('');
+    // next reward + the big button
+    const ready = PASS.filter((t) => L.level >= t.level && ((t.free && !gotF.has(t.tier)) || (prem && !gotP.has(t.tier))));
+    const up = PASS.find((t) => L.level < t.level || (prem && !gotP.has(t.tier)) || (t.free && !gotF.has(t.tier)));
+    if (up) {
+      const R = prem || !up.free ? up.premium : up.free, I = info(R), tr = R === up.premium ? 'PASS' : 'FREE';
+      $('ps-next').innerHTML = `<div class="pn-art">${I.art}</div><div><small>NEXT · LEVEL ${up.level} · ${tr}</small><b>${escapeHtml(I.name)}</b><small class="pn-kind">${I.rar ? I.rar.toUpperCase() + ' ' : ''}${I.kind.toUpperCase()}</small></div>`;
+    } else $('ps-next').innerHTML = '<div><small>SEASON 1</small><b>Pass complete</b></div>';
+    const act = $('ps-action');
+    const arrow = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg>';
+    let mode = !online ? 'account' : ready.length ? 'claim' : !prem ? 'buy' : 'none';
+    act.className = 'ps-action ' + mode;
+    act.innerHTML = mode === 'account' ? `<span>LOG IN TO AN ONLINE ACCOUNT</span>${arrow}` : mode === 'claim' ? `<span>CLAIM ${ready.length > 1 ? 'ALL (' + ready.length + ')' : 'REWARD'}</span>${arrow}`
+      : mode === 'buy' ? `<span>UNLOCK PREMIUM PASS</span><em><i class="coin"></i>${PASS_PRICE.toLocaleString()}</em>${arrow}` : '<span>KEEP RIDING TO LEVEL UP</span>';
+    act.disabled = mode === 'none';
+    const finish = (r) => {
+      if (!r || r.error) { this.popup((r && r.error) || 'Something went wrong', 'bad'); return; }
       if (r.profile) { A.profile = r.profile; A.persistLocal && A.persistLocal(); A.changed(); }
-      this.popup(`Pass: <b>${escapeHtml(r.ok)}</b>`, 'good');
-      this.renderPass(); this.renderTop();
+      this.popup(`<b>${escapeHtml(r.ok)}</b>`, 'good'); this.renderPass(); this.renderTop();
     };
-    $('pass-track').querySelectorAll('[data-pclaim]').forEach((bt) => bt.onclick = () => { bt.disabled = true; claim({ tier: Number(bt.dataset.pclaim), track: bt.dataset.track }); });
-    $('pass-claimall').onclick = () => claim({ tier: 0 });
-    const buy = $('pass-buy');
-    if (buy) buy.onclick = () => this.popup(`<b>Unlock the Premium Pass?</b><br>${PASS_PRICE.toLocaleString()} coins - a reward at every level, pass-only skins and kits, and everything you have already reached.`, '',
-      [['Unlock', async () => {
-        const r = await A.api('pass/buy').catch(() => null);
-        if (!r || r.error) { this.popup((r && r.error) || 'Could not buy it', 'bad'); return; }
-        if (r.profile) { A.profile = r.profile; A.persistLocal && A.persistLocal(); A.changed(); }
-        this.popup('<b>Premium Pass unlocked!</b> Claim your rewards.', 'good');
-        this.renderPass(); this.renderTop();
-      }, true], ['Not now', () => {}]], 0);
+    act.onclick = async () => {
+      if (mode === 'account') { this.emit('logout'); return; }
+      if (mode === 'claim') { act.disabled = true; finish(await A.api('pass/claim', { tier: 0 }).catch(() => null)); return; }
+      if (mode === 'buy') this.popup(`<b>Unlock the Premium Pass for ${PASS_PRICE.toLocaleString()} coins?</b><br>A reward at every level - pass-only skins and kits - including every level you have already reached.`, '',
+        [['Unlock', async () => finish(await A.api('pass/buy').catch(() => null)), true], ['Not now', () => {}]], 0);
+    };
+    $('ps-track').querySelectorAll('.pc.ready').forEach((bt) => bt.onclick = async () => { bt.disabled = true; finish(await A.api('pass/claim', { tier: Number(bt.dataset.tier), track: bt.dataset.track }).catch(() => null)); });
+    $('ps-track').querySelectorAll('.pc.needprem').forEach((bt) => bt.onclick = () => act.click());
+    // scrolling: the wheel scrolls sideways, the arrows page along
+    const tr = $('ps-track');
+    if (!tr.dataset.wired) {
+      tr.dataset.wired = '1';
+      tr.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { tr.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+      $('ps-left').onclick = () => tr.scrollBy({ left: -tr.clientWidth * 0.8, behavior: 'smooth' });
+      $('ps-right').onclick = () => tr.scrollBy({ left: tr.clientWidth * 0.8, behavior: 'smooth' });
+    }
     if ($('pass-dot')) $('pass-dot').hidden = !(online && ready.length);
     if (!this.passScrolled) {
       this.passScrolled = true;
-      const focus = $('pass-track').querySelector('.pt.ready, .pt.needprem, .pt.locked');
-      if (focus) focus.closest('.pcol').scrollIntoView({ block: 'nearest', inline: 'center' });
+      const you = tr.querySelector('.pcl.you');
+      if (you) tr.scrollLeft = Math.max(0, you.offsetLeft - 140);
     }
   }
 

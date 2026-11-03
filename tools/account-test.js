@@ -52,7 +52,7 @@ try {
     const locked = await api(tk, 'pass/claim', { tier: 3, track: 'free' });
     ok(/level 4/i.test(locked.error || ''), 'a pass reward is locked until its level');
     const prem = await api(tk, 'pass/claim', { tier: 1, track: 'premium' }), poor = await api(tk, 'pass/buy');
-    ok(/premium/i.test(prem.error || '') && /25,000/.test(poor.error || ''), 'premium rewards need the pass, and the pass costs 25,000 coins');
+    ok(/premium/i.test(prem.error || '') && /60,000/.test(poor.error || ''), 'premium rewards need the pass, and the pass costs 60,000 coins');
     for (let i = 0; i < 31; i++) await api(tk, 'reward', { kind: 'lap', amount: 40 }); // 31 laps = 1860 XP = level 4
     const c0 = (await api(tk, 'me')).profile.coins;
     const got = await api(tk, 'pass/claim', { tier: 3, track: 'free' }), again = await api(tk, 'pass/claim', { tier: 3, track: 'free' });
@@ -104,7 +104,7 @@ try {
   { // buying the premium pass with coins, then claiming
     const tk = r.token;
     const bought = await api(tk, 'pass/buy'), twice = await api(tk, 'pass/buy');
-    ok(bought.ok && bought.profile.passPremium && bought.profile.coins === 1000000 - 25000 && /already/i.test(twice.error || ''), 'the premium pass is bought once with coins');
+    ok(bought.ok && bought.profile.passPremium && bought.profile.coins === 1000000 - 60000 && /already/i.test(twice.error || ''), 'the premium pass is bought once with coins');
     for (let i = 0; i < 6; i++) await api(tk, 'reward', { kind: 'lap', amount: 40 }); // level 2
     const all = await api(tk, 'pass/claim', { tier: 0 });
     ok(all.ok && all.profile.owned.includes('color:p-trailblazer') && all.profile.passP.includes(1), 'claim all pays the premium reward for each level reached');

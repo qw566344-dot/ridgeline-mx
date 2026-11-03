@@ -39,7 +39,7 @@ const social = new Social(account);
 ui.account = account; ui.game = game; ui.stage = stage; ui.social = social; ui.thumbs = thumbs;
 // shop pictures: redraw the shop a moment after new ones are ready
 let thumbTimer = null;
-thumbs.onReady(() => { if (ui.screen === 'pass' && !thumbTimer) thumbTimer = setTimeout(() => { thumbTimer = null; const t = document.getElementById('pass-track'), x = t.scrollLeft; ui.renderPass(); t.scrollLeft = x; }, 250); if (ui.screen === 'shop' && !thumbTimer) thumbTimer = setTimeout(() => { thumbTimer = null; const y = document.getElementById('shop-grid').scrollTop; ui.renderShop(); document.getElementById('shop-grid').scrollTop = y; }, 250); });
+thumbs.onReady(() => { if (ui.screen === 'pass' && !thumbTimer) thumbTimer = setTimeout(() => { thumbTimer = null; const t = document.getElementById('ps-track'), x = t.scrollLeft; ui.renderPass(); t.scrollLeft = x; }, 250); if (ui.screen === 'shop' && !thumbTimer) thumbTimer = setTimeout(() => { thumbTimer = null; const y = document.getElementById('shop-grid').scrollTop; ui.renderShop(); document.getElementById('shop-grid').scrollTop = y; }, 250); });
 game.account = account;
 const net = new Net(ui, game, settings);
 ui.casino = new CasinoUI(ui, account);
