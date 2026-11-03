@@ -493,7 +493,7 @@ export class UI {
     const list = $('garage-vehicles');
     list.innerHTML = '';
     // every vehicle shows; the ones you don't own are locked with their price (buy them right here)
-    const here = [...VEHICLES, ...PASS_VEHICLES, ...SPECIAL_VEHICLES].filter((x) => x.category === this.garageCat && (!SPECIAL_VEHICLES.includes(x) || owns('vehicle', x.id)))
+    const here = [...VEHICLES, ...PASS_VEHICLES, ...SPECIAL_VEHICLES].filter((x) => x.category === this.garageCat && (!SPECIAL_VEHICLES.includes(x) || owns('vehicle', x.id)) && (!x.passOnly || owns('vehicle', x.id) || !!(A && A.profile && A.profile.passPremium))) // pass vehicles: only for Premium Pass owners
       .sort((a, b) => (owns('vehicle', b.id) - owns('vehicle', a.id)) || (shopItem('vehicle', a.id).price - shopItem('vehicle', b.id).price));
     const myLevel = levelInfo((A && A.profile && A.profile.xp) || 0).level;
     for (const v of here) {
