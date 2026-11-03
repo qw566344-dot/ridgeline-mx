@@ -403,6 +403,24 @@ function buildUnicycle(cfg, scheme) {
   return { group, wheels: [w], steer: [], cranks };
 }
 
+// where each model's exhaust comes out, in the model file's own space (x forward, y up from the
+// ground, z across), and which way the pipe points. Found by eye on each model (the silencer tip),
+// so a backfire flash comes out of the real pipe on every variant that shares the model.
+const EXHAUST = {
+  bike: { p: [-0.72, 0.86, 0.08], d: [-1, 0.06, 0] },
+  q_atv90: { p: [-0.537, 0.49, -0.12], d: [-1, 0, 0] },
+  q_atv250: { p: [-0.766, 0.64, -0.18], d: [-1, 0, 0] },
+  q_atv450: { p: [-0.852, 0.72, -0.21], d: [-1, 0, 0] },
+  q_atv450w: { p: [-0.758, 0.68, -0.2], d: [-1, 0, 0] },
+  q_atv700: { p: [-0.944, 0.82, -0.22], d: [-1, 0, 0] },
+  q_atv1000: { p: [-0.942, 0.85, -0.21], d: [-1, 0, 0] },
+  utv: { p: [-1.725, 1.12, -0.38], d: [-0.8, 0.6, 0] },
+  sxs: { p: [-1.67, 0.55, -0.22], d: [-0.9, -0.4, 0] },
+};
+EXHAUST.utvr = EXHAUST.utvbaja = EXHAUST.utv;
+EXHAUST.sxs_up = EXHAUST.sxs_race = EXHAUST.sxs;
+const _ex = new THREE.Vector3();
+
 export class VehicleVisual {
   constructor(def, scheme, number = 1) {
     this.def = def;
@@ -621,6 +639,17 @@ export class VehicleVisual {
       this.placeholder.children[0].visible = false;
     }
     this.usingGLB = true;
+  }
+
+  // the exhaust tip and the way it points, in world space, following the drawn vehicle (its lean
+  // and where it is drawn this frame). False when there is no exhaust (specials, the electric bike)
+  exhaust(outPos, outDir) {
+    const E = EXHAUST[this.cfg.modelKey];
+    if (!E || !this.container || this.special) return false;
+    this.container.updateWorldMatrix(true, false);
+    outPos.fromArray(E.p).applyMatrix4(this.container.matrixWorld);
+    outDir.fromArray(E.d).transformDirection(this.container.matrixWorld);
+    return true;
   }
 
   // state: { lean, steer, wheels:[{comp, spin, steer}], crashed }

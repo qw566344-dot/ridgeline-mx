@@ -15,7 +15,7 @@ export const UPDATES = [
       'Backfires: lift off the gas at high revs for a loud bang and a flash from the exhaust - harder on the bigger bikes',
       'Engines sound much more real: punchy four-strokes, ringing two-strokes and a rumble that changes with the revs',
       'New upgrade: Anti-Lag - instant power after a lift and louder backfires',
-      'Four big new tricks: Indian Air (5), Hart Attack (6), Tsunami (7) and Kiss of Death (8) - and every trick moves more naturally',
+      'Tricks 1-4 look much better: the legs swing over the seat and bars instead of through them, the body follows, and each trick has a bit of life while you hold it',
       'Quads turn sharper, grip better and roll less',
       'Watching a race now has a TV-style Director camera that follows the best action (A/D to pick a rider), and the replay free cam flies like a drone',
       'A new lobby on a sunny track, new fonts, a cleaner top bar and smoother menus',

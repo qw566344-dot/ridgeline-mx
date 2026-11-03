@@ -686,35 +686,32 @@ export class Rider {
     J.pelvis.z += s.fore * 0.14 * (0.5 + s.stand);
     J.pelvis.y -= s.crouch * 0.22 * (0.4 + s.stand);
     J.pelvis.x += Math.sin(s.leanBody) * (air ? 0.16 : 0.1); // hips shift to the high side in a whip
-    // rider tricks (keys 1-8 in the air). The weight eases in and out (smoothstep, not a straight
-    // fade) and the parts are staged: the legs lead and the body follows a beat later, so a trick
-    // reads as a movement, not a morph. While it is held there is a little life in it.
+    // rider tricks (keys 1-4 in the air). Each one is a movement, not a morph:
+    //  - the weight eases in and out (smoothstep) and the parts are staged - the legs lead, the
+    //    body follows a beat later, the hands let go last (Cliffhanger)
+    //  - legs travel on curved paths (over the seat, over the bars), never straight through the bike
+    //  - while it is held there is a little life in it (a flutter, a reach, a click)
     const curPose = veh.controller && veh.controller.trick && !veh.grounded ? veh.controller.trick.cur : null;
     if (curPose && curPose !== s.poseId) s.poseT = 0;
     if (curPose) s.poseId = curPose;
     s.poseT = (s.poseT || 0) + dt;
-    s.pose += ((curPose ? 1 : 0) - s.pose) * Math.min(1, dt * 6.5);
+    s.pose += ((curPose ? 1 : 0) - s.pose) * Math.min(1, dt * 6);
     const P = s.pose > 0.01 ? s.poseId : null;
     const ease = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
-    const pw = ease(s.pose), pwL = ease(s.pose * 1.35), pwB = ease(s.pose * 1.35 - 0.35); // whole / legs first / body after
-    const life = P ? Math.sin(s.poseT * 2.4) * pw : 0;
+    const pw = ease(s.pose), pwL = ease(s.pose * 1.4), pwB = ease(s.pose * 1.4 - 0.4), pwH = ease(s.pose * 1.6 - 0.6); // whole / legs / body / hands
+    const held = P ? Math.min(1, s.poseT * 2) * pw : 0, life = Math.sin(s.poseT * 2.6);
     const gY = A.gripL.y, gZ = A.gripL.z;
-    if (P === 'Superman') { J.pelvis.y += 0.24 * pwB; J.pelvis.z -= 0.3 * pwB; }                // body stretched out behind the bars
-    if (P === 'Cliffhanger') J.pelvis.y += 0.28 * pwB;
-    if (P === 'Heel Clicker') { J.pelvis.y += 0.12 * pwB; J.pelvis.z -= 0.12 * pwB; }
-    if (P === 'Nac-Nac') { J.pelvis.x -= 0.12 * pwB; J.pelvis.y += 0.14 * pwB; }
-    if (P === 'Indian Air') { J.pelvis.y += (0.26 + life * 0.02) * pwB; J.pelvis.z -= 0.34 * pwB; } // stretched out back, legs running
-    if (P === 'Hart Attack') { J.pelvis.y += (0.4 + life * 0.02) * pwB; J.pelvis.z -= 0.24 * pwB; } // chest down on the bars, legs to the sky
-    if (P === 'Tsunami') J.pelvis.lerp(t.a.set(life * 0.015, gY + 1.0, gZ - 0.2), pwB);            // a handstand on the bars
-    if (P === 'Kiss of Death') J.pelvis.lerp(t.a.set(life * 0.015, gY + 0.98, gZ - 0.34), pwB);    // upside down, over the seat
-    // torso direction (forward lean + side lean). Most tricks add to the riding lean; the handstands
-    // turn the body right over (and the head goes with it, see applyBones)
+    if (P === 'Superman') { J.pelvis.y += (0.3 + life * 0.015 * held) * pwB; J.pelvis.z -= 0.36 * pwB; }       // pulled out flat behind the bars
+    if (P === 'Nac-Nac') { J.pelvis.x -= 0.14 * pwB; J.pelvis.y += 0.12 * pwB; J.pelvis.z -= 0.05 * pwB; }     // hips slide over as the leg goes across
+    if (P === 'Heel Clicker') { J.pelvis.y += 0.1 * pwB; J.pelvis.z -= 0.16 * pwB; }                             // sat back, legs up over the front
+    if (P === 'Cliffhanger') J.pelvis.lerp(t.a.set(J.pelvis.x, gY + 0.7 + life * 0.012 * held, gZ - 0.16), pwB);  // stood up tall, toes hooked under the bars
+    // torso direction (forward lean + side lean), each trick adding its own
     const base = (isBike ? 0.32 : 0.25) + s.stand * 0.38 + s.fore * 0.25 + s.crouch * 0.35;
-    const ADD = { Superman: 1.1, Cliffhanger: -0.3, 'Heel Clicker': -0.45, 'Nac-Nac': 0.15, 'Indian Air': 1.05, 'Hart Attack': 1.3 };
-    const OVER = { Tsunami: 2.72, 'Kiss of Death': 3.02 };
-    const pitch = P in OVER ? base + (OVER[P] + life * 0.03 - base) * pwB : base + (ADD[P] || 0) * pwB;
-    this.headFollow = P in OVER ? pwB : 0;
-    t.up.set(Math.sin(s.leanBody) * 0.9, Math.cos(pitch), Math.sin(pitch)).normalize();
+    const ADD = { Superman: 1.15, 'Nac-Nac': 0.12, 'Heel Clicker': -0.55, Cliffhanger: -0.42 };
+    const pitch = base + ((ADD[P] || 0) + (P === 'Superman' ? life * 0.02 * held : 0)) * pwB;
+    const twist = P === 'Nac-Nac' ? 0.35 * pwB : 0; // looking back over the shoulder in a nac-nac
+    this.headFollow = 0;
+    t.up.set(Math.sin(s.leanBody) * 0.9 - twist * 0.25, Math.cos(pitch), Math.sin(pitch)).normalize();
     J.neck.copy(J.pelvis).addScaledVector(t.up, LEN.torso);
     // shoulders
     t.fwd.set(0, -Math.sin(pitch), Math.cos(pitch));
@@ -733,8 +730,9 @@ export class Rider {
       G.dir.set(0, -0.45, 1).addScaledVector(t.a, 0.35).normalize();           // where the hand points
       t.c.set(0, 1, -0.3).addScaledVector(G.dir, -G.dir.dot(t.c.set(0, 1, -0.3))).normalize(); // back of the hand
       bar.addScaledVector(G.dir, -0.085).addScaledVector(t.c, 0.025);         // the wrist, from the bar
-      G.off = P === 'Cliffhanger' ? pw : 0; // tricks that let go of the bars
-      if (P === 'Cliffhanger') t.b.lerp(t.c.set(sh.x + sx * 0.3, sh.y + 0.5, sh.z + 0.05), pw);   // hands up
+      // Cliffhanger: the hands let go last and go up in a V, reaching and waving a little
+      G.off = P === 'Cliffhanger' ? pwH : 0;
+      if (P === 'Cliffhanger') t.b.lerp(t.c.set(sh.x + sx * (0.32 + 0.04 * life * held), sh.y + 0.52 + 0.03 * Math.sin(s.poseT * 3.1 + sx) * held, sh.z + 0.06), pwH);
       t.a.copy(sh).add(t.c.set(sx * 0.5, 0.12, -0.25));
       ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
     }
@@ -746,17 +744,22 @@ export class Rider {
       t.b.copy(peg).add(t.c.set(0, 0.08, -0.02));
       if (out > 0.01) t.b.lerp(t.c.set(sx * 0.42, -0.42, 0.55), out);
       if (dabK > 0.01) t.b.lerp(t.c.set(sx * 0.45, -0.8, 0.05), dabK);
-      if (P === 'Superman') t.b.lerp(t.c.set(sx * 0.18, seat.y + 0.55, seat.z - 1.05), pwL);          // legs flying out behind
-      if (P === 'Nac-Nac' && sx > 0) t.b.lerp(t.c.set(-0.55, pegY + 0.75, pegZ - 0.45), pwL);         // left leg swung over the back
-      if (P === 'Heel Clicker') t.b.lerp(t.c.set(sx * 0.13, gY + 0.14, gZ + 0.32), pwL);               // heels together over the bars
-      if (P === 'Cliffhanger') t.b.lerp(t.c.set(sx * 0.12, gY - 0.18, gZ + 0.08), pwL);
-      if (P === 'Indian Air') {                                                                         // legs scissor-running in the air
-        const ph = s.poseT * 8.5 + (sx > 0 ? 0 : Math.PI);
-        t.b.lerp(t.c.set(sx * 0.15, seat.y + 0.4 + Math.sin(ph) * 0.24, seat.z - 0.92 + Math.cos(ph) * 0.2), pwL);
+      // a curved path for a foot: from where it is (t.b), through 'via', to 'to', at u (0..1)
+      const arc = (via, to, u) => { const k = 1 - u; t.b.set(k * k * t.b.x + 2 * k * u * via[0] + u * u * to[0], k * k * t.b.y + 2 * k * u * via[1] + u * u * to[1], k * k * t.b.z + 2 * k * u * via[2] + u * u * to[2]); };
+      if (P === 'Superman') {          // legs straight out behind, together, toes pointed, a slow flutter
+        const fl = Math.sin(s.poseT * 5 + (sx > 0 ? 0 : 1.4)) * 0.05 * held;
+        arc([sx * 0.2, seat.y + 0.35, seat.z - 0.35], [J.pelvis.x + sx * 0.09, J.pelvis.y + 0.05 + fl, J.pelvis.z - 0.86], pwL);
       }
-      if (P === 'Hart Attack') t.b.lerp(t.c.copy(J.pelvis).add(t.a.set(sx * (0.12 + life * 0.02), 0.84, -0.14)), pwL); // legs straight up
-      if (P === 'Tsunami') t.b.lerp(t.c.copy(J.pelvis).add(t.a.set(sx * 0.1, 0.82, 0.14 + life * 0.03)), pwL);         // legs up, tipped over the front
-      if (P === 'Kiss of Death') t.b.lerp(t.c.copy(J.pelvis).add(t.a.set(sx * (0.08 + Math.max(0, life) * 0.04), 0.84, -0.18)), pwL); // straight up, a little scissor
+      if (P === 'Nac-Nac' && sx > 0) { // the left leg swings up OVER the back of the seat and out the other side
+        arc([0.05, seat.y + 0.6, seat.z - 0.45], [-0.55, pegY + 0.62 + life * 0.03 * held, pegZ - 0.42], pwL);
+      }
+      if (P === 'Heel Clicker') {      // both legs up over the front, outside the arms, heels clicking together
+        const click = Math.max(0, Math.sin(s.poseT * 7)) * 0.05 * held;
+        arc([sx * 0.32, gY - 0.02, gZ - 0.05], [sx * (0.07 + click), gY + 0.16, gZ + 0.34], pwL);
+      }
+      if (P === 'Cliffhanger') {       // toes hooked under the bars, legs straight
+        arc([sx * 0.22, gY - 0.3, gZ - 0.2], [sx * 0.13, gY - 0.16, gZ + 0.05], pwL);
+      }
       t.a.copy(hip).add(t.c.set(sx * 0.18, 0.05, 0.6));
       ik(hip, t.b, LEN.th, LEN.sh, t.a, kn, an);
       toe.copy(an).add(t.c.set(0, -0.06, 0.24));

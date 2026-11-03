@@ -32,7 +32,7 @@ void main() {
   #include <fog_fragment>
 }`;
 
-const _fp = new THREE.Vector3();
+const _fp = new THREE.Vector3(), _fd = new THREE.Vector3();
 // a soft round glow: white in the middle fading to nothing (for flashes)
 function makeGlowSprite() {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -188,12 +188,16 @@ export class Effects {
   // backfire / anti-lag: a BANG and a flash out of the exhaust - no smoke. Each pop is a split
   // second of light on the bike and the ground, a white-hot core with an orange glow round it,
   // and a short hard jet of flame. Pops come a few hundredths apart; harder (k) = bigger.
-  backfire(veh, n, k) {
-    for (let j = 0; j < n; j++) this.flashes.push({ veh, k: k * (0.75 + Math.random() * 0.35), wait: j * (0.045 + Math.random() * 0.05), t: 0, slot: null });
+  backfire(veh, n, k, vis) {
+    for (let j = 0; j < n; j++) this.flashes.push({ veh, vis, k: k * (0.75 + Math.random() * 0.35), wait: j * (0.045 + Math.random() * 0.05), t: 0, slot: null });
   }
-  exhaustPoint(veh, out) {
-    const f = veh.fwd, l = veh.left, p = veh.pos, back = veh.cfg.type === 'bike' ? 0.95 : 1.15;
-    return out.set(p.x - f.x * back - l.x * 0.18, p.y + 0.14, p.z - f.z * back - l.z * 0.18);
+  // the tip of the real exhaust pipe on the drawn vehicle (see VehicleVisual.exhaust) and the way it
+  // points; without a model, a point low at the back
+  exhaustPoint(F, out, dir) {
+    if (F.vis && F.vis.exhaust && F.vis.exhaust(out, dir)) return out;
+    const v = F.veh, f = v.fwd, p = v.pos;
+    dir.set(-f.x, -f.y, -f.z);
+    return out.set(p.x - f.x * 0.8, p.y + 0.1, p.z - f.z * 0.8);
   }
   updateFlashes(dt) {
     for (let i = this.flashes.length - 1; i >= 0; i--) {
@@ -203,22 +207,24 @@ export class Effects {
         F.slot = this.flashPool.find((s) => !s.busy);
         if (!F.slot) { this.flashes.splice(i, 1); continue; }
         F.slot.busy = true;
-        // the flame jet, fired once: fast, short-lived, white-yellow in the middle, orange outside
-        const v = F.veh, f = v.fwd, x = this.exhaustPoint(v, _fp);
-        for (let q = 0; q < 6 + F.k * 10; q++) {
-          const s = 6 + Math.random() * 9 * F.k, hot = Math.random(), sp = 0.9;
-          this.spawn(x.x, x.y, x.z, v.vel.x - f.x * s + (Math.random() - 0.5) * sp, v.vel.y + (Math.random() - 0.3) * sp, v.vel.z - f.z * s + (Math.random() - 0.5) * sp,
-            0.1 + F.k * 0.16 * (1 - hot * 0.5), 2.2, 0.05 + Math.random() * 0.06, 1, 1.6, 1.0 + hot * 0.5, 0.35 + hot * 0.55, 0, 6);
+        // the flame jet, fired once out along the pipe: fast, short-lived, yellow in the middle, orange outside
+        const v = F.veh, x = this.exhaustPoint(F, _fp, _fd);
+        for (let q = 0; q < 4 + F.k * 6; q++) {
+          const s = 5 + Math.random() * 7 * F.k, hot = Math.random(), sp = 0.6;
+          this.spawn(x.x, x.y, x.z, v.vel.x + _fd.x * s + (Math.random() - 0.5) * sp, v.vel.y + _fd.y * s + (Math.random() - 0.5) * sp, v.vel.z + _fd.z * s + (Math.random() - 0.5) * sp,
+            0.07 + F.k * 0.1 * (1 - hot * 0.5), 1.6, 0.04 + Math.random() * 0.05, 0.85, 1.15, 0.75 + hot * 0.35, 0.25 + hot * 0.4, 0, 6);
         }
       }
       F.t += dt;
-      const life = 0.075 + F.k * 0.03, a = Math.max(0, 1 - F.t / life), e = a * a;
-      const S = F.slot, x = this.exhaustPoint(F.veh, _fp);
-      S.light.position.copy(x); S.light.intensity = e * (14 + F.k * 22);
+      const life = 0.065 + F.k * 0.025, a = Math.max(0, 1 - F.t / life), e = a * a;
+      const S = F.slot, x = this.exhaustPoint(F, _fp, _fd);
+      // the glow sits a touch out of the pipe, so it reads as coming FROM the tip
+      x.addScaledVector(_fd, 0.05 + F.k * 0.05);
+      S.light.position.copy(x); S.light.intensity = e * (3 + F.k * 5);
       S.glow.position.copy(x); S.core.position.copy(x);
-      const sz = 0.55 + F.k * 0.7;
-      S.glow.scale.setScalar(sz * (1 + (1 - a) * 0.5)); S.core.scale.setScalar(sz * 0.4);
-      S.glow.material.opacity = e * 0.95; S.core.material.opacity = e;
+      const sz = 0.26 + F.k * 0.3;
+      S.glow.scale.setScalar(sz * (1 + (1 - a) * 0.4)); S.core.scale.setScalar(sz * 0.32);
+      S.glow.material.opacity = e * 0.55; S.core.material.opacity = e * 0.7;
       S.glow.visible = S.core.visible = a > 0;
       if (a <= 0) { S.busy = false; S.light.intensity = 0; this.flashes.splice(i, 1); }
     }

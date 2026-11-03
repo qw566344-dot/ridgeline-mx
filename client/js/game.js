@@ -604,7 +604,7 @@ export class Game {
           }
         } else if (e.type === 'backfire') {
           // exhaust pops: flame out of the back, a crack and a thump (only nearby riders are heard)
-          this.effects.backfire && this.effects.backfire(v, e.n, e.k);
+          this.effects.backfire && this.effects.backfire(v, e.n, e.k, r.vis);
           if (r.isPlayer) this.audio.backfire(e.n, e.k);
           else if (this.player && this.player.veh && v.pos.distanceTo(this.player.veh.pos) < 60) this.audio.backfire(e.n, e.k * 0.4);
         } else if (e.type === 'land') {
