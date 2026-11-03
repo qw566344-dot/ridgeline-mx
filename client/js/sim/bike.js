@@ -88,12 +88,17 @@ export class BikeController {
     const both = front.contact && rear.contact;
     const fwdW = both ? Math.max(0, inp.lean) : 0, backW = both ? Math.max(0, -inp.lean) : 0;
     this.yawTarget *= 1 + 0.18 * fwdW - 0.08 * backW;
-    // PRELOAD: hold E into a jump face to compress, let go to pop off the lip (or hop on the flat)
+    // PRELOAD: hold E into a jump face to compress, let go to pop off the lip. Only on a jump:
+    // letting go while the bike climbs a face, or just after leaving the lip. On the flat (leaning
+    // into a turn with E) letting go does nothing - that used to bunny-hop the bike
     const pressing = v.grounded && inp.lean > 0.3 && Math.abs(spd) > 3;
+    const climbing = v.grounded && v.fwd.y > 0.14;          // nose up a jump face
+    this.sinceFace = climbing ? 0 : (this.sinceFace ?? 9) + dt;
     if (pressing) this.preload = Math.min(1, (this.preload || 0) + dt * 2.2);
     else if (this.preload > 0) {
       const lipped = v.grounded || v.airTime < 0.22; // let go on the lip or just after it
-      if (inp.lean < 0.3 && lipped && this.preload > 0.2) {
+      const onJump = climbing || (!v.grounded && this.sinceFace < 0.3); // on the face, or just off it (not a bump in a turn)
+      if (inp.lean < 0.3 && lipped && onJump && this.preload > 0.2) {
         v.vel.addScaledVector(v.up, 2.4 * this.preload);
         v.events.push({ type: 'pop', amount: this.preload });
       }
