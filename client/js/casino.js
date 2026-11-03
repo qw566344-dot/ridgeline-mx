@@ -152,9 +152,18 @@ export class CasinoUI {
     if (disc) {
       const at = (WHEEL.indexOf(r.result) + 0.5) * step;
       const base = Math.ceil((this.wheelRot || 0) / 360) * 360;
-      this.wheelRot = base + 360 * 5 + (360 - at);
-      disc.style.transition = 'transform 2.6s cubic-bezier(.15,.65,.2,1)';
-      disc.style.transform = `rotate(${this.wheelRot}deg)`;
+      const from = this.wheelRot || 0, to = base + 360 * 5 + (360 - at);
+      this.wheelRot = to;
+      // animated frame by frame (a CSS transition can be skipped or frozen by the browser):
+      // fast at first, easing out to a stop on the pocket
+      const t0 = performance.now(), dur = 2600;
+      disc.style.transition = 'none';
+      const turn = (now) => {
+        const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3.2);
+        disc.style.transform = `rotate(${from + (to - from) * e}deg)`;
+        if (k < 1) setTimeout(() => turn(performance.now()), 16); // a timer, not animation frames: those pause in some panes
+      };
+      turn(t0);
     }
     const ball = $('rl-ball');
     let delay = 40, t = 0;

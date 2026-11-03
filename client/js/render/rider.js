@@ -285,6 +285,8 @@ export class Rider {
     this.attached = true;
     this.rag = null;
     this.tmp = { a: V(), b: V(), c: V(), up: V(), fwd: V(), left: V() };
+    this.grip = [{ dir: V(), off: 0 }, { dir: V(), off: 0 }]; // how each hand holds its grip (see updateRiding / applyBones)
+    this.gripOn = false;
   }
 
   // --- special: no vehicle, the rider crawls on all fours -------------------
@@ -596,8 +598,17 @@ export class Rider {
     J.shR.copy(J.neck).addScaledVector(t.left, -0.19).addScaledVector(t.up, -0.07);
     J.head.copy(J.neck).addScaledVector(t.up, 0.04);
     // arms to the grips, elbows up and out
-    for (const [sh, el, ha, grip, sx] of [[J.shL, J.elL, J.haL, A.gripL, 1], [J.shR, J.elR, J.haR, A.gripR, -1]]) {
-      t.b.copy(grip).add(t.c.set(0, 0.0, -0.03));
+    this.gripOn = true;
+    for (const [sh, el, ha, grip, sx, G] of [[J.shL, J.elL, J.haL, A.gripL, 1, this.grip[0]], [J.shR, J.elR, J.haR, A.gripR, -1, this.grip[1]]]) {
+      // holding the grip like a rider: the wrist bends so the hand lies forward over the bar
+      // (not hanging straight off the forearm) and the bar sits in the curl of the fingers, on the
+      // middle of the rubber grip (the grip points themselves sit by the lever perch)
+      const bar = t.b.subVectors(A.gripL, A.gripR).normalize().multiplyScalar(sx * 0.022).add(grip);
+      t.a.subVectors(bar, el.lengthSq() > 0 ? el : sh).normalize();             // forearm line (elbow from last frame)
+      G.dir.set(0, -0.45, 1).addScaledVector(t.a, 0.35).normalize();           // where the hand points
+      t.c.set(0, 1, -0.3).addScaledVector(G.dir, -G.dir.dot(t.c.set(0, 1, -0.3))).normalize(); // back of the hand
+      bar.addScaledVector(G.dir, -0.085).addScaledVector(t.c, 0.025);         // the wrist, from the bar
+      G.off = (P === 'Cliffhanger' || P === 'Lazy Boy' || (P === 'Seat Grab' && sx < 0)) ? pw : 0; // tricks that let go
       if (P === 'Cliffhanger') t.b.lerp(t.c.set(sh.x + sx * 0.3, sh.y + 0.5, sh.z + 0.05), pw);   // hands up
       if (P === 'Lazy Boy') t.b.lerp(t.c.set(sh.x + sx * 0.45, sh.y + 0.15, sh.z - 0.1), pw);      // arms out wide
       if (P === 'Seat Grab' && sx < 0) t.b.lerp(t.c.set(-0.12, seat.y + 0.12, seat.z - 0.35), pw);  // right hand on the back of the seat
@@ -627,6 +638,18 @@ export class Rider {
     this.applyBones(t.up, t.fwd);
   }
 
+  // a hand: on a grip it points where updateRiding aimed it, back of the hand up; otherwise
+  // (and while a trick lets go) it carries on from the forearm
+  setHand(bone, ha, el, G, fwd) {
+    const t = this.tmp;
+    _y.subVectors(ha, el).normalize();
+    if (this.gripOn && G.off < 0.999) {
+      _y.lerp(G.dir, 1 - G.off).normalize();
+      t.c.set(0, 1, -0.3).lerp(fwd, G.off);
+      setBone(bone, ha, t.a.copy(ha).addScaledVector(_y, 0.1), t.c);
+    } else setBone(bone, ha, t.a.copy(ha).addScaledVector(_y, 0.1), fwd);
+  }
+
   applyBones(up, fwd) {
     const J = this.j, b = this.bones, t = this.tmp;
     setBone(b[B.pelvis], J.pelvis, t.c.copy(J.pelvis).add(up), fwd);
@@ -634,9 +657,9 @@ export class Rider {
     setBone(b[B.head], J.head, t.c.copy(J.head).add(t.a.set(0, 1, 0).lerp(up, 0.3)), t.b.set(0, 0, 1).lerp(fwd, 0.2));
     const back = t.b.copy(fwd).negate();
     setBone(b[B.uaL], J.shL, J.elL, back); setBone(b[B.faL], J.elL, J.haL, fwd);
-    setBone(b[B.hL], J.haL, t.c.copy(J.haL).addScaledVector(_y.subVectors(J.haL, J.elL).normalize(), 0.1), fwd);
+    this.setHand(b[B.hL], J.haL, J.elL, this.grip[0], fwd);
     setBone(b[B.uaR], J.shR, J.elR, back); setBone(b[B.faR], J.elR, J.haR, fwd);
-    setBone(b[B.hR], J.haR, t.c.copy(J.haR).addScaledVector(_y.subVectors(J.haR, J.elR).normalize(), 0.1), fwd);
+    this.setHand(b[B.hR], J.haR, J.elR, this.grip[1], fwd); this.gripOn = false; // set again by the next riding pose
     setBone(b[B.thL], J.hipL, J.knL, fwd); setBone(b[B.shL], J.knL, J.anL, fwd);
     setBone(b[B.ftL], J.anL, J.toeL, t.a.set(0, 1, 0));
     setBone(b[B.thR], J.hipR, J.knR, fwd); setBone(b[B.shR], J.knR, J.anR, fwd);
