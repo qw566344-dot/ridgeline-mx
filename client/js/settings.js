@@ -30,6 +30,7 @@ const DEFAULTS = {
   engineVolume: 0.8,
   effectsVolume: 0.8,
   musicVolume: 0.5,
+  rims: 'stock', flame: 'orange', sound: 'stock', trail: 'none',
   units: 'mph',
   landingAssist: 0.6,
   tractionAssist: true,

@@ -4,7 +4,7 @@
 //  slot: which thing it changes - 'vehicle', 'color' (paint), 'gear' or
 //        'upgrade' (id = vehicle.part.level, generated from UPGRADES)
 // =====================================================================
-import { VEHICLES, UPGRADES, SPECIAL_VEHICLES } from './vehicles.js';
+import { VEHICLES, UPGRADES, SPECIAL_VEHICLES, PASS_VEHICLES } from './vehicles.js';
 export const GEAR_SETS = [
   { id: 'match', name: 'Team Kit', desc: 'Matches your paint', colors: null },
   { id: 'black', name: 'Blackout', colors: [0x1c1c22, 0x2a2a30, 0xe5e7eb] },
@@ -302,6 +302,20 @@ export function bundlePrice(b, owns) {
   return Math.round((it.price * 0.75) / 100) * 100;
 }
 
+// pass vehicles: owned only from the Premium Pass
+for (const v of PASS_VEHICLES) SHOP.push({ id: v.id, slot: 'vehicle', price: 1e9, rarity: 'Legendary', pass: true });
+// EXTRAS: rims, the backfire flame colour, an exhaust sound and a trail. The first of each is what
+// everyone has; the rest come from the Premium Pass.
+export const EXTRAS = {
+  rims: [{ id: 'stock', name: 'Factory Rims' }, { id: 'carbon', name: 'Carbon Rims', color: 0x1c1c20, rarity: 'Rare' }, { id: 'gold', name: 'Gold Rims', color: 0xd4a017, rarity: 'Epic' }, { id: 'neon', name: 'Neon Rims', color: 0x22d3ee, glow: true, rarity: 'Legendary' }],
+  flame: [{ id: 'orange', name: 'Classic Flame', color: 0xff9a3c }, { id: 'blue', name: 'Blue Flame', color: 0x4aa8ff, rarity: 'Epic' }, { id: 'green', name: 'Venom Flame', color: 0x5dff6a, rarity: 'Legendary' }],
+  sound: [{ id: 'stock', name: 'Stock Exhaust' }, { id: 'deep', name: 'Deep Thunder', rarity: 'Epic' }, { id: 'race', name: 'Race Pipe', rarity: 'Legendary' }],
+  trail: [{ id: 'none', name: 'No Trail' }, { id: 'embers', name: 'Ember Trail', rarity: 'Legendary' }],
+};
+export const EXTRA_SLOTS = Object.keys(EXTRAS);
+export const EXTRA_NAMES = { rims: 'Rims', flame: 'Backfire flame', sound: 'Exhaust sound', trail: 'Trail' };
+export const extraOf = (slot, id) => (EXTRAS[slot] || []).find((x) => x.id === id) || null;
+for (const [slot, list] of Object.entries(EXTRAS)) list.forEach((x, i) => SHOP.push(i === 0 ? { id: x.id, slot, price: 0 } : { id: x.id, slot, price: 1e9, rarity: x.rarity, pass: true }));
 // special vehicles: real items so they can be owned and ridden, but never for sale (see vehicles.js)
 for (const v of SPECIAL_VEHICLES) SHOP.push({ id: v.id, slot: 'vehicle', price: 1e9, special: true });
 
@@ -333,9 +347,9 @@ export function upgradeLevels(owned, vehicleId) {
 // player level needed to buy each vehicle: one level per 1,500 coins of price
 // (the cheap bikes are level 1, the 15,000-coin ones level 10). Set `level` on an
 // item above to override.
-export function vehicleLevel(item) { return !item || item.slot !== 'vehicle' || item.special ? 1 : item.level || Math.max(1, Math.floor(item.price / 1500)); }
+export function vehicleLevel(item) { return !item || item.slot !== 'vehicle' || item.special || item.pass ? 1 : item.level || Math.max(1, Math.floor(item.price / 1500)); }
 
-export const STARTER = { coins: 500, owned: SHOP.filter((i) => i.price === 0).map((i) => i.slot + ':' + i.id), equipped: { vehicle: 'mx250', color: 'stock', gear: 'match' } };
+export const STARTER = { coins: 500, owned: SHOP.filter((i) => i.price === 0).map((i) => i.slot + ':' + i.id), equipped: { vehicle: 'mx250', color: 'stock', gear: 'match', rims: 'stock', flame: 'orange', sound: 'stock', trail: 'none' } };
 
 // rarity for the shop cards (set on the item, or from its price)
 export const RARITIES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];

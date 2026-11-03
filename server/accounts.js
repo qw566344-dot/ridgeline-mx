@@ -168,7 +168,8 @@ export class Accounts {
     const n = (x, max) => Math.max(0, Math.min(max, Math.floor(Number(x) || 0)));
     u.coins = n(r.coins, MAX_COINS);
     const owned = Array.isArray(r.owned) ? r.owned.filter((k) => typeof k === 'string' && (() => { const [s, ...rest] = k.split(':'); return !!shopItem(s, rest.join(':')); })()) : [];
-    u.owned = [...new Set([...STARTER.owned, ...owned])].filter((k) => !(shopItem(...splitKey(k)) || {}).special || ownsSpecials(u.key));
+    // pass items can't come back from a saved copy (they are only earned on the Premium Pass)
+    u.owned = [...new Set([...STARTER.owned, ...owned])].filter((k) => { const it = shopItem(...splitKey(k)) || {}; return (!it.special || ownsSpecials(u.key)) && !it.pass; });
     const eq = r.equipped || {};
     for (const slot of ['vehicle', 'color', 'gear']) if (typeof eq[slot] === 'string' && this.has(u, slot + ':' + eq[slot])) u.equipped[slot] = eq[slot];
     const st = r.stats || {};
@@ -329,7 +330,7 @@ export class Accounts {
   has(u, key) { if (u.owned.includes(key)) return true; const [slot, id] = key.split(':'); const it = shopItem(slot, id); return !!it && it.price === 0; }
 
   equip(u, slot, id) {
-    if (!['vehicle', 'color', 'gear'].includes(slot)) return { error: 'Bad slot' };
+    if (!['vehicle', 'color', 'gear', 'rims', 'flame', 'sound', 'trail'].includes(slot)) return { error: 'Bad slot' };
     if (!this.has(u, slot + ':' + id)) return { error: 'You do not own that yet' };
     u.equipped[slot] = id;
     this.save();

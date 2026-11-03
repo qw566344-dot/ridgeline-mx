@@ -90,12 +90,12 @@ export class Audio {
   // most at idle, so it never sounds like a pure tone. Electric: a clean motor whine.
   makeEngine(kind, full, cfg = {}) {
     const c = this.ctx;
-    const two = cfg.stroke === 2, elec = !!cfg.electric;
+    const two = cfg.stroke === 2, elec = !!cfg.electric, kit = elec ? 'stock' : cfg.kit || 'stock';
     const out = c.createGain(); out.gain.value = 0;
     const filter = c.createBiquadFilter(); filter.type = 'lowpass'; filter.Q.value = 0.9;
     const shaper = c.createWaveShaper();
     const curve = new Float32Array(512);
-    const drive = { atv: 2.2, utv: 2, buggy: 1.7 }[kind] || (two ? 3 : 2.6);
+    const drive = ({ atv: 2.2, utv: 2, buggy: 1.7 }[kind] || (two ? 3 : 2.6)) + (kit === 'race' ? 1.2 : kit === 'deep' ? -0.5 : 0);
     for (let i = 0; i < 512; i++) { const x = (i / 511) * 2 - 1; curve[i] = Math.tanh(x * drive) / Math.tanh(drive); }
     shaper.curve = curve; shaper.oversample = '2x';
     const pre = c.createGain(); pre.gain.value = 0.42;
@@ -106,7 +106,7 @@ export class Audio {
       g1.gain.value = 0.55; g2.gain.value = 0.25;
     } else {
       // the firing pulse, and the lump under it (or, on a two-stroke, its ring an octave up)
-      o1.setPeriodicWave(this.pulseWave(two ? 0.32 : { buggy: 0.24, utv: 0.2 }[kind] || 0.16, two ? 0.025 : 0.05));
+      o1.setPeriodicWave(this.pulseWave((two ? 0.32 : { buggy: 0.24, utv: 0.2 }[kind] || 0.16) + (kit === 'race' ? -0.06 : kit === 'deep' ? 0.06 : 0), two ? 0.025 : kit === 'deep' ? 0.08 : 0.05));
       o2.setPeriodicWave(this.pulseWave(two ? 0.5 : 0.3, 0.12));
       g1.gain.value = 0.62; g2.gain.value = two ? 0.22 : ({ atv: 0.42, utv: 0.3, buggy: 0.35 }[kind] || 0.38);
     }
@@ -125,9 +125,9 @@ export class Audio {
       rasp = { ns, nf, ng };
     }
     // body resonance (a fixed low-mid hump) and the pipe formant (moves with the revs), in parallel
-    const body = c.createBiquadFilter(); body.type = 'peaking'; body.frequency.value = { buggy: 110, utv: 140, atv: 150 }[kind] || (two ? 210 : 165); body.Q.value = 1.1; body.gain.value = elec ? 0 : 5;
+    const body = c.createBiquadFilter(); body.type = 'peaking'; body.frequency.value = { buggy: 110, utv: 140, atv: 150 }[kind] || (two ? 210 : 165); body.Q.value = 1.1; body.gain.value = elec ? 0 : kit === 'deep' ? 9 : 5;
     const pipe = c.createBiquadFilter(); pipe.type = 'bandpass'; pipe.Q.value = two ? 5 : 3;
-    const pipeG = c.createGain(); pipeG.gain.value = elec ? 0 : two ? 0.55 : 0.32;
+    const pipeG = c.createGain(); pipeG.gain.value = elec ? 0 : (two ? 0.55 : 0.32) * (kit === 'race' ? 1.8 : kit === 'deep' ? 0.6 : 1);
     pre.connect(shaper); shaper.connect(body); body.connect(filter);
     shaper.connect(pipe); pipe.connect(pipeG); pipeG.connect(filter);
     filter.connect(out);
@@ -146,7 +146,7 @@ export class Audio {
       o3.connect(g3); g3.connect(out); o3.start();
       turbo = { o3, g3 };
     }
-    return { o1, o2, lfo, lfoG, pipe, filter, out, panner, rasp, kind, turbo, two, elec, pitch: cfg.pitch || 1, sig: kind + (two ? '2' : elec ? 'e' : '') };
+    return { o1, o2, lfo, lfoG, pipe, filter, out, panner, rasp, kind, turbo, two, elec, kit, pitch: (cfg.pitch || 1) * (kit === 'deep' ? 0.82 : kit === 'race' ? 1.06 : 1), sig: kind + (two ? '2' : elec ? 'e' : '') };
   }
 
   // ---------------------------------------------------------------- lobby music
@@ -208,12 +208,12 @@ export class Audio {
   }
 
   // called every frame for the player's vehicle
-  player(veh, cam) {
+  player(veh, cam, kit = 'stock') {
     if (!this.ready) return;
     let v = this.voices.get('player');
-    const A = veh.cfg.audio, kind = A.kind;
-    const sig = kind + (A.stroke === 2 ? '2' : A.electric ? 'e' : '');
-    if (!v || v.sig !== sig) { if (v) this.stopVoice(v); v = this.makeEngine(kind, true, A); this.voices.set('player', v); }
+    const A = { ...veh.cfg.audio, kit }, kind = A.kind;
+    const sig = kind + (A.stroke === 2 ? '2' : A.electric ? 'e' : '') + ':' + kit;
+    if (!v || v.sig !== sig) { if (v) this.stopVoice(v); v = this.makeEngine(kind, true, A); v.sig = sig; this.voices.set('player', v); }
     this.setEngine(v, veh, kind === 'none' ? 0 : 1); // the crawler and the office chair have no engine
     const t = this.ctx.currentTime;
     const spd = veh.speed;
@@ -319,7 +319,7 @@ export class Audio {
     const bounce = veh.engine && veh.engine.limiter && thr > 0.3 ? (Math.floor(t * 22) % 2 ? 0.3 : 1) : 1;
     v.out.gain.setTargetAtTime(crashed ? 0.04 : (v.elec ? 0.07 + thr * 0.08 : 0.16 + thr * 0.14) * 1.45 * gain * bounce, t, bounce < 1 ? 0.005 : 0.05);
     if (v.rasp) {
-      v.rasp.ng.gain.setTargetAtTime(thr * 0.25, t, 0.05);
+      v.rasp.ng.gain.setTargetAtTime(thr * (v.kit === 'race' ? 0.42 : 0.25), t, 0.05);
       v.rasp.nf.frequency.setTargetAtTime(900 + rpm * 0.18, t, 0.05);
     }
   }

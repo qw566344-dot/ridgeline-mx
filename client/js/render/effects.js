@@ -33,6 +33,12 @@ void main() {
 }`;
 
 const _fp = new THREE.Vector3(), _fd = new THREE.Vector3();
+// backfire flame colours (pass extras): the light, the glow sprite, the flame particles
+const FLAME = {
+  orange: { light: 0xff9a3c, glow: 0xffd08a, p: [1.15, 0.75, 0.25] },
+  blue: { light: 0x4aa8ff, glow: 0x9fd4ff, p: [0.35, 0.7, 1.3] },
+  green: { light: 0x5dff6a, glow: 0xbaffb0, p: [0.45, 1.25, 0.4] },
+};
 // a soft round glow: white in the middle fading to nothing (for flashes)
 function makeGlowSprite() {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -111,9 +117,20 @@ export class Effects {
   }
 
   // per vehicle per frame: dust behind the rear tyre, roost under throttle
-  vehicle(veh, dt, key) {
+  vehicle(veh, dt, key, trail) {
     if (this.budget <= 0) return;
     const spd = veh.speed;
+    // Ember Trail (a pass extra): glowing embers streaming off the back wheel when you are moving
+    if (trail === 'embers' && spd > 5) {
+      const n = Math.min(4, spd * 0.12) * this.budget;
+      for (let i = 0; i < n; i++) {
+        if (Math.random() > n - i) break;
+        const f = veh.fwd, x = veh.pos.x - f.x * 0.75 + (Math.random() - 0.5) * 0.3, z = veh.pos.z - f.z * 0.75 + (Math.random() - 0.5) * 0.3, y = veh.pos.y - veh.cfg.rideHeight + 0.15 + Math.random() * 0.25;
+        const hot = Math.random();
+        this.spawn(x, y, z, veh.vel.x * 0.3 + (Math.random() - 0.5) * 1.2, 0.6 + Math.random() * 1.4, veh.vel.z * 0.3 + (Math.random() - 0.5) * 1.2,
+          0.05 + Math.random() * 0.05, -0.04, 0.5 + Math.random() * 0.5, 1, 1.4, 0.45 + hot * 0.45, 0.12 + hot * 0.2, -0.6, 1.5);
+      }
+    }
     let acc = this.emitAcc.get(key) || 0;
     for (const w of veh.wheels) {
       if (!w.contact) continue;
@@ -188,8 +205,8 @@ export class Effects {
   // backfire / anti-lag: a BANG and a flash out of the exhaust - no smoke. Each pop is a split
   // second of light on the bike and the ground, a white-hot core with an orange glow round it,
   // and a short hard jet of flame. Pops come a few hundredths apart; harder (k) = bigger.
-  backfire(veh, n, k, vis) {
-    for (let j = 0; j < n; j++) this.flashes.push({ veh, vis, k: k * (0.75 + Math.random() * 0.35), wait: j * (0.045 + Math.random() * 0.05), t: 0, slot: null });
+  backfire(veh, n, k, vis, flame) {
+    for (let j = 0; j < n; j++) this.flashes.push({ veh, vis, flame: FLAME[flame] || FLAME.orange, k: k * (0.75 + Math.random() * 0.35), wait: j * (0.045 + Math.random() * 0.05), t: 0, slot: null });
   }
   // the tip of the real exhaust pipe on the drawn vehicle (see VehicleVisual.exhaust) and the way it
   // points; without a model, a point low at the back
@@ -207,12 +224,13 @@ export class Effects {
         F.slot = this.flashPool.find((s) => !s.busy);
         if (!F.slot) { this.flashes.splice(i, 1); continue; }
         F.slot.busy = true;
+        F.slot.light.color.setHex(F.flame.light); F.slot.glow.material.color.setHex(F.flame.glow);
         // the flame jet, fired once out along the pipe: fast, short-lived, yellow in the middle, orange outside
         const v = F.veh, x = this.exhaustPoint(F, _fp, _fd);
         for (let q = 0; q < 4 + F.k * 6; q++) {
           const s = 5 + Math.random() * 7 * F.k, hot = Math.random(), sp = 0.6;
           this.spawn(x.x, x.y, x.z, v.vel.x + _fd.x * s + (Math.random() - 0.5) * sp, v.vel.y + _fd.y * s + (Math.random() - 0.5) * sp, v.vel.z + _fd.z * s + (Math.random() - 0.5) * sp,
-            0.07 + F.k * 0.1 * (1 - hot * 0.5), 1.6, 0.04 + Math.random() * 0.05, 0.85, 1.15, 0.75 + hot * 0.35, 0.25 + hot * 0.4, 0, 6);
+            0.07 + F.k * 0.1 * (1 - hot * 0.5), 1.6, 0.04 + Math.random() * 0.05, 0.85, F.flame.p[0], F.flame.p[1] + hot * 0.35, F.flame.p[2] + hot * 0.4, 0, 6);
         }
       }
       F.t += dt;

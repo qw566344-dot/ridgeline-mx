@@ -187,7 +187,7 @@ export class Stage {
     this.lineWidth = (right - left) / 2;
     list.forEach((d, i) => {
       let e = this.entries.get(d.key);
-      const look = d.vehicleId + ':' + d.colorId + ':' + (d.gearId || 'match');
+      const look = d.vehicleId + ':' + d.colorId + ':' + (d.gearId || 'match') + ':' + (d.rims || 'stock');
       if (e && e.look !== look) { this.dispose(e); this.entries.delete(d.key); e = null; }
       if (!e) {
         e = this.make(d, look);
@@ -202,7 +202,7 @@ export class Stage {
 
   make(d, look) {
     const def = getVehicle(d.vehicleId);
-    const scheme = paintFor(d.vehicleId, d.colorId);
+    const scheme = { ...paintFor(d.vehicleId, d.colorId), rims: d.rims || 'stock' };
     const vis = new VehicleVisual(def, scheme, d.number || 1);
     vis.tryLoadModel();
     vis.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });

@@ -149,7 +149,7 @@ export class Net {
   send(o) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(o)); }
   sendPing() { this.send({ t: 'ping', c: Date.now(), rtt: this.ping }); }
   name() { const A = this.ui.account; return cleanName((A && A.profile && A.profile.name) || this.settings.get('playerName') || 'Rider'); }
-  sendProfile() { if (this.connected) this.send({ t: 'profile', name: this.name(), vehicle: this.settings.get('vehicle'), color: this.settings.get('color'), gear: this.settings.get('gear') }); }
+  sendProfile() { if (this.connected) this.send({ t: 'profile', name: this.name(), vehicle: this.settings.get('vehicle'), color: this.settings.get('color'), gear: this.settings.get('gear'), cos: { rims: this.settings.get('rims'), flame: this.settings.get('flame'), sound: this.settings.get('sound'), trail: this.settings.get('trail') } }); }
 
   // page reloaded while in a party: reconnect and pick up where we left off
   autoRejoin() { if (this.token && ssGet('mx.code')) { this.wantOnline = true; this.connect(); } }
@@ -390,7 +390,7 @@ export class Net {
     for (const p of list) {
       if (p.id === this.id || !inParty.has(p.id)) continue;
       if (!g.riders.some((r) => r.id === p.id)) {
-        const r = g.addRider({ id: p.id, name: p.name, vehicleId: p.vehicle, colorId: p.color, gearId: p.gear, number: p.number, remote: true });
+        const r = g.addRider({ id: p.id, name: p.name, vehicleId: p.vehicle, colorId: p.color, gearId: p.gear, number: p.number, remote: true, cos: p.cos });
         if (p.spectator) g.makeSpectator(r);
         g.toast(`${p.name} joined${p.spectator ? ' to watch' : ''}`, 1.5);
       }

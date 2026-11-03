@@ -675,6 +675,25 @@ function paintMaterial(base, scheme, which, key) {
   return paintCache.get(k);
 }
 
+// rim styles (shop.js EXTRAS.rims): a copy of the wheel's rim material in the style's colour
+const rimMats = new Map();
+const RIM_LOOK = { carbon: { color: 0x26262b, metalness: 0.15, roughness: 0.3 }, gold: { color: 0xf0b92a, metalness: 0.35, roughness: 0.3, emissive: 0x2a1c00 }, neon: { color: 0x22d3ee, metalness: 0.1, roughness: 0.3, emissive: 0x0e8fa8 } }; // low metalness: the scenes have no reflections, so full metal reads as black
+function rimMaterial(base, style) {
+  const L = RIM_LOOK[style];
+  if (!L) return base;
+  const k = base.uuid + ':' + style;
+  if (!rimMats.has(k)) {
+    const m = base.clone();
+    m.color && m.color.setHex(L.color);
+    if ('metalness' in m) { m.metalness = L.metalness; m.roughness = L.roughness; }
+    if (L.emissive && m.emissive) { m.emissive.setHex(L.emissive); m.emissiveIntensity = 1.2; }
+    if (m.map) m.map = null;
+    m.needsUpdate = true;
+    rimMats.set(k, m);
+  }
+  return rimMats.get(k);
+}
+
 // a ready-to-animate copy of a model in the given paint
 export function createModelInstance(key, scheme) {
   const T = templates.get(key);
@@ -687,6 +706,7 @@ export function createModelInstance(key, scheme) {
     if (scheme && scheme.native) { /* stock paint on a model with its own colours: leave them */ }
     else if (T.M.paint.includes(n)) o.material = paintMaterial(o.material, scheme, 'body', key);
     else if (T.M.accent.includes(n)) o.material = paintMaterial(o.material, scheme, 'accent', key);
+    if (scheme && scheme.rims && scheme.rims !== 'stock' && /rim|spoke/i.test(n)) o.material = rimMaterial(o.material, scheme.rims);
     meshes.push({ mesh: o, hi: o.geometry, mid: midMap.get(o.geometry) || o.geometry, lo: loMap.get(o.geometry) || o.geometry });
   });
   // the shadow comes from one merged low-detail copy (see shadowProxy)

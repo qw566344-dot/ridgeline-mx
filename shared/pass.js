@@ -20,7 +20,7 @@ const FREE_BY_TIER = {
   3: { coins: 150 }, 6: { slot: 'color', id: 'green' }, 9: { coins: 200 }, 12: { slot: 'gear', id: 'flame' }, 15: { coins: 300 },
   18: { slot: 'color', id: 'purple' }, 21: { coins: 400 }, 24: { slot: 'gear', id: 'camo' }, 27: { coins: 500 }, 30: { slot: 'color', id: 'retro' },
 };
-const PREMIUM_LIST = [
+const PREMIUM_LIST_OLD = [
   { slot: 'color', id: 'p-trailblazer' }, { coins: 500 }, { slot: 'gear', id: 'kit-p-trailblazer' }, { slot: 'color', id: 'lumberjack' }, { coins: 600 },
   { slot: 'color', id: 'p-dustdevil' }, { slot: 'color', id: 'redline' }, { coins: 700 }, { slot: 'color', id: 'warpspeed' }, { slot: 'color', id: 'p-nightrider' },
   { coins: 800 }, { slot: 'color', id: 'amethyst' }, { slot: 'gear', id: 'kit-p-nightrider' }, { coins: 900 }, { slot: 'color', id: 'p-venomstrike' },
@@ -29,6 +29,17 @@ const PREMIUM_LIST = [
   { slot: 'color', id: 'p-solarflare' }, { slot: 'gear', id: 'kit-p-solarflare' }, { slot: 'color', id: 'p-royalty' }, { slot: 'gear', id: 'kit-p-prismelite' }, { slot: 'color', id: 'p-prismelite' },
 ];
 
+// 30 tiers (level = tier + 1): 3 vehicles (levels 8, 18, 30), 8 skins, 4 rider kits, 3 rim styles,
+// 2 backfire flame colours, 2 exhaust sounds, 1 trail and coins in between
+const PREMIUM_LIST = [
+  { slot: 'color', id: 'p-trailblazer' }, { coins: 500 }, { slot: 'gear', id: 'kit-p-trailblazer' }, { slot: 'rims', id: 'carbon' }, { slot: 'color', id: 'p-dustdevil' },
+  { slot: 'flame', id: 'blue' }, { slot: 'vehicle', id: 'heritage' }, { slot: 'color', id: 'p-nightrider' }, { coins: 800 }, { slot: 'gear', id: 'kit-p-nightrider' },
+  { slot: 'sound', id: 'deep' }, { slot: 'color', id: 'p-venomstrike' }, { slot: 'rims', id: 'gold' }, { coins: 1000 }, { coins: 1100 },
+  { slot: 'gear', id: 'kit-p-glacier' }, { slot: 'vehicle', id: 'raptor' }, { slot: 'color', id: 'p-glacier' }, { slot: 'flame', id: 'green' }, { coins: 1200 },
+  { slot: 'trail', id: 'embers' }, { slot: 'color', id: 'p-solarflare' }, { slot: 'sound', id: 'race' }, { slot: 'gear', id: 'kit-p-solarflare' }, { coins: 1500 },
+  { slot: 'rims', id: 'neon' }, { slot: 'color', id: 'p-royalty' }, { coins: 2000 }, { slot: 'vehicle', id: 'apex' }, { slot: 'color', id: 'p-prismelite' },
+];
+void PREMIUM_LIST_OLD;
 export const PASS = Array.from({ length: PASS_TIERS }, (_, i) => {
   const tier = i + 1;
   return { tier, level: tier + 1, free: FREE_BY_TIER[tier] || null, premium: PREMIUM_LIST[i] };

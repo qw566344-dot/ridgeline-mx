@@ -51,7 +51,7 @@ social.presence = () => net.presence();
 // make sure what's selected is something this account owns
 function syncEquipped() {
   if (!account.profile) return;
-  for (const slot of ['vehicle', 'color', 'gear']) {
+  for (const slot of ['vehicle', 'color', 'gear', 'rims', 'flame', 'sound', 'trail']) {
     const want = settings.get(slot);
     if (!account.owns(slot, want)) settings.set(slot, account.equipped(slot));
   }

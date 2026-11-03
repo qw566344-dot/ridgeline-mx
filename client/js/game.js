@@ -107,9 +107,11 @@ export class Game {
   }
 
   // ------------------------------------------------------------------ riders
-  addRider({ id, name, vehicleId, colorId, gearId = 'match', number, isPlayer = false, ai = null, remote = false }) {
+  addRider({ id, name, vehicleId, colorId, gearId = 'match', number, isPlayer = false, ai = null, remote = false, cos = null }) {
     const def = getVehicle(vehicleId);
-    const scheme = paintFor(vehicleId, colorId);
+    // extras (rims, flame, sound, trail): yours from settings, other riders' from the server
+    if (isPlayer && !cos) cos = { rims: this.settings.get('rims'), flame: this.settings.get('flame'), sound: this.settings.get('sound'), trail: this.settings.get('trail') };
+    const scheme = { ...paintFor(vehicleId, colorId), rims: (cos && cos.rims) || 'stock' };
     const vis = new VehicleVisual(def, scheme, number);
     vis.tryLoadModel();
     this.scene.add(vis.root);
@@ -117,7 +119,7 @@ export class Game {
     const rider = new Rider(rs);
     rider.setNumber(number, rs);
     rider.attachTo(vis.model);
-    const r = { id, name, number, isPlayer, vis, rider, vehicleId, colorId, gearId, lap: new LapTracker(this.world.T), finished: false, best: null, key: String(id) };
+    const r = { id, name, number, isPlayer, vis, rider, vehicleId, colorId, gearId, cos: cos || {}, lap: new LapTracker(this.world.T), finished: false, best: null, key: String(id) };
     if (!remote) {
       const upgrades = isPlayer && this.account && this.account.profile ? upgradeLevels(this.account.profile.owned, vehicleId) : {};
       r.veh = new Vehicle(vehicleId, this.world, { id, ai: !!ai, upgrades });
@@ -227,7 +229,7 @@ export class Game {
     if (opts.mp) {
       for (const p of opts.mp.players) {
         if (p.id === opts.mp.myId) continue;
-        const r = this.addRider({ id: p.id, name: p.name, vehicleId: p.vehicle, colorId: p.color, gearId: p.gear, number: p.number, remote: true });
+        const r = this.addRider({ id: p.id, name: p.name, vehicleId: p.vehicle, colorId: p.color, gearId: p.gear, number: p.number, remote: true, cos: p.cos });
         if (p.spectator) this.makeSpectator(r);
       }
     }
@@ -604,7 +606,7 @@ export class Game {
           }
         } else if (e.type === 'backfire') {
           // exhaust pops: flame out of the back, a crack and a thump (only nearby riders are heard)
-          this.effects.backfire && this.effects.backfire(v, e.n, e.k, r.vis);
+          this.effects.backfire && this.effects.backfire(v, e.n, e.k, r.vis, r.cos.flame);
           if (r.isPlayer) this.audio.backfire(e.n, e.k);
           else if (this.player && this.player.veh && v.pos.distanceTo(this.player.veh.pos) < 60) this.audio.backfire(e.n, e.k * 0.4);
         }
@@ -826,7 +828,7 @@ export class Game {
         if (r.rider) r.rider.setDetail(r.vis.camDist);
         r.vis.update({ lean: v.lean, steer: v.steerAngle, hand: v.steerHand, wheels: v.wheels });
         crashed = v.crashed;
-        if (dt > 0) this.effects.vehicle(v, dt, r.key);
+        if (dt > 0) this.effects.vehicle(v, dt, r.key, r.cos.trail);
         if (!r.isPlayer) others.push({ key: r.key, pos: r.vis.root.position, engine: v.engine, input: v.input, crashed, kind: v.cfg.audio.kind });
       } else if (r.remote && r.remote.state) {
         const st = r.remote.state;
@@ -874,7 +876,7 @@ export class Game {
       if (gog !== this.gogOn) { this.gogOn = gog; const g = document.getElementById('goggles'); if (g) g.hidden = !gog; }
       this.R.followShadow(focus.vis.root.position);
       if (this.player === focus && v) {
-        this.audio.player(v, cam);
+        this.audio.player(v, cam, this.player && this.player.cos ? this.player.cos.sound : 'stock');
         // the crowd murmurs louder the closer you are to the start / finish straight
         const T = this.world.T;
         if (!this.finishPt || this.finishPtT !== T) { this.finishPt = pointAt(T, T.finishS); this.finishPtT = T; }

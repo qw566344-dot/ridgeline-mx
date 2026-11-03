@@ -317,7 +317,7 @@ export class Account {
     if (it && it.price === 0) return true; // free items belong to everyone
     return !!this.profile && this.profile.owned.includes(slot + ':' + id);
   }
-  equipped(slot) { return this.profile ? this.profile.equipped[slot] : STARTER.equipped[slot]; }
+  equipped(slot) { return (this.profile && this.profile.equipped[slot]) || STARTER.equipped[slot]; }
   get coins() { return this.profile ? this.profile.coins : 0; }
 
   async buy(slot, id) {

@@ -10,10 +10,10 @@
 // =====================================================================
 import crypto from 'crypto';
 import { getTrack, TRACKS } from '../shared/tracks.js';
-import { VEHICLES, BIKE_COLORS, isSpecial } from '../shared/vehicles.js';
+import { VEHICLES, BIKE_COLORS, isSpecial, isPassVehicle } from '../shared/vehicles.js';
 import { buildTrack, buildFields, locatePrecise } from '../shared/trackgen.js';
 import { LapTracker, GAME } from '../shared/rules.js';
-import { GEAR_SETS, RANK_START, rankTier } from '../shared/shop.js';
+import { GEAR_SETS, RANK_START, rankTier, EXTRA_SLOTS, extraOf } from '../shared/shop.js';
 import { CODE_CHARS, CODE_LENGTH, validCode, cleanName, STATE_LEN, MODES, SNAPSHOT_RATE, PROTOCOL_VERSION } from '../shared/protocol.js';
 
 const LOAD_WAIT_MS = 15000; // longest wait for a slow rider to load the track
@@ -172,7 +172,9 @@ export class Lobby {
 
   profile(p, m, quiet) {
     if (m.name !== undefined) p.name = cleanName(m.name);
-    if (VEHICLES.some((v) => v.id === m.vehicle) || isSpecial(m.vehicle)) p.vehicle = m.vehicle;
+    if (VEHICLES.some((v) => v.id === m.vehicle) || isSpecial(m.vehicle) || isPassVehicle(m.vehicle)) p.vehicle = m.vehicle;
+    // rims / flame / exhaust sound / trail, so the others see (and hear) them in a race
+    if (m.cos && typeof m.cos === 'object') { p.cos = {}; for (const k of EXTRA_SLOTS) if (extraOf(k, m.cos[k])) p.cos[k] = m.cos[k]; }
     if (m.color === 'stock' || BIKE_COLORS.some((c) => c.id === m.color)) p.color = m.color;
     if (GEAR_SETS.some((g) => g.id === m.gear)) p.gear = m.gear;
     if (!quiet && p.party) this.broadcastParty(p.party);
@@ -444,7 +446,7 @@ export class Lobby {
   }
 
   // spectator: an admin who dropped into a race already going - flies around as their rider, no bike, not in the standings
-  sessionPlayer(p, slot, spectator = false) { p.spectator = spectator; return { id: p.id, name: p.name, vehicle: p.vehicle, color: p.color, gear: p.gear || 'match', number: p.number, slot, ...(spectator ? { spectator: true } : {}) }; }
+  sessionPlayer(p, slot, spectator = false) { p.spectator = spectator; return { id: p.id, name: p.name, vehicle: p.vehicle, color: p.color, gear: p.gear || 'match', number: p.number, cos: p.cos || null, slot, ...(spectator ? { spectator: true } : {}) }; }
 
   setupTracker(party, p) {
     const S = party.session;

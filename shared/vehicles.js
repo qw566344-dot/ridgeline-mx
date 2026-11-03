@@ -778,11 +778,28 @@ export const SPECIAL_VEHICLES = [
   },
 ];
 export const SPECIAL_CATEGORY = 'Specials';
+
+// ---------------------------------------------------------------------
+//  PASS VEHICLES - rewards on the Premium Pass only (levels 8, 18, 30).
+//  Never sold and never in the AI pool. They run on the same tuning as the
+//  shop vehicle of their class (the pass is for looks, not speed), and use
+//  an existing model until their own model is added (change modelKey then).
+// ---------------------------------------------------------------------
+const baseOf = (id) => VEHICLES.find((v) => v.id === id);
+export const PASS_VEHICLES = [
+  { ...baseOf('mx125'), id: 'heritage', name: 'Heritage 250', tier: 'Pass', paint: 'retro', native: false, passOnly: true,
+    desc: 'A twin-shock two-stroke from the golden era, rebuilt for the track. Screams to the redline. Premium Pass only.' },
+  { ...baseOf('atv700'), id: 'raptor', name: 'Desert Raptor', tier: 'Pass', paint: 'p-dustdevil', native: false, passOnly: true,
+    desc: 'A long-travel desert race quad with a wide stance. Built to fly whoops flat out. Premium Pass only.' },
+  { ...baseOf('sxsr'), id: 'apex', name: 'Apex Turbo RR', tier: 'Pass', paint: 'p-solarflare', native: false, passOnly: true,
+    desc: 'The top of the pass: a factory turbo side-by-side in Solar Flare. Premium Pass only.' },
+];
+export const isPassVehicle = (id) => PASS_VEHICLES.some((v) => v.id === id);
 export const isSpecial = (id) => SPECIAL_VEHICLES.some((v) => v.id === id);
 export const ownsSpecials = (accountKey) => SPECIAL_OWNERS.includes(String(accountKey || '').toLowerCase());
 
 export function getVehicle(id) {
-  return VEHICLES.find((v) => v.id === id) || SPECIAL_VEHICLES.find((v) => v.id === id) || VEHICLES[0];
+  return VEHICLES.find((v) => v.id === id) || SPECIAL_VEHICLES.find((v) => v.id === id) || PASS_VEHICLES.find((v) => v.id === id) || VEHICLES[0];
 }
 
 // ---------------------------------------------------------------------
