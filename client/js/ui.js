@@ -13,6 +13,7 @@
 import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES, SPECIAL_VEHICLES, SPECIAL_CATEGORY } from '/shared/vehicles.js';
 import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop, BUNDLES, getBundle, bundlePrice, levelInfo, vehicleLevel } from '/shared/shop.js';
+import { PASS } from '/shared/pass.js';
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
@@ -29,9 +30,9 @@ export { escapeHtml };
 import { Vector3 } from 'three';
 const $ = (id) => document.getElementById(id);
 const _tv = new Vector3();
-const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'challenges', 'ranked', 'friends', 'settings', 'credits', 'pause', 'results'];
-const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'challenges', 'ranked', 'friends', 'settings', 'credits']);
-const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', leaderboard: 'leaderboard', replays: 'replays', challenges: 'challenges', ranked: 'ranked', friends: 'friends', settings: 'settings' };
+const SCREENS = ['loading', 'account', 'home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'challenges', 'pass', 'ranked', 'friends', 'settings', 'credits', 'pause', 'results'];
+const MENUS = new Set(['home', 'play', 'garage', 'shop', 'casino', 'leaderboard', 'replays', 'challenges', 'pass', 'ranked', 'friends', 'settings', 'credits']);
+const NAV = { home: 'home', play: 'home', garage: 'garage', shop: 'shop', casino: 'casino', leaderboard: 'leaderboard', replays: 'replays', challenges: 'challenges', pass: 'pass', ranked: 'ranked', friends: 'friends', settings: 'settings' };
 // Settings > Controls: what each key does (the actions you can rebind), in order
 const BINDABLE = [['throttle', 'Throttle'], ['brake', 'Brake / reverse'], ['left', 'Steer left'], ['right', 'Steer right'], ['leanBack', 'Lean back / backflip'], ['leanFwd', 'Lean forward / front flip / preload'], ['clutch', 'Clutch / flat spin'], ['rearBrake', 'Rear brake'], ['trick1', 'Superman'], ['trick2', 'Nac-Nac'], ['trick3', 'Heel Clicker'], ['trick4', 'Cliffhanger'], ['gearMode', 'Manual / automatic gears'], ['shiftUp', 'Shift up'], ['shiftDown', 'Shift down'], ['reset', 'Reset onto the track'], ['retry', 'Quick retry'], ['camera', 'Change camera'], ['pause', 'Pause']];
 
@@ -92,6 +93,7 @@ export class UI {
     $('logout-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('logout'); });
     $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
     $('updates-btn').addEventListener('click', () => this.showUpdates());
+    $('tutorial-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('tutorial'); });
     $('rk-find').addEventListener('click', () => this.emit('queue', 'ranked'));
     $('dock-setup').addEventListener('click', () => this.show('play'));
     $('play-btn').addEventListener('click', () => this.onPlay());
@@ -147,6 +149,7 @@ export class UI {
     if (name === 'ranked') this.renderRanked();
     if (name === 'replays') this.renderReplays();
     if (name === 'challenges') this.renderChallenges();
+    if (name === 'pass') this.renderPass();
     if (name === 'friends') { this.renderHome(); this.renderFriends(); if (this.social) this.social.refresh(); }
     if (name === 'settings') this.renderSettings();
     this.renderTop();
@@ -163,7 +166,10 @@ export class UI {
   // ------------------------------------------------------------- top bar
   renderTop() {
     const A = this.account;
-    $('top-coins').textContent = A ? A.coins.toLocaleString() : '0';
+    // big totals short on the bar (125K, 1.2M) so it always fits; the exact number on hover
+    const c = A ? A.coins : 0;
+    $('top-coins').textContent = c >= 1e6 ? (c / 1e6).toFixed(c >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M' : c >= 1e5 ? Math.round(c / 1e3) + 'K' : c.toLocaleString();
+    $('top-coins').parentElement.title = c.toLocaleString() + ' coins - earn them by riding';
     const L = levelInfo((A && A.profile && A.profile.xp) || 0);
     $('top-level').textContent = 'Lv ' + L.level;
     $('top-xp').style.width = Math.round((L.into / L.need) * 100) + '%';
@@ -187,7 +193,10 @@ export class UI {
       else if (reg && this.regionPings[reg.id] === null) { text = reg.name + ' · waking up'; cls = 'ok'; }
       else cls = '';
     }
-    $('region-text').textContent = text;
+    // short on the bar (just the ping), the full server name on hover
+    const ping2 = net && net.region ? (net.connected ? net.ping : this.regionPings[net.region.id]) : null;
+    $('region-text').textContent = ping2 != null ? ping2 + ' ms' : text.includes('waking') ? 'waking' : text.includes('checking') ? '...' : text === 'Offline' ? 'Offline' : text;
+    $('region-chip').title = text + ' - click to change server';
     dot.className = 'dot ' + cls;
   }
 
@@ -740,6 +749,47 @@ export class UI {
     if (P && this.account.mode === 'online' && mine < 0) { $('lb-mine').hidden = false; $('lb-mine').innerHTML = `You: <b>${pts((P.stats && P.stats.tp) || 0)}</b> - the top 25 are shown`; }
   }
 
+  // ------------------------------------------------------------- pass
+  // one card per level: the reward, and locked / claim / claimed. The track scrolls to the next
+  // reward you can claim (or the next one coming up)
+  renderPass() {
+    const A = this.account, P = A && A.profile, xp = (P && P.xp) || 0, L = levelInfo(xp), got = new Set((P && P.pass) || []);
+    $('pass-level').textContent = L.level;
+    $('pass-xpfill').style.width = Math.round((L.into / L.need) * 100) + '%';
+    $('pass-xptext').textContent = `${L.into.toLocaleString()} / ${L.need.toLocaleString()} XP to level ${L.level + 1}`;
+    const online = A && A.mode === 'online';
+    const ready = PASS.filter((t) => L.level >= t.level && !got.has(t.tier));
+    const upcoming = PASS.find((t) => L.level < t.level);
+    $('pass-next').innerHTML = ready.length ? `<b>${ready.length}</b> reward${ready.length > 1 ? 's' : ''} to claim` : upcoming ? `Next reward at <b>level ${upcoming.level}</b>` : 'Pass complete!';
+    const swatch = (t) => {
+      if (t.coins) return `<div class="pt-art coin-art"><i class="coin"></i><b>${t.coins.toLocaleString()}</b></div>`;
+      if (t.slot === 'color') { const p = paintFor('mx250', t.id); return `<div class="pt-art" style="background:linear-gradient(135deg, ${hex(p.body)} 55%, ${hex(p.accent)} 55%)"></div>`; }
+      const g = GEAR_SETS.find((x) => x.id === t.id); const cols = g && g.colors ? g.colors : [0x333333, 0x999999, 0xffffff];
+      return `<div class="pt-art gear-art" style="background:linear-gradient(135deg, ${hex(cols[0])} 45%, ${hex(cols[1])} 45%, ${hex(cols[1])} 62%, ${hex(cols[2] ?? cols[0])} 62%)"><span>KIT</span></div>`;
+    };
+    const nameOf = (t) => t.coins ? 'Coins' : t.slot === 'color' ? ((BIKE_COLORS.find((c) => c.id === t.id) || {}).name || t.id) : ((GEAR_SETS.find((g) => g.id === t.id) || {}).name || t.id);
+    const rar = (t) => { const r = t.coins ? '' : rarityOf(shopItem(t.slot, t.id)); return r && r !== 'Common' && r !== 'Uncommon' ? r : ''; };
+    $('pass-track').innerHTML = PASS.map((t) => {
+      const st = got.has(t.tier) ? 'claimed' : L.level >= t.level ? 'ready' : 'locked', r = rar(t);
+      return `<div class="pt ${st} ${r.toLowerCase()}" data-tier="${t.tier}">
+        <div class="pt-lv">LV ${t.level}</div>${swatch(t)}
+        <div class="pt-name">${escapeHtml(nameOf(t))}</div><div class="pt-rar">${r || (t.coins ? '' : t.slot === 'gear' ? 'Rider kit' : 'Paint')}</div>
+        ${st === 'claimed' ? '<div class="pt-done">CLAIMED</div>' : st === 'ready' ? `<button class="small primary" data-pclaim="${t.tier}" ${online ? '' : 'disabled title="Needs an online account"'}>Claim</button>` : '<div class="pt-lock">LOCKED</div>'}
+      </div>`;
+    }).join('');
+    $('pass-track').querySelectorAll('[data-pclaim]').forEach((b) => b.onclick = async () => {
+      b.disabled = true;
+      const r = await A.api('pass/claim', { tier: Number(b.dataset.pclaim) }).catch(() => null);
+      if (!r || r.error) { this.popup((r && r.error) || 'Could not claim', 'bad'); b.disabled = false; return; }
+      if (r.profile) { A.profile = r.profile; A.persistLocal && A.persistLocal(); A.changed(); }
+      this.popup(`Pass reward: <b>${escapeHtml(r.ok)}</b>`, 'good');
+      this.renderPass(); this.renderTop();
+    });
+    if ($('pass-dot')) $('pass-dot').hidden = !(online && ready.length);
+    const focus = $('pass-track').querySelector('.pt.ready') || $('pass-track').querySelector('.pt.locked');
+    if (focus) focus.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }
+
   // ------------------------------------------------------------- challenges
   async renderChallenges() {
     const el = $('ch-body'), A = this.account;
@@ -1176,6 +1226,7 @@ export class UI {
       range('masterVolume', 'Master volume', 0, 1, 0.05, pct);
       range('engineVolume', 'Engine volume', 0, 1, 0.05, pct);
       range('effectsVolume', 'Effects volume', 0, 1, 0.05, pct);
+      range('musicVolume', 'Lobby music', 0, 1, 0.05, pct);
     } else if (this.settingsTab === 'Controls') {
       // click a key, then press the new one (Esc cancels). Each action has its own key; one key
       // used twice is taken off the other action.
@@ -1219,7 +1270,7 @@ export class UI {
         const k = inp.dataset.key, v = Number(inp.value);
         S.set(k, v);
         const lbl = body.querySelector(`[data-val-for="${k}"]`);
-        if (lbl) lbl.textContent = { masterVolume: 1, engineVolume: 1, effectsVolume: 1, resolution: 1, particles: 1, cameraShake: 1, landingAssist: 1 }[k] ? Math.round(v * 100) + '%' : k === 'viewDistance' ? v + ' m' : String(v);
+        if (lbl) lbl.textContent = { masterVolume: 1, engineVolume: 1, effectsVolume: 1, musicVolume: 1, resolution: 1, particles: 1, cameraShake: 1, landingAssist: 1 }[k] ? Math.round(v * 100) + '%' : k === 'viewDistance' ? v + ' m' : String(v);
       };
       inp.onchange = () => { if (['resolution', 'viewDistance', 'grass', 'particles'].includes(inp.dataset.key)) this.emit('quality'); };
     });

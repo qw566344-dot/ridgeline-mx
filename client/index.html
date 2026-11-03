@@ -51,14 +51,15 @@
     <header id="topbar" hidden>
       <div class="brand"><img src="img/logo.png" alt="Ridgeline MX" class="brand-logo"></div>
       <nav id="nav">
-        <button data-go="home"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4"/><path d="M4 4h13l-2.5 4L17 12H4"/></svg><span>Lobby</span></button>
-        <button data-go="ranked"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M8.5 12.5l3.5-3 3.5 3"/></svg><span>Ranked</span></button>
-        <button data-go="garage"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span>Garage</span></button>
-        <button data-go="shop"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span>Shop</span></button>
-        <button data-go="leaderboard"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21V11"/><path d="M12 21V5"/><path d="M16 21v-7"/><path d="M4 21h16"/></svg><span>Leaderboard</span></button>
-        <button data-go="replays"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4"/></svg><span>Replays</span></button>
-        <button data-go="challenges"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.6"/></svg><span>Challenges</span><b id="chal-dot" class="badge" hidden>!</b></button>
-        <button data-go="casino"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="9" cy="15" r="1"/></svg><span>Casino</span></button>
+        <button data-go="home" title="Lobby"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4"/><path d="M4 4h13l-2.5 4L17 12H4"/></svg><span>Lobby</span></button>
+        <button data-go="ranked" title="Ranked"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M8.5 12.5l3.5-3 3.5 3"/></svg><span>Ranked</span></button>
+        <button data-go="garage" title="Garage"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span>Garage</span></button>
+        <button data-go="shop" title="Shop"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span>Shop</span></button>
+        <button data-go="leaderboard" title="Leaderboard"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21V11"/><path d="M12 21V5"/><path d="M16 21v-7"/><path d="M4 21h16"/></svg><span>Leaderboard</span></button>
+        <button data-go="replays" title="Replays"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4"/></svg><span>Replays</span></button>
+        <button data-go="pass" title="Pass"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12" stroke-dasharray="2 2"/></svg><span>Pass</span><b id="pass-dot" class="badge" hidden>!</b></button>
+        <button data-go="challenges" title="Challenges"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.6"/></svg><span>Challenges</span><b id="chal-dot" class="badge" hidden>!</b></button>
+        <button data-go="casino" title="Casino"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="9" cy="15" r="1"/></svg><span>Casino</span></button>
         <button id="updates-btn" class="nav-updates" title="What's new"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M18 8h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2"/><path d="M8.5 8h6M8.5 12h6M8.5 16h4"/></svg><span>Updates</span><i id="updates-dot" class="new-pill" hidden>NEW</i></button>
       </nav>
       <div class="top-right">
@@ -71,6 +72,7 @@
           <button id="profile-chip" class="chip profile"><span id="profile-name">Rider</span> <small id="profile-mode"></small></button>
           <div id="profile-menu" class="menu-pop" hidden>
             <div class="menu-stats" id="profile-stats"></div>
+            <button id="tutorial-btn">Tutorial</button>
             <button data-go="controls">Controls</button>
             <button data-go="credits">Credits</button>
             <button id="logout-btn">Log out</button>
@@ -265,6 +267,16 @@
         <div id="lb-mine" class="lb-mine" hidden></div>
         <div class="row end"><button data-go="home">Back</button></div>
       </div>
+    </section>
+
+    <!-- PASS -->
+    <section id="pass" class="screen menu-screen pass-screen" hidden>
+      <div class="pass-head">
+        <div><small>RIDGELINE PASS</small><h2>Level <span id="pass-level">1</span></h2><div class="pass-xp"><i id="pass-xpfill"></i></div><div id="pass-xptext" class="hint"></div></div>
+        <div id="pass-next" class="pass-next"></div>
+      </div>
+      <div id="pass-track" class="pass-track"></div>
+      <p class="hint pass-foot">Earn XP from laps, races, wins and tricks. Every level unlocks a reward - claim them here.</p>
     </section>
 
     <!-- CHALLENGES -->

@@ -27,6 +27,7 @@ import { Casino } from './casino.js';
 import { hasBadWords } from '../shared/badwords.js';
 import { todaysChallenges, statsFor, dayNo, weekNo, dayEnds, weekEnds } from '../shared/challenges.js';
 import { Admin, ADMINS } from './admin.js';
+import { passTier } from '../shared/pass.js';
 
 const splitKey = (k) => { const [s, ...rest] = String(k).split(':'); return [s, rest.join(':')]; };
 const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
@@ -141,7 +142,7 @@ export class Accounts {
   hash(password, salt) { return crypto.scryptSync(String(password), salt, 32).toString('hex'); }
 
   profile(u) {
-    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, admin: this.admin.isAdmin(u) };
+    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, pass: u.pass || [], admin: this.admin.isAdmin(u) };
   }
 
   issue(u) {
@@ -370,6 +371,26 @@ export class Accounts {
     return { profile: this.profile(u), added: amount + bonus };
   }
 
+  // ---- the pass: one reward per level reached (shared/pass.js); each tier once
+  claimPass(u, tier) {
+    const P = passTier(tier);
+    if (!P) return { error: 'No such reward' };
+    u.pass = u.pass || [];
+    if (u.pass.includes(tier)) return { error: 'Already claimed' };
+    if (levelInfo(u.xp || 0).level < P.level) return { error: `Reach level ${P.level} first` };
+    let got;
+    if (P.coins) { u.coins += P.coins; got = `+${P.coins.toLocaleString()} coins`; }
+    else {
+      const key = P.slot + ':' + P.id, item = shopItem(P.slot, P.id);
+      if (!item) return { error: 'That reward is not available' };
+      if (u.owned.includes(key)) { const c = Math.max(300, Math.round((item.price || 600) / 2)); u.coins += c; got = `already owned: +${c.toLocaleString()} coins`; }
+      else { u.owned.push(key); got = 'unlocked'; }
+    }
+    u.pass.push(tier);
+    this.save();
+    return { ok: got, profile: this.profile(u) };
+  }
+
   // ---- challenges: today's / this week's counters (reset when the day / week turns over, UTC)
   chal(u) {
     const d = dayNo(), w = weekNo();
@@ -466,6 +487,7 @@ export class Accounts {
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));
       if (r === 'challenges') return send(200, this.challenges(u));
       if (r === 'challenges/claim') return send(200, this.claimChallenge(u, String(m.id || '')));
+      if (r === 'pass/claim') return send(200, this.claimPass(u, Number(m.tier)));
       if (r === 'logout') return send(200, this.logout(token));
       if (r.startsWith('casino/')) { const out = this.casino.handle(r, u, m); if (out) return send(200, out); }
       if (r === 'chat' || r.startsWith('chat/')) { const out = this.chat.handle(r, u, m, url); if (out) return send(200, out); }

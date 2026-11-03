@@ -21,6 +21,7 @@ import { Social } from './social.js';
 import { preloadModels, skinTime } from './render/modelRig.js';
 import { escapeHtml, setStaffTags } from './util.js';
 import { serverBase } from './config.js';
+import { Tutorial } from './tutorial.js';
 
 const settings = new Settings();
 const R = new Renderer(document.getElementById('game'));
@@ -151,6 +152,7 @@ ui.on('restart', async () => {
 ui.on('resetVehicle', () => { if (game.player && game.player.veh) game.resetRider(game.player); ui.emit('resume'); });
 ui.on('camera', () => { game.cam.cycle(); settings.set('camera', game.cam.mode); });
 async function backToLobby() {
+  if (tutorial.active) tutorial.stop(false);
   ui.hidePause(); ui.hideResults(); ui.hideHud();
   input.enabled = true;
   if (game.opts && game.opts.mp) {
@@ -167,6 +169,10 @@ async function backToLobby() {
   social.refresh();
 }
 ui.on('mainMenu', backToLobby);
+// the tutorial: offered to new riders in the lobby, or started from the profile menu
+const tutorial = new Tutorial(game, ui, input, settings);
+ui.on('screen', (n) => { if (n === 'home') tutorial.maybeOffer(); });
+ui.on('tutorial', () => { if (game.state === 'running') return; tutorial.start(); });
 // replays: watch one (the lobby stage steps aside), exit back to the list
 ui.on('watchReplay', async (id) => {
   const rep = await ReplayStore.load(id).catch(() => null);
@@ -219,7 +225,8 @@ window.addEventListener('keydown', () => audio.unlock());
 
 // ---- frame loop
 let last = performance.now();
-const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits', 'replays', 'ranked', 'challenges']);
+const MENU_MUSIC = new Set(['home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits', 'replays', 'ranked', 'challenges', 'pass', 'leaderboard']);
+const STAGE_SCREENS = new Set(['account', 'home', 'play', 'garage', 'shop', 'casino', 'friends', 'settings', 'controls', 'credits', 'replays', 'ranked', 'challenges', 'pass']);
 // the screen's refresh interval, measured from every animation frame (ms)
 let lastTick = 0, tickMs = 16.7, tickN = 0;
 function loop(now) {
@@ -241,6 +248,8 @@ function loop(now) {
   if (ui.screen === 'shop') thumbs.step();
   if (STAGE_SCREENS.has(ui.screen) && game.state !== 'running') stage.render(dt);
   else { stage.active = false; game.frame(dt); }
+  tutorial.tick(dt);
+  audio.music(MENU_MUSIC.has(ui.screen) && game.state !== 'running' && !game.replay);
   input.endFrame();
   requestAnimationFrame(loop);
 }

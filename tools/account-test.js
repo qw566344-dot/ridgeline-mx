@@ -47,6 +47,18 @@ try {
     ok(got.ok && got.profile.coins === coins0 + target.coins && /already/i.test(twice.error || ''), 'a finished challenge pays out once (' + target.text + ')');
     void lapC;
   }
+  { // the pass: a reward per level, claimed once, locked until you reach the level
+    const tk = (await api(null, 'register', { name: 'PassTester', password: pw })).token;
+    const locked = await api(tk, 'pass/claim', { tier: 1 });
+    ok(/level 2/i.test(locked.error || ''), 'a pass reward is locked until its level');
+    for (let i = 0; i < 6; i++) await api(tk, 'reward', { kind: 'lap', amount: 40 }); // 6 laps = 360 XP = level 2
+    const c0 = (await api(tk, 'me')).profile.coins;
+    const got = await api(tk, 'pass/claim', { tier: 1 }), again = await api(tk, 'pass/claim', { tier: 1 });
+    ok(got.ok && got.profile.coins === c0 + 300 && got.profile.pass.includes(1) && /already/i.test(again.error || ''), 'level 2 unlocks the first pass reward, paid once');
+    for (let i = 0; i < 12; i++) await api(tk, 'reward', { kind: 'lap', amount: 40 }); // level 3+
+    const item = await api(tk, 'pass/claim', { tier: 2 });
+    ok(item.ok && item.profile.owned.includes('color:green'), 'an item pass reward unlocks the item');
+  }
   r = await api(null, 'register', { name: 'savetester', password: pw });
   ok(r.error && /taken/.test(r.error), 'same name (any case) is refused');
   r = await api(null, 'register', { name: 'ab', password: pw });

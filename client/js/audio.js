@@ -28,6 +28,10 @@ export class Audio {
     this.master.connect(c.destination);
     this.engineBus = c.createGain(); this.engineBus.connect(this.master);
     this.fxBus = c.createGain(); this.fxBus.connect(this.master);
+    // lobby music: its own bus (its own volume), a soft low-pass so it sits behind the menus
+    this.musicBus = c.createGain(); this.musicBus.gain.value = 0;
+    this.musicTone = c.createBiquadFilter(); this.musicTone.type = 'lowpass'; this.musicTone.frequency.value = 5200;
+    this.musicBus.connect(this.musicTone); this.musicTone.connect(this.master);
     this.noise = this.makeNoise();
     // wind + tyres: filtered noise loops
     this.wind = this.noiseLoop(800, 'bandpass', 0.6);
@@ -44,6 +48,7 @@ export class Audio {
     this.master.gain.value = s.get('masterVolume');
     this.engineBus.gain.value = s.get('engineVolume');
     this.fxBus.gain.value = s.get('effectsVolume');
+    this.musicVol = s.get('musicVolume') ?? 0.5;
   }
 
   makeNoise() {
@@ -144,6 +149,64 @@ export class Audio {
     return { o1, o2, lfo, lfoG, pipe, filter, out, panner, rasp, kind, turbo, two, elec, pitch: cfg.pitch || 1, sig: kind + (two ? '2' : elec ? 'e' : '') };
   }
 
+  // ---------------------------------------------------------------- lobby music
+  // A laid-back loop made here (no files): 92 bpm, Am - F - C - G, drums with a little swing, a
+  // round bass, a warm pad and, every other time round, a plucked arpeggio. Played on the menus,
+  // faded out when you ride. music(on) is called every frame; it schedules a beat ahead.
+  music(on) {
+    if (!this.ready || !this.musicBus) return;
+    const c = this.ctx, t = c.currentTime, want = on ? 0.45 * (this.musicVol ?? 0.5) : 0;
+    if (Math.abs((this.musicLevel ?? -1) - want) > 0.001) { this.musicBus.gain.setTargetAtTime(want, t, on ? 0.8 : 0.35); this.musicLevel = want; }
+    if (!on && (!this.mus || t > this.mus.offAt)) { if (this.mus && !this.mus.offAt) this.mus.offAt = t + 1.5; if (this.mus && this.mus.offAt && t > this.mus.offAt) this.mus = null; return; }
+    if (!on) return;
+    if (!this.mus) this.mus = { next: t + 0.1, step: 0 };
+    this.mus.offAt = 0;
+    const M = this.mus, spb = 60 / 92 / 4;                 // a sixteenth note
+    while (M.next < t + 0.2) { this.musicStep(M.step, M.next, spb); M.next += spb * (M.step % 2 ? 0.92 : 1.08); M.step++; } // swing
+  }
+  musicStep(step, t, spb) {
+    const c = this.ctx, out = this.musicBus;
+    const bar = Math.floor(step / 16) % 8, s = step % 16, cycle = Math.floor(step / 128);
+    const CH = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]; // Am F C G (MIDI)
+    const ch = CH[Math.floor(bar / 2) % 4], hz = (n) => 440 * 2 ** ((n - 69) / 12);
+    const env = (g, a, peak, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); };
+    // kick: 1, the "and" of 2, 3
+    if (s === 0 || s === 6 || s === 8 || (s === 14 && bar % 2)) {
+      const o = c.createOscillator(), g = c.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.18);
+      env(g, 0.004, 0.9, 0.3); o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.35);
+    }
+    // snare on 2 and 4 (noise + body)
+    if (s === 4 || s === 12) {
+      const n = c.createBufferSource(); n.buffer = this.noise; const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1900; bp.Q.value = 0.7;
+      const g = c.createGain(); env(g, 0.002, 0.45, 0.17); n.connect(bp); bp.connect(g); g.connect(out); n.start(t, Math.random()); n.stop(t + 0.22);
+      const o = c.createOscillator(), og = c.createGain(); o.frequency.setValueAtTime(190, t); o.frequency.exponentialRampToValueAtTime(120, t + 0.08); env(og, 0.002, 0.3, 0.09); o.connect(og); og.connect(out); o.start(t); o.stop(t + 0.12);
+    }
+    // hats on the eighths, softer off the beat
+    if (s % 2 === 0) {
+      const n = c.createBufferSource(); n.buffer = this.noise; const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7500;
+      const g = c.createGain(); env(g, 0.001, s % 4 ? 0.09 : 0.14, 0.05); n.connect(hp); hp.connect(g); g.connect(out); n.start(t, Math.random()); n.stop(t + 0.07);
+    }
+    // bass: the root, with a step up to the octave
+    if (s === 0 || s === 3 || s === 8 || s === 11 || s === 14) {
+      const o = c.createOscillator(); o.type = 'triangle'; o.frequency.value = hz(ch[0] - 24 + (s === 11 ? 12 : 0));
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600; const g = c.createGain(); env(g, 0.01, 0.55, s === 0 || s === 8 ? 0.42 : 0.2);
+      o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(t + 0.5);
+    }
+    // pad: the chord, swelling in at each change
+    if (s === 0 && bar % 2 === 0) {
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.11, t + 0.6); g.gain.setValueAtTime(0.11, t + spb * 28); g.gain.exponentialRampToValueAtTime(0.0001, t + spb * 32 + 0.3);
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1300; lp.connect(g); g.connect(out);
+      for (const n of ch) for (const det of [-7, 7]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = hz(n - 12); o.detune.value = det; o.connect(lp); o.start(t); o.stop(t + spb * 32 + 0.4); }
+    }
+    // pluck arpeggio, every other time round
+    if (cycle % 2 === 1 && s % 2 === 0) {
+      const seq = [0, 1, 2, 1, 2, 0, 1, 2], n = ch[seq[(s / 2) % 8]] + (s >= 8 ? 12 : 0);
+      const o = c.createOscillator(); o.type = 'square'; o.frequency.value = hz(n);
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(2600, t); lp.frequency.exponentialRampToValueAtTime(500, t + 0.25);
+      const g = c.createGain(); env(g, 0.004, 0.07, 0.28); o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(t + 0.35);
+    }
+  }
+
   // called every frame for the player's vehicle
   player(veh, cam) {
     if (!this.ready) return;
@@ -205,13 +268,13 @@ export class Audio {
       const fade = 1 - (j / pops) * 0.55, a = v * fade * (0.7 + Math.random() * 0.3);
       // the pop: dark noise, quick in, quick out
       const src = c.createBufferSource(); src.buffer = this.noise;
-      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 650 + Math.random() * 450 + j * 60; lp.Q.value = 1.4;
-      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.42 * a, t + 0.004); g.gain.exponentialRampToValueAtTime(0.001, t + 0.05 + Math.random() * 0.02);
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100 + Math.random() * 700 + j * 80; lp.Q.value = 1.8;
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(1.0 * a, t + 0.003); g.gain.exponentialRampToValueAtTime(0.001, t + 0.05 + Math.random() * 0.02);
       src.connect(lp); lp.connect(g); g.connect(this.fxBus); src.start(t, Math.random()); src.stop(t + 0.08);
       // the thump under it
       const o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(95 + Math.random() * 30 + j * 6, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.06);
       const sh = c.createWaveShaper(); sh.curve = this.bangShape;
-      const og = c.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.32 * a, t + 0.005); og.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      const og = c.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.75 * a, t + 0.004); og.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
       o.connect(sh); sh.connect(og); og.connect(this.fxBus); o.start(t); o.stop(t + 0.08);
       t += 0.035 + Math.random() * 0.045; // irregular, like a real burble
     }

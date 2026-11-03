@@ -607,7 +607,9 @@ export class Game {
           this.effects.backfire && this.effects.backfire(v, e.n, e.k, r.vis);
           if (r.isPlayer) this.audio.backfire(e.n, e.k);
           else if (this.player && this.player.veh && v.pos.distanceTo(this.player.veh.pos) < 60) this.audio.backfire(e.n, e.k * 0.4);
-        } else if (e.type === 'land') {
+        }
+        if (r.isPlayer && this.onPlayerEvent) this.onPlayerEvent(e);
+        if (e.type === 'land') {
           const strength = Math.min(1.5, (v.landImpact || 0) / 6);
           if (e.air > 0.35) {
             this.effects.landing(v.pos.clone().add(_v.set(0, -v.cfg.rideHeight, 0)), Math.max(0.4, strength));

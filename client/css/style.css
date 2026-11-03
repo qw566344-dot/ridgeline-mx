@@ -1168,3 +1168,66 @@ button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 #nav #chal-dot { top: 12px; right: 8px; }
 @media (max-width: 1250px) { #nav button { padding: 0 9px; font-size: 14px; gap: 6px; } }
 @media (max-width: 1020px) { #nav button span { display: none; } #nav button { padding: 0 11px; } }
+
+/* top bar fit: tighter tabs, a compact region chip (dot + ping, the server name on hover), a slim
+   level chip; on narrower windows the tabs drop their labels and keep the icons (titles on hover) */
+#topbar { gap: 10px; padding: 0 16px; }
+#nav button { padding: 0 10px; font-size: 14.5px; gap: 6px; }
+#nav button svg { width: 16px; height: 16px; }
+#nav button::after { left: 8px; right: 8px; }
+.top-right { gap: 6px; flex: none; }
+#region-chip { max-width: 104px; overflow: hidden; white-space: nowrap; }
+#region-chip #region-text { overflow: hidden; text-overflow: ellipsis; }
+#level-chip .xpbar { width: 44px; }
+@media (max-width: 1440px) { #nav button { padding: 0 7px; font-size: 13px; gap: 5px; } #nav button svg { width: 14px; height: 14px; } #nav .new-pill { font-size: 8.5px; padding: 1px 4px; } #topbar { gap: 8px; padding: 0 12px; } }
+@media (max-width: 1300px) { #nav button span { display: none; } #nav button { padding: 0 10px; } #nav .new-pill { position: absolute; top: 9px; right: 0; } }
+@media (max-width: 900px) { #region-chip, #level-chip { display: none; } }
+@media (max-width: 1440px) { #level-chip .xpbar { display: none; } #profile-mode { display: none; } .top-right { gap: 5px; } }
+#profile-name { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+
+/* =====================================================================
+   PASS: level header, a scrolling row of reward cards
+   ===================================================================== */
+.pass-screen { display: flex; flex-direction: column; justify-content: flex-end; padding: 0 0 22px; background: linear-gradient(0deg, rgba(5, 6, 10, 0.92) 0%, rgba(5, 6, 10, 0.6) 45%, rgba(5, 6, 10, 0) 75%); }
+.pass-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 0 28px 14px; }
+.pass-head small { color: var(--gold); letter-spacing: 0.3em; font-weight: 700; font-size: 12px; }
+.pass-head h2 { font-size: 44px; margin: 2px 0 6px; }
+.pass-xp { width: min(360px, 60vw); height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.pass-xp i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); border-radius: 6px; transition: width 0.5s var(--ease); }
+.pass-next { font-size: 16px; color: #e8ecf2; text-align: right; } .pass-next b { color: var(--gold); }
+.pass-track { display: flex; gap: 12px; overflow-x: auto; padding: 8px 28px 14px; scroll-behavior: smooth; }
+.pt { position: relative; flex: none; width: 138px; display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 10px; border-radius: 14px; background: rgba(18, 22, 30, 0.9); border: 1px solid rgba(255, 255, 255, 0.08); }
+.pt-lv { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 15px; color: #9aa3b2; }
+.pt-art { width: 92px; height: 70px; border-radius: 10px; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08), 0 6px 14px rgba(0, 0, 0, 0.35); display: grid; place-items: center; }
+.pt-art.coin-art { background: radial-gradient(circle at 50% 40%, #3a3220, #1a1710); display: flex; flex-direction: column; gap: 2px; }
+.pt-art.coin-art .coin { width: 26px; height: 26px; } .pt-art.coin-art b { color: var(--gold); font-size: 15px; }
+.pt-art.gear-art span { font-weight: 900; font-size: 11px; letter-spacing: 0.1em; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
+.pt-name { font-weight: 700; font-size: 13px; text-align: center; min-height: 32px; line-height: 1.2; display: flex; align-items: center; }
+.pt-rar { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; min-height: 13px; }
+.pt.rare .pt-rar { color: #6fb0ff; } .pt.epic .pt-rar { color: #c38cff; } .pt.legendary .pt-rar { color: var(--gold); }
+.pt.legendary { border-color: rgba(242, 196, 67, 0.45); box-shadow: 0 0 20px rgba(242, 196, 67, 0.12); }
+.pt.epic { border-color: rgba(195, 140, 255, 0.35); }
+.pt.ready { border-color: var(--accent); box-shadow: 0 0 18px rgba(240, 116, 62, 0.25); }
+.pt.locked .pt-art, .pt.locked .pt-name { opacity: 0.45; filter: saturate(0.5); }
+.pt-lock, .pt-done { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; color: var(--muted); padding: 5px 0; }
+.pt-done { color: var(--good); }
+.pt button { width: 100%; }
+.pass-foot { padding: 0 28px; margin: 0; }
+
+/* tutorial card (top centre while you ride) */
+.tut { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 30; pointer-events: none; width: min(460px, 92vw); }
+.tut-card { pointer-events: auto; background: rgba(12, 15, 22, 0.88); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 14px 18px 12px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); backdrop-filter: blur(8px); text-align: center; }
+.tut-card.flash { animation: tutFlash 0.6s var(--ease); }
+@keyframes tutFlash { 0% { box-shadow: 0 0 0 3px var(--good), 0 12px 30px rgba(0, 0, 0, 0.45); transform: scale(1.03); } 100% { transform: none; } }
+.tut-kicker { font-size: 11px; letter-spacing: 0.3em; color: var(--gold); font-weight: 800; }
+.tut-title { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 30px; line-height: 1.1; margin: 2px 0 6px; }
+.tut-text { font-size: 15px; line-height: 1.45; color: #e3e7ee; }
+.tut-text kbd, .tut kbd { display: inline-block; min-width: 24px; padding: 2px 7px; border-radius: 6px; background: #f2f2f2; color: #12151c; font-family: var(--font); font-weight: 800; font-size: 13px; box-shadow: 0 2px 0 #9aa0aa; margin: 0 1px; }
+.tut-dots { display: flex; justify-content: center; gap: 6px; margin: 10px 0 6px; }
+.tut-dots i { width: 22px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); }
+.tut-dots i.on { background: var(--good); } .tut-dots i.cur { background: var(--gold); }
+.tut-skip { background: none; border: none; color: var(--muted); font-size: 12px; padding: 4px 8px; text-decoration: underline; }
+.tut-row { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.tut-card.done .tut-title { color: var(--gold); }
+.pass-track { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.25) transparent; }
+.pass-track::-webkit-scrollbar { height: 6px; } .pass-track::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 3px; } .pass-track::-webkit-scrollbar-track { background: transparent; }

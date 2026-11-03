@@ -6,6 +6,18 @@
 // =====================================================================
 export const UPDATES = [
   {
+    id: '2026-11-03-a', date: 'Nov 3, 2026', title: 'The Pass, a tutorial and lobby music',
+    items: [
+      'The Pass: a reward for every level you reach - coins, paints and rider kits, up to a legendary at level 31',
+      'New riders get a short tutorial ride (replay it from your profile menu)',
+      'Music in the lobby and menus (Settings > Audio to change the volume)',
+      'A full-screen result after every ranked race: your rating counting up, the bar filling, and promotions',
+      'Ranked races are a straight 1v1 - no party - and a rider who goes AFK is out',
+      'Backfires burble and pop instead of banging',
+      'A new top bar with icons that fits on smaller screens',
+    ],
+  },
+  {
     id: '2026-11-02-a', date: 'Nov 2, 2026', title: 'Ranked is here, blackjack and backfires',
     items: [
       'Ranked is open: 1v1 races against a rider of your rank from the Ranked tab - climb from Bronze to Pro, with new rank badges and a rank-up celebration',

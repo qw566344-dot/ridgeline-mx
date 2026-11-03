@@ -29,6 +29,7 @@ const DEFAULTS = {
   masterVolume: 0.8,
   engineVolume: 0.8,
   effectsVolume: 0.8,
+  musicVolume: 0.5,
   units: 'mph',
   landingAssist: 0.6,
   tractionAssist: true,
