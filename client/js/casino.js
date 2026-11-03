@@ -165,19 +165,11 @@ export class CasinoUI {
       };
       turn(t0);
     }
+    // the hub stays blank while the wheel turns, and shows the number once it has stopped
     const ball = $('rl-ball');
-    let delay = 40, t = 0;
-    await new Promise((done) => {
-      const tick = () => {
-        const n = t > 2200 ? r.result : Math.floor(Math.random() * 37);
-        ball.textContent = n; ball.className = 'rl-ball ' + rouletteColor(n);
-        if (t > 2200) return done();
-        t += delay; delay *= 1.09;
-        setTimeout(tick, delay);
-      };
-      tick();
-    });
-    ball.classList.add('land');
+    ball.textContent = ''; ball.className = 'rl-ball spin';
+    await new Promise((done) => setTimeout(done, 2650));
+    ball.textContent = r.result; ball.className = 'rl-ball ' + rouletteColor(r.result) + ' land';
     this.history = [r.result, ...this.history].slice(0, 14);
     this.renderHist();
     if (r.payout) this.msg('rl-msg', `${r.result} ${r.color.toUpperCase()} - you win ${r.win.toLocaleString()} coins!`, 'good');
