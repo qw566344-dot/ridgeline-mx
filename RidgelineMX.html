@@ -979,7 +979,9 @@ button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 .vcard:hover, .rung:hover { transform: translateX(3px); }
 .lb-list li { animation: rise 0.4s var(--ease) both; }
 .lb-list li:nth-child(2) { animation-delay: 0.04s; } .lb-list li:nth-child(3) { animation-delay: 0.08s; } .lb-list li:nth-child(4) { animation-delay: 0.12s; } .lb-list li:nth-child(5) { animation-delay: 0.16s; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+/* reduced motion (e.g. Windows animations off): calm the menu transitions only. Shortening EVERY animation made
+   the ones that end faded out (trick points, rank-up) vanish the moment they appeared */
+@media (prefers-reduced-motion: reduce) { .menu-screen, .overlay, .overlay .sheet, .intro-logo, .modal-wrap .modal-box { animation: none !important; } button { transition: none !important; } }
 
 /* =====================================================================
    RANKED, LOBBY-STYLE: the track and your rider stay visible behind, the
