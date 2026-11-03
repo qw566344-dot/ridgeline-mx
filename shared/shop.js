@@ -41,6 +41,19 @@ export const GEAR_SETS = [
   { id: 'kit-unicorn', name: 'Unicorn Kit', skin: 'unicorn' },
   { id: 'kit-splatter', name: 'Splatter Kit', skin: 'splatter' },
   { id: 'kit-retro', name: 'Retro Kit', skin: 'retro' },
+  { id: 'kit-tribalfire', name: 'Tribal Fire Kit', skin: 'tribalfire' },
+  { id: 'kit-nebula2', name: 'Nebula Kit', skin: 'nebula2' },
+  { id: 'kit-kaleido', name: 'Kaleidoscope Kit', skin: 'kaleido' },
+  { id: 'kit-firedragon', name: 'Fire Dragon Kit', skin: 'firedragon' },
+  { id: 'kit-goldstreak', name: 'Gold Streak Kit', skin: 'goldstreak' },
+  { id: 'kit-glitch', name: 'Glitch Kit', skin: 'glitch' },
+  { id: 'kit-amethyst', name: 'Amethyst Kit', skin: 'amethyst' },
+  { id: 'kit-prismatic', name: 'Prismatic Kit', skin: 'prismatic' },
+  { id: 'kit-p-trailblazer', name: 'Trailblazer Kit', skin: 'p-trailblazer' },
+  { id: 'kit-p-nightrider', name: 'Night Rider Kit', skin: 'p-nightrider' },
+  { id: 'kit-p-glacier', name: 'Glacier Elite Kit', skin: 'p-glacier' },
+  { id: 'kit-p-solarflare', name: 'Solar Flare Kit', skin: 'p-solarflare' },
+  { id: 'kit-p-prismelite', name: 'Prism Elite Kit', skin: 'p-prismelite' },
 ];
 
 export const SHOP = [
@@ -177,21 +190,107 @@ export const SHOP = [
   { id: 'galaxy', slot: 'gear', price: 2500 },
   { id: 'rosegold', slot: 'gear', price: 3500 },
   { id: 'royal', slot: 'gear', price: 4000 },
+  // more skins (2026-11-03)
+  { id: 'tribalfire', slot: 'color', price: 4200, rarity: 'Epic' },
+  { id: 'icetribe', slot: 'color', price: 4000, rarity: 'Epic' },
+  { id: 'jadetribe', slot: 'color', price: 3200, rarity: 'Rare' },
+  { id: 'lumberjack', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'highland', slot: 'color', price: 2800, rarity: 'Rare' },
+  { id: 'grungeplaid', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'nebula2', slot: 'color', price: 9000, rarity: 'Legendary' },
+  { id: 'deepspace', slot: 'color', price: 8500, rarity: 'Legendary' },
+  { id: 'supernova', slot: 'color', price: 9500, rarity: 'Legendary' },
+  { id: 'hazard', slot: 'color', price: 2800, rarity: 'Rare' },
+  { id: 'biohazard', slot: 'color', price: 3800, rarity: 'Epic' },
+  { id: 'redzone', slot: 'color', price: 3000, rarity: 'Rare' },
+  { id: 'kaleido', slot: 'color', price: 4800, rarity: 'Epic' },
+  { id: 'mandala', slot: 'color', price: 4600, rarity: 'Epic' },
+  { id: 'icefractal', slot: 'color', price: 4400, rarity: 'Epic' },
+  { id: 'warpspeed', slot: 'color', price: 4000, rarity: 'Epic' },
+  { id: 'redline', slot: 'color', price: 3200, rarity: 'Rare' },
+  { id: 'goldstreak', slot: 'color', price: 4400, rarity: 'Epic' },
+  { id: 'amethyst', slot: 'color', price: 4600, rarity: 'Epic' },
+  { id: 'emeraldcut', slot: 'color', price: 4600, rarity: 'Epic' },
+  { id: 'icecrystal', slot: 'color', price: 4200, rarity: 'Epic' },
+  { id: 'ruby', slot: 'color', price: 7800, rarity: 'Legendary' },
+  { id: 'prismatic', slot: 'color', price: 11000, rarity: 'Legendary' },
+  { id: 'opal', slot: 'color', price: 10500, rarity: 'Legendary' },
+  { id: 'blueflame', slot: 'color', price: 4400, rarity: 'Epic' },
+  { id: 'ghostflame', slot: 'color', price: 3800, rarity: 'Epic' },
+  { id: 'greenflame', slot: 'color', price: 4200, rarity: 'Epic' },
+  { id: 'arcticcamo', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'sandcamo', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'pinkcamo', slot: 'color', price: 2800, rarity: 'Rare' },
+  { id: 'urbancamo', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'whitetiger', slot: 'color', price: 4200, rarity: 'Epic' },
+  { id: 'neonclaw', slot: 'color', price: 4400, rarity: 'Epic' },
+  { id: 'cyberhex', slot: 'color', price: 3800, rarity: 'Epic' },
+  { id: 'goldhex', slot: 'color', price: 4000, rarity: 'Epic' },
+  { id: 'redbolt', slot: 'color', price: 3000, rarity: 'Rare' },
+  { id: 'electric', slot: 'color', price: 3800, rarity: 'Epic' },
+  { id: 'graffiti', slot: 'color', price: 3800, rarity: 'Epic' },
+  { id: 'mudsplash', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'glitch', slot: 'color', price: 4200, rarity: 'Epic' },
+  { id: 'arcade', slot: 'color', price: 3000, rarity: 'Rare' },
+  { id: 'borealis', slot: 'color', price: 9000, rarity: 'Legendary' },
+  { id: 'frostflow', slot: 'color', price: 8500, rarity: 'Legendary' },
+  { id: 'whitemarble', slot: 'color', price: 4200, rarity: 'Epic' },
+  { id: 'blackmarble', slot: 'color', price: 4600, rarity: 'Epic' },
+  { id: 'gulfrace', slot: 'color', price: 3200, rarity: 'Rare' },
+  { id: 'martini', slot: 'color', price: 3200, rarity: 'Rare' },
+  { id: 'goldzebra', slot: 'color', price: 4000, rarity: 'Epic' },
+  { id: 'popart', slot: 'color', price: 2800, rarity: 'Rare' },
+  { id: 'royalargyle', slot: 'color', price: 2800, rarity: 'Rare' },
+  { id: 'halfhalf', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'dusksplit', slot: 'color', price: 3000, rarity: 'Rare' },
+  { id: 'firedragon', slot: 'color', price: 8000, rarity: 'Legendary' },
+  { id: 'siren', slot: 'color', price: 4400, rarity: 'Epic' },
+  { id: 'tuxedo', slot: 'color', price: 3000, rarity: 'Rare' },
+  { id: 'worksblue', slot: 'color', price: 3200, rarity: 'Rare' },
+  { id: 'factorygreen', slot: 'color', price: 3200, rarity: 'Rare' },
+  { id: 'worksred', slot: 'color', price: 3200, rarity: 'Rare' },
+  { id: 'tsunami', slot: 'color', price: 4200, rarity: 'Epic' },
+  { id: 'motherboard', slot: 'color', price: 4000, rarity: 'Epic' },
+  { id: 'redsun', slot: 'color', price: 4000, rarity: 'Epic' },
+  { id: 'polyice', slot: 'color', price: 3800, rarity: 'Epic' },
+  { id: 'polyfire', slot: 'color', price: 3800, rarity: 'Epic' },
+  { id: 'redrock', slot: 'color', price: 3200, rarity: 'Rare' },
+  { id: 'neonchecker', slot: 'color', price: 2800, rarity: 'Rare' },
+  { id: 'sunsetfade', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'mintfade', slot: 'color', price: 2600, rarity: 'Rare' },
+  { id: 'mirage', slot: 'color', price: 9000, rarity: 'Legendary' },
+  // pass-only paints and kits (never sold: pass: true)
+  { id: 'p-trailblazer', slot: 'color', price: 1e9, rarity: 'Rare', pass: true },
+  { id: 'p-dustdevil', slot: 'color', price: 1e9, rarity: 'Rare', pass: true },
+  { id: 'p-nightrider', slot: 'color', price: 1e9, rarity: 'Epic', pass: true },
+  { id: 'p-venomstrike', slot: 'color', price: 1e9, rarity: 'Epic', pass: true },
+  { id: 'p-voltage', slot: 'color', price: 1e9, rarity: 'Epic', pass: true },
+  { id: 'p-glacier', slot: 'color', price: 1e9, rarity: 'Epic', pass: true },
+  { id: 'p-phantom', slot: 'color', price: 1e9, rarity: 'Epic', pass: true },
+  { id: 'p-solarflare', slot: 'color', price: 1e9, rarity: 'Legendary', pass: true },
+  { id: 'p-royalty', slot: 'color', price: 1e9, rarity: 'Legendary', pass: true },
+  { id: 'p-prismelite', slot: 'color', price: 1e9, rarity: 'Legendary', pass: true },
+  { id: 'kit-p-trailblazer', slot: 'gear', price: 1e9, rarity: 'Rare', pass: true },
+  { id: 'kit-p-nightrider', slot: 'gear', price: 1e9, rarity: 'Epic', pass: true },
+  { id: 'kit-p-glacier', slot: 'gear', price: 1e9, rarity: 'Epic', pass: true },
+  { id: 'kit-p-solarflare', slot: 'gear', price: 1e9, rarity: 'Legendary', pass: true },
+  { id: 'kit-p-prismelite', slot: 'gear', price: 1e9, rarity: 'Legendary', pass: true },
   // bundle kits (only sold in their bundle; priced from their skin below)
 ];
-for (const g of GEAR_SETS) if (g.skin) SHOP.push({ id: g.id, slot: 'gear', price: 0, bundleOnly: true });
+for (const g of GEAR_SETS) if (g.skin && !g.skin.startsWith('p-')) SHOP.push({ id: g.id, slot: 'gear', price: 0, bundleOnly: true });
 
 // ---------------------------------------------------------------------
 //  BUNDLES: a bike skin and the rider kit that matches it, together for
 //  25% less. Always for sale. Parts you already own come off the price.
 // ---------------------------------------------------------------------
-export const BUNDLES = GEAR_SETS.filter((g) => g.skin).map((g) => {
+export const BUNDLES = GEAR_SETS.filter((g) => g.skin && !g.skin.startsWith('p-')).map((g) => {
   const skin = SHOP.find((i) => i.slot === 'color' && i.id === g.skin);
   const kitItem = SHOP.find((i) => i.slot === 'gear' && i.id === g.id);
   kitItem.price = Math.round((skin.price * 0.45) / 100) * 100; // what the kit counts as on its own
   kitItem.rarity = skin.rarity;
   return { id: g.skin, name: g.name.replace(/ Kit$/, '') + ' Bundle', color: g.skin, gear: g.id, rarity: skin.rarity, full: skin.price + kitItem.price, price: Math.round(((skin.price + kitItem.price) * 0.75) / 100) * 100 };
 });
+for (const g of GEAR_SETS) if (g.skin && g.skin.startsWith('p-')) { const k = SHOP.find((i) => i.slot === 'gear' && i.id === g.id), sk = SHOP.find((i) => i.slot === 'color' && i.id === g.skin); if (k && sk) k.rarity = sk.rarity; }
 export function getBundle(id) { return BUNDLES.find((b) => b.id === id) || null; }
 export function bundleParts(b) { return [['color', b.color], ['gear', b.gear]]; }
 // price for someone who owns some of it already (owns(slot, id) -> bool)
@@ -251,7 +350,7 @@ function shuffled(list, r) { const a = [...list]; for (let i = a.length - 1; i >
 export function shopRotation(now = Date.now()) {
   const slot = Math.floor(now / ROTATION_MS);
   const r = rotRng(slot + 7);
-  const paid = SHOP.filter((i) => (i.slot === 'color' || i.slot === 'gear') && i.price > 0 && !i.bundleOnly);
+  const paid = SHOP.filter((i) => (i.slot === 'color' || i.slot === 'gear') && i.price > 0 && !i.bundleOnly && !i.pass && !i.special);
   const big = paid.filter((i) => i.slot === 'color' && ['Epic', 'Legendary'].includes(rarityOf(i)));
   const featured = shuffled(big, r).slice(0, 3);
   const rest = paid.filter((i) => !featured.includes(i));
@@ -266,6 +365,7 @@ export function inShop(slot, id, now = Date.now()) {
   const it = shopItem(slot, id);
   if (!it || it.price === 0) return true;
   if (it.bundleOnly) return false; // only with its bundle
+  if (it.pass) return false;       // only from the pass
   for (const t of [now, now - 120_000]) {
     const R = shopRotation(t);
     if ([...R.featured, ...R.daily].some((x) => x.slot === slot && x.id === id)) return true;

@@ -1180,7 +1180,7 @@ button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 #region-chip #region-text { overflow: hidden; text-overflow: ellipsis; }
 #level-chip .xpbar { width: 44px; }
 @media (max-width: 1440px) { #nav button { padding: 0 7px; font-size: 13px; gap: 5px; } #nav button svg { width: 14px; height: 14px; } #nav .new-pill { font-size: 8.5px; padding: 1px 4px; } #topbar { gap: 8px; padding: 0 12px; } }
-@media (max-width: 1300px) { #nav button span { display: none; } #nav button { padding: 0 10px; } #nav .new-pill { position: absolute; top: 9px; right: 0; } }
+@media (max-width: 1180px) { #nav button span { display: none; } #nav button { padding: 0 10px; } #nav .new-pill { position: absolute; top: 9px; right: 0; } }
 @media (max-width: 900px) { #region-chip, #level-chip { display: none; } }
 @media (max-width: 1440px) { #level-chip .xpbar { display: none; } #profile-mode { display: none; } .top-right { gap: 5px; } }
 #profile-name { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
@@ -1231,3 +1231,71 @@ button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 .tut-card.done .tut-title { color: var(--gold); }
 .pass-track { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.25) transparent; }
 .pass-track::-webkit-scrollbar { height: 6px; } .pass-track::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 3px; } .pass-track::-webkit-scrollbar-track { background: transparent; }
+
+/* =====================================================================
+   PASS v2: premium row over a free row, one column per tier
+   ===================================================================== */
+.pass-screen { padding-bottom: 16px; background: linear-gradient(0deg, rgba(5, 6, 10, 0.95) 0%, rgba(5, 6, 10, 0.72) 52%, rgba(5, 6, 10, 0) 80%); }
+.pass-head { align-items: flex-end; }
+.pass-actions { display: flex; align-items: center; gap: 12px; }
+.pass-buy { display: flex; flex-direction: column; align-items: flex-start; gap: 0; padding: 9px 20px 10px; border: none; border-radius: 12px; background: linear-gradient(135deg, #f8d34a, #d4880f); color: #1a1206; box-shadow: 0 8px 24px rgba(242, 196, 67, 0.3); text-transform: none; letter-spacing: 0; }
+.pass-buy small { font-size: 10px; font-weight: 800; letter-spacing: 0.22em; opacity: 0.75; }
+.pass-buy b { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 22px; }
+.pass-buy:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-2px); }
+.pass-owned { font-family: var(--display); font-style: italic; font-weight: 900; letter-spacing: 0.08em; padding: 8px 16px; border-radius: 10px; background: linear-gradient(135deg, rgba(248, 211, 74, 0.2), rgba(212, 136, 15, 0.2)); color: var(--gold); border: 1px solid rgba(242, 196, 67, 0.45); }
+.pass-rows { position: relative; display: flex; }
+.pass-labels { flex: none; width: 34px; display: flex; flex-direction: column; justify-content: space-between; padding: 14px 0 26px 14px; }
+.pass-labels span { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; font-weight: 900; letter-spacing: 0.3em; }
+.pl-prem { color: var(--gold); height: 190px; text-align: center; } .pl-free { color: #9aa3b2; height: 120px; text-align: center; }
+.pass-track { flex: 1; gap: 10px; padding: 8px 24px 12px 10px; align-items: flex-start; }
+.pcol { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 150px; }
+.pcol-lv { display: flex; align-items: baseline; gap: 6px; padding: 2px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); }
+.pcol-lv b { font-family: var(--display); font-style: italic; font-size: 16px; color: #e8ecf2; } .pcol-lv small { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
+.pcol.reached .pcol-lv { background: rgba(242, 196, 67, 0.16); } .pcol.reached .pcol-lv b { color: var(--gold); }
+.pt { width: 150px; gap: 6px; padding: 10px; }
+.pt.premium { min-height: 200px; background: linear-gradient(180deg, rgba(38, 32, 14, 0.92), rgba(16, 18, 26, 0.94)); border-color: rgba(242, 196, 67, 0.28); }
+.pt.free { min-height: 122px; }
+.pt.free .pt-art { height: 52px; }
+.pt.empty { min-height: 122px; background: transparent; border: 1px dashed rgba(255, 255, 255, 0.07); }
+.pt-art { width: 100%; height: 88px; }
+.pt-art.pic { overflow: hidden; background: radial-gradient(circle at 50% 40%, #2a3140, #12161e); }
+.pt-art.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pt-art.pic.loading { animation: ptLoad 1.2s ease-in-out infinite; }
+@keyframes ptLoad { 50% { opacity: 0.55; } }
+.pt-name { min-height: 30px; font-size: 13px; }
+.pt-rar { font-size: 10.5px; text-align: center; min-height: 26px; }
+.pt.excl { border-color: rgba(242, 196, 67, 0.55); }
+.pt.excl .pt-rar { color: var(--gold) !important; }
+.pt.legendary.premium { box-shadow: 0 0 26px rgba(242, 196, 67, 0.2); }
+.pt.ready { border-color: var(--accent) !important; box-shadow: 0 0 18px rgba(240, 116, 62, 0.3); }
+.pt.needprem .pt-art, .pt.needprem .pt-name { opacity: 0.8; }
+.pt.needprem .pt-lock { color: var(--gold); }
+.pt.locked .pt-art, .pt.locked .pt-name { opacity: 0.4; filter: saturate(0.5); }
+
+/* new version banner (version.js) */
+.newver { position: fixed; top: 64px; left: 50%; z-index: 200; display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 10px; border-radius: 14px; background: #f7f7f5; color: #12151c; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45); transform: translate(-50%, -24px); opacity: 0; transition: transform 0.45s var(--ease), opacity 0.35s; font-family: var(--font); }
+.newver.in { transform: translate(-50%, 0); opacity: 1; }
+.nv-tag { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 12px; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 6px; background: #12151c; color: #fff; }
+.nv-text { font-weight: 700; font-size: 14px; }
+.nv-btn { border: none; border-radius: 9px; padding: 7px 16px; background: var(--accent); color: #fff; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 15px; letter-spacing: 0.02em; }
+.nv-btn:hover { filter: brightness(1.1); }
+.nv-x { border: none; background: none; color: #6b7280; font-size: 20px; padding: 0 6px; line-height: 1; }
+
+/* =====================================================================
+   TOP BAR, CORK7 STYLE: no bar - the tabs float over the scene with a
+   soft shade behind them; on the right only coins, friends, settings and
+   a MENU (Esc) button. Level, server and your profile live in the menu.
+   ===================================================================== */
+#topbar { background: linear-gradient(180deg, rgba(5, 7, 12, 0.72), rgba(5, 7, 12, 0.25) 70%, rgba(5, 7, 12, 0)); border-bottom: none; box-shadow: none; backdrop-filter: none; padding: 0 22px; height: 64px; }
+#nav { border-bottom: 1px solid rgba(255, 255, 255, 0.08); height: 48px; align-self: center; }
+#nav button { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
+.top-right { align-self: center; }
+.top-right .chip.coins, #friends-btn, #settings-btn { background: rgba(10, 12, 18, 0.45); border: 1px solid rgba(255, 255, 255, 0.14); backdrop-filter: blur(6px); }
+.menu-btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 12px; border-radius: 10px; background: rgba(10, 12, 18, 0.45); border: 1px solid rgba(255, 255, 255, 0.14); backdrop-filter: blur(6px); color: #fff; font-family: var(--display); font-weight: 800; font-size: 13px; letter-spacing: 0.08em; }
+.menu-btn kbd { font-family: var(--font); font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 4px; background: rgba(255, 255, 255, 0.85); color: #12151c; }
+.menu-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); }
+#profile-menu { min-width: 280px; right: 0; }
+.menu-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; border-top: 1px solid rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 4px; }
+.menu-chips .chip { display: inline-flex !important; max-width: none !important; }
+.menu-chips #region-chip { flex: 1; }
+.menu-chips .xpbar { display: inline-block !important; width: 60px !important; }

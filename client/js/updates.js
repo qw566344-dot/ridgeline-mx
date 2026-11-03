@@ -8,7 +8,9 @@ export const UPDATES = [
   {
     id: '2026-11-03-a', date: 'Nov 3, 2026', title: 'The Pass, a tutorial and lobby music',
     items: [
-      'The Pass: a reward for every level you reach - coins, paints and rider kits, up to a legendary at level 31',
+      'The Season 1 Pass: free rewards every few levels, or unlock the Premium Pass with coins for a reward at every level - pass-only skins and kits up to the Prism Elite legendary',
+      '68 new skins in the shop with 8 new designs (tribal, plaid, nebula, hazard, kaleidoscope, speed, crystal, prism)',
+      'When the game is updated while you have it open, a banner lets you refresh to the new version',
       'New riders get a short tutorial ride (replay it from your profile menu)',
       'Music in the lobby and menus (Settings > Audio to change the volume)',
       'A full-screen result after every ranked race: your rating counting up, the bar filling, and promotions',

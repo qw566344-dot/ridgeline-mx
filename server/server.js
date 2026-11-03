@@ -9,6 +9,8 @@
 //  No npm install needed - zero dependencies.
 // =====================================================================
 import http from 'http';
+import crypto from 'crypto';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { makeStaticHandler } from './static.js';
@@ -27,7 +29,21 @@ const lobby = new Lobby((msg) => console.log(new Date().toISOString().slice(11, 
 accounts.lobby = lobby;
 lobby.accounts = accounts;
 
+// the build this server is running, for "a new version is out - refresh" on open pages
+const BUILD = (() => {
+  if (process.env.RENDER_GIT_COMMIT) return process.env.RENDER_GIT_COMMIT.slice(0, 10);
+  const h = crypto.createHash('sha1');
+  const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) { if (e.name !== 'models' && e.name !== 'vendor') walk(p); } else { const st = fs.statSync(p); h.update(p + st.size + st.mtimeMs); } } };
+  try { walk(path.join(ROOT, 'client')); walk(path.join(ROOT, 'shared')); } catch { h.update(String(Date.now())); }
+  return h.digest('hex').slice(0, 10);
+})();
+
 const server = http.createServer((req, res) => {
+  if (req.url.startsWith('/api/version')) {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ build: BUILD }));
+    return;
+  }
   if (req.url.startsWith('/api/lan')) {
     // addresses friends on the same Wi-Fi can use to reach this computer
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });

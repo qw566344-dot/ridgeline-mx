@@ -47,17 +47,16 @@ try {
     ok(got.ok && got.profile.coins === coins0 + target.coins && /already/i.test(twice.error || ''), 'a finished challenge pays out once (' + target.text + ')');
     void lapC;
   }
-  { // the pass: a reward per level, claimed once, locked until you reach the level
+  { // the pass: free track every 3 levels; premium needs buying; locked until the level
     const tk = (await api(null, 'register', { name: 'PassTester', password: pw })).token;
-    const locked = await api(tk, 'pass/claim', { tier: 1 });
-    ok(/level 2/i.test(locked.error || ''), 'a pass reward is locked until its level');
-    for (let i = 0; i < 6; i++) await api(tk, 'reward', { kind: 'lap', amount: 40 }); // 6 laps = 360 XP = level 2
+    const locked = await api(tk, 'pass/claim', { tier: 3, track: 'free' });
+    ok(/level 4/i.test(locked.error || ''), 'a pass reward is locked until its level');
+    const prem = await api(tk, 'pass/claim', { tier: 1, track: 'premium' }), poor = await api(tk, 'pass/buy');
+    ok(/premium/i.test(prem.error || '') && /25,000/.test(poor.error || ''), 'premium rewards need the pass, and the pass costs 25,000 coins');
+    for (let i = 0; i < 31; i++) await api(tk, 'reward', { kind: 'lap', amount: 40 }); // 31 laps = 1860 XP = level 4
     const c0 = (await api(tk, 'me')).profile.coins;
-    const got = await api(tk, 'pass/claim', { tier: 1 }), again = await api(tk, 'pass/claim', { tier: 1 });
-    ok(got.ok && got.profile.coins === c0 + 300 && got.profile.pass.includes(1) && /already/i.test(again.error || ''), 'level 2 unlocks the first pass reward, paid once');
-    for (let i = 0; i < 12; i++) await api(tk, 'reward', { kind: 'lap', amount: 40 }); // level 3+
-    const item = await api(tk, 'pass/claim', { tier: 2 });
-    ok(item.ok && item.profile.owned.includes('color:green'), 'an item pass reward unlocks the item');
+    const got = await api(tk, 'pass/claim', { tier: 3, track: 'free' }), again = await api(tk, 'pass/claim', { tier: 3, track: 'free' });
+    ok(got.ok && got.profile.coins === c0 + 150 && got.profile.pass.includes(3) && /already/i.test(again.error || ''), 'level 4 unlocks the first free reward, paid once');
   }
   r = await api(null, 'register', { name: 'savetester', password: pw });
   ok(r.error && /taken/.test(r.error), 'same name (any case) is refused');
@@ -102,6 +101,16 @@ try {
   ok(r.profile && r.profile.coins === 5000000 && r.profile.owned.includes('vehicle:mx500') && !r.profile.owned.includes('vehicle:fake') && r.profile.equipped.vehicle === 'mx250', 'restore is cleaned (coin cap, no fake items)');
   r = await api(null, 'register', { name: 'nahh', password: pw });
   ok(r.profile && r.profile.coins === 1000000, 'test account nahh gets 1,000,000 coins');
+  { // buying the premium pass with coins, then claiming
+    const tk = r.token;
+    const bought = await api(tk, 'pass/buy'), twice = await api(tk, 'pass/buy');
+    ok(bought.ok && bought.profile.passPremium && bought.profile.coins === 1000000 - 25000 && /already/i.test(twice.error || ''), 'the premium pass is bought once with coins');
+    for (let i = 0; i < 6; i++) await api(tk, 'reward', { kind: 'lap', amount: 40 }); // level 2
+    const all = await api(tk, 'pass/claim', { tier: 0 });
+    ok(all.ok && all.profile.owned.includes('color:p-trailblazer') && all.profile.passP.includes(1), 'claim all pays the premium reward for each level reached');
+    const sell = await api(tk, 'buy', { slot: 'color', id: 'p-nightrider' });
+    ok(!!sell.error, 'pass-only skins can not be bought in the shop');
+  }
 } catch (e) { console.error(e); fails++; }
 srv.kill();
 console.log(fails ? `${fails} FAILED` : 'all passed');

@@ -13,7 +13,7 @@
 import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES, SPECIAL_VEHICLES, SPECIAL_CATEGORY } from '/shared/vehicles.js';
 import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop, BUNDLES, getBundle, bundlePrice, levelInfo, vehicleLevel } from '/shared/shop.js';
-import { PASS } from '/shared/pass.js';
+import { PASS, PASS_PRICE, PASS_SEASON } from '/shared/pass.js';
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
 import { CAMERA_MODES } from './camera.js';
@@ -91,6 +91,10 @@ export class UI {
     $('profile-chip').addEventListener('click', (e) => { e.stopPropagation(); $('profile-menu').hidden = !$('profile-menu').hidden; this.renderProfile(); });
     document.addEventListener('click', (e) => { if (!$('profile-menu').hidden && !$('profile-menu').contains(e.target)) $('profile-menu').hidden = true; });
     $('logout-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('logout'); });
+    document.addEventListener('keydown', (e) => {
+      if (e.code !== 'Escape' || this.inGame() || !MENUS.has(this.screen) || document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+      const m = $('profile-menu'); m.hidden = !m.hidden; if (!m.hidden) this.renderProfile();
+    });
     $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
     $('updates-btn').addEventListener('click', () => this.showUpdates());
     $('tutorial-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('tutorial'); });
@@ -149,7 +153,7 @@ export class UI {
     if (name === 'ranked') this.renderRanked();
     if (name === 'replays') this.renderReplays();
     if (name === 'challenges') this.renderChallenges();
-    if (name === 'pass') this.renderPass();
+    if (name === 'pass') { this.passScrolled = false; this.renderPass(); }
     if (name === 'friends') { this.renderHome(); this.renderFriends(); if (this.social) this.social.refresh(); }
     if (name === 'settings') this.renderSettings();
     this.renderTop();
@@ -750,44 +754,71 @@ export class UI {
   }
 
   // ------------------------------------------------------------- pass
-  // one card per level: the reward, and locked / claim / claimed. The track scrolls to the next
-  // reward you can claim (or the next one coming up)
+  // two rows, one column per tier: PREMIUM on top (a reward every level, a picture of your bike in
+  // the skin), FREE underneath (every few levels). Locked / claim / claimed on each card; the buy
+  // button and "claim all" in the header. The row scrolls to your next reward.
   renderPass() {
-    const A = this.account, P = A && A.profile, xp = (P && P.xp) || 0, L = levelInfo(xp), got = new Set((P && P.pass) || []);
+    const A = this.account, P = A && A.profile, xp = (P && P.xp) || 0, L = levelInfo(xp), S = this.settings;
+    const gotF = new Set((P && P.pass) || []), gotP = new Set((P && P.passP) || []), prem = !!(P && P.passPremium);
+    const online = A && A.mode === 'online';
+    $('pass-season').textContent = PASS_SEASON.toUpperCase() + ' PASS' + (prem ? '  -  PREMIUM' : '');
     $('pass-level').textContent = L.level;
     $('pass-xpfill').style.width = Math.round((L.into / L.need) * 100) + '%';
     $('pass-xptext').textContent = `${L.into.toLocaleString()} / ${L.need.toLocaleString()} XP to level ${L.level + 1}`;
-    const online = A && A.mode === 'online';
-    const ready = PASS.filter((t) => L.level >= t.level && !got.has(t.tier));
-    const upcoming = PASS.find((t) => L.level < t.level);
-    $('pass-next').innerHTML = ready.length ? `<b>${ready.length}</b> reward${ready.length > 1 ? 's' : ''} to claim` : upcoming ? `Next reward at <b>level ${upcoming.level}</b>` : 'Pass complete!';
-    const swatch = (t) => {
-      if (t.coins) return `<div class="pt-art coin-art"><i class="coin"></i><b>${t.coins.toLocaleString()}</b></div>`;
-      if (t.slot === 'color') { const p = paintFor('mx250', t.id); return `<div class="pt-art" style="background:linear-gradient(135deg, ${hex(p.body)} 55%, ${hex(p.accent)} 55%)"></div>`; }
-      const g = GEAR_SETS.find((x) => x.id === t.id); const cols = g && g.colors ? g.colors : [0x333333, 0x999999, 0xffffff];
-      return `<div class="pt-art gear-art" style="background:linear-gradient(135deg, ${hex(cols[0])} 45%, ${hex(cols[1])} 45%, ${hex(cols[1])} 62%, ${hex(cols[2] ?? cols[0])} 62%)"><span>KIT</span></div>`;
+    const ready = PASS.filter((t) => L.level >= t.level && ((t.free && !gotF.has(t.tier)) || (prem && !gotP.has(t.tier))));
+    const nextUp = PASS.find((t) => L.level < t.level);
+    $('pass-next').innerHTML = ready.length ? '' : nextUp ? `Next tier at <b>level ${nextUp.level}</b>` : 'Pass complete!';
+    $('pass-claimall').hidden = !(online && ready.length);
+    $('pass-claimall').textContent = ready.length > 1 ? `Claim all (${ready.length})` : 'Claim';
+    $('pass-buybox').innerHTML = prem ? '<span class="pass-owned">PREMIUM OWNED</span>'
+      : `<button id="pass-buy" class="pass-buy" ${online ? '' : 'disabled title="Needs an online account"'}><small>UNLOCK PREMIUM</small><b><i class="coin"></i>${PASS_PRICE.toLocaleString()}</b></button>`;
+    const veh = S.get('vehicle'), col = S.get('color'), gear = S.get('gear') || 'match';
+    const info = (R) => {
+      if (!R) return null;
+      if (R.coins) return { name: `${R.coins.toLocaleString()} Coins`, kind: 'Coins', rar: '', art: `<div class="pt-art coin-art"><i class="coin"></i><b>${R.coins.toLocaleString()}</b></div>` };
+      const it = shopItem(R.slot, R.id), r = rarityOf(it), rar = r && r !== 'Common' && r !== 'Uncommon' ? r : '';
+      const exclusive = it && it.pass;
+      let name, img;
+      if (R.slot === 'color') { const c = BIKE_COLORS.find((q) => q.id === R.id); name = c ? c.name : R.id; img = this.thumbs && this.thumbs.get(veh, R.id, gear); }
+      else { const g = GEAR_SETS.find((q) => q.id === R.id); name = g ? g.name : R.id; img = this.thumbs && this.thumbs.get(veh, col, R.id); }
+      const art = img ? `<div class="pt-art pic"><img src="${img}" alt=""></div>` : '<div class="pt-art pic loading"></div>';
+      return { name, kind: (exclusive ? 'Pass exclusive ' : '') + (R.slot === 'gear' ? 'rider kit' : 'skin'), rar, art, exclusive };
     };
-    const nameOf = (t) => t.coins ? 'Coins' : t.slot === 'color' ? ((BIKE_COLORS.find((c) => c.id === t.id) || {}).name || t.id) : ((GEAR_SETS.find((g) => g.id === t.id) || {}).name || t.id);
-    const rar = (t) => { const r = t.coins ? '' : rarityOf(shopItem(t.slot, t.id)); return r && r !== 'Common' && r !== 'Uncommon' ? r : ''; };
-    $('pass-track').innerHTML = PASS.map((t) => {
-      const st = got.has(t.tier) ? 'claimed' : L.level >= t.level ? 'ready' : 'locked', r = rar(t);
-      return `<div class="pt ${st} ${r.toLowerCase()}" data-tier="${t.tier}">
-        <div class="pt-lv">LV ${t.level}</div>${swatch(t)}
-        <div class="pt-name">${escapeHtml(nameOf(t))}</div><div class="pt-rar">${r || (t.coins ? '' : t.slot === 'gear' ? 'Rider kit' : 'Paint')}</div>
-        ${st === 'claimed' ? '<div class="pt-done">CLAIMED</div>' : st === 'ready' ? `<button class="small primary" data-pclaim="${t.tier}" ${online ? '' : 'disabled title="Needs an online account"'}>Claim</button>` : '<div class="pt-lock">LOCKED</div>'}
-      </div>`;
-    }).join('');
-    $('pass-track').querySelectorAll('[data-pclaim]').forEach((b) => b.onclick = async () => {
-      b.disabled = true;
-      const r = await A.api('pass/claim', { tier: Number(b.dataset.pclaim) }).catch(() => null);
-      if (!r || r.error) { this.popup((r && r.error) || 'Could not claim', 'bad'); b.disabled = false; return; }
+    const card = (t, R, track) => {
+      const I = info(R);
+      if (!I) return '<div class="pt empty"></div>';
+      const got = track === 'premium' ? gotP.has(t.tier) : gotF.has(t.tier);
+      const st = got ? 'claimed' : L.level < t.level ? 'locked' : track === 'premium' && !prem ? 'needprem' : 'ready';
+      const foot = st === 'claimed' ? '<div class="pt-done">CLAIMED</div>' : st === 'ready' ? `<button class="small primary" data-pclaim="${t.tier}" data-track="${track}" ${online ? '' : 'disabled'}>Claim</button>`
+        : st === 'needprem' ? '<div class="pt-lock">PREMIUM</div>' : '<div class="pt-lock">LOCKED</div>';
+      return `<div class="pt ${track} ${st} ${I.rar.toLowerCase()}${I.exclusive ? ' excl' : ''}">${I.art}<div class="pt-name">${escapeHtml(I.name)}</div><div class="pt-rar">${I.rar ? I.rar + ' ' : ''}${I.kind}</div>${foot}</div>`;
+    };
+    $('pass-track').innerHTML = PASS.map((t) => `<div class="pcol${L.level >= t.level ? ' reached' : ''}" data-tier="${t.tier}">
+        ${card(t, t.premium, 'premium')}<div class="pcol-lv"><b>${t.tier}</b><small>LV ${t.level}</small></div>${card(t, t.free, 'free')}</div>`).join('');
+    const claim = async (body) => {
+      const r = await A.api('pass/claim', body).catch(() => null);
+      if (!r || r.error) { this.popup((r && r.error) || 'Could not claim', 'bad'); return; }
       if (r.profile) { A.profile = r.profile; A.persistLocal && A.persistLocal(); A.changed(); }
-      this.popup(`Pass reward: <b>${escapeHtml(r.ok)}</b>`, 'good');
+      this.popup(`Pass: <b>${escapeHtml(r.ok)}</b>`, 'good');
       this.renderPass(); this.renderTop();
-    });
+    };
+    $('pass-track').querySelectorAll('[data-pclaim]').forEach((bt) => bt.onclick = () => { bt.disabled = true; claim({ tier: Number(bt.dataset.pclaim), track: bt.dataset.track }); });
+    $('pass-claimall').onclick = () => claim({ tier: 0 });
+    const buy = $('pass-buy');
+    if (buy) buy.onclick = () => this.popup(`<b>Unlock the Premium Pass?</b><br>${PASS_PRICE.toLocaleString()} coins - a reward at every level, pass-only skins and kits, and everything you have already reached.`, '',
+      [['Unlock', async () => {
+        const r = await A.api('pass/buy').catch(() => null);
+        if (!r || r.error) { this.popup((r && r.error) || 'Could not buy it', 'bad'); return; }
+        if (r.profile) { A.profile = r.profile; A.persistLocal && A.persistLocal(); A.changed(); }
+        this.popup('<b>Premium Pass unlocked!</b> Claim your rewards.', 'good');
+        this.renderPass(); this.renderTop();
+      }, true], ['Not now', () => {}]], 0);
     if ($('pass-dot')) $('pass-dot').hidden = !(online && ready.length);
-    const focus = $('pass-track').querySelector('.pt.ready') || $('pass-track').querySelector('.pt.locked');
-    if (focus) focus.scrollIntoView({ block: 'nearest', inline: 'center' });
+    if (!this.passScrolled) {
+      this.passScrolled = true;
+      const focus = $('pass-track').querySelector('.pt.ready, .pt.needprem, .pt.locked');
+      if (focus) focus.closest('.pcol').scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
   }
 
   // ------------------------------------------------------------- challenges

@@ -441,7 +441,7 @@ export function skinUniforms(cols, pat) {
   return { uA: { value: new THREE.Color(cols[0]) }, uB: { value: new THREE.Color(cols[1]) }, uC: { value: new THREE.Color(cols[2] || 0x111111) }, uPat: { value: PATTERN_ID[pat] || 0 }, uTime: skinTime };
 }
 export const patterned = (pat) => !!pat && pat !== 'solid' && pat !== 'chrome';
-export const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17, zebra: 18, dots: 19, rainbow: 20, argyle: 21, holo: 22, split: 23, scales: 24, pinstripe: 25, livery: 26, wave: 27, circuit: 28, sunrise: 29, shards: 30, topo: 31 };
+export const PATTERN_ID = { solid: 0, stripes: 1, flames: 2, camo: 3, galaxy: 4, carbon: 5, chrome: 6, tiger: 7, gradient: 8, checker: 9, hex: 10, bolt: 11, splatter: 12, pixel: 13, aurora: 14, lava: 15, marble: 16, race: 17, zebra: 18, dots: 19, rainbow: 20, argyle: 21, holo: 22, split: 23, scales: 24, pinstripe: 25, livery: 26, wave: 27, circuit: 28, sunrise: 29, shards: 30, topo: 31, tribal: 32, plaid: 33, nebula: 34, hazard: 35, kaleido: 36, speed: 37, crystal: 38, prism: 39 };
 // animated skins (aurora, lava) read this clock; main.js moves it every frame
 export const skinTime = { value: 0 };
 export const SKIN_GLSL = `
@@ -450,6 +450,7 @@ varying vec3 vPat;
 float skinHash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
 vec3 skinHue(float h) { return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
 vec3 skinDesign(vec3 p);
+vec3 skinMore(vec3 p);
 // zebra, polka dots, rainbow (moves), argyle, hologram (shimmers)
 vec3 skinExtra(vec3 p) {
   if (uPat < 18.5) { float v = sin(p.x * 18.0 + sin(p.y * 7.0) * 2.4 + sin(p.z * 5.0) * 1.2); return mix(uA, uB, smoothstep(0.25, 0.4, v)); }
@@ -531,11 +532,76 @@ vec3 skinDesign(vec3 p) {
     return n > 0.93 ? uC : col;
   }
   // topo: contour lines over a gentle height map, every fifth line bold
+  if (uPat > 31.5) return skinMore(p);
   float hgt = sin(p.x * 3.1 + sin(p.y * 2.3) * 1.3) * cos(p.y * 2.7 - p.z * 1.7) + 0.4 * sin(p.x * 7.0 + p.y * 5.0);
   float k = hgt * 9.0, fk = fract(k);
   float ln = step(abs(fk - 0.5), 0.07);
   float bold = step(abs(fract(k / 5.0) - 0.5), 0.04);
   return mix(mix(uA, uB, ln * 0.85), uC, bold);
+}
+// newer designs: tribal, plaid, nebula (moves), hazard, kaleidoscope (turns), speed streaks, crystal, prism (moves)
+vec3 skinMore(vec3 p) {
+  // tribal: a sharp zig-zag band with an outline
+  if (uPat < 32.5) {
+    float x = p.x * 1.2 + p.z * 0.3, t = fract(x * 1.6), spike = abs(t - 0.5) * 2.0;
+    float e = (p.y - 0.25) * 2.2 - spike * 0.9 - 0.25 * sin(x * 7.0);
+    return e > 0.0 ? uA : (e + 0.12 > 0.0 ? uC : uB);
+  }
+  // plaid: crossing bands and thin over-stripes
+  if (uPat < 33.5) {
+    vec2 q = vec2(p.x + p.z * 0.4, p.y) * 5.0;
+    float a = step(0.5, fract(q.x)), b = step(0.5, fract(q.y));
+    float th = max(step(0.92, fract(q.x * 2.0)), step(0.92, fract(q.y * 2.0)));
+    return mix(mix(uA, uB, (a + b) * 0.38), uC, th * 0.8);
+  }
+  // nebula: drifting gas clouds and twinkling stars
+  if (uPat < 34.5) {
+    float n1 = sin(p.x * 3.0 + uTime * 0.15 + sin(p.y * 4.0 + uTime * 0.1) * 2.0);
+    float n2 = sin(p.y * 5.0 - uTime * 0.12 + sin(p.z * 3.0 + p.x * 2.0) * 1.5);
+    float m = 0.5 + 0.5 * n1 * n2;
+    vec3 c = mix(uA, uB, smoothstep(0.2, 0.9, m));
+    c = mix(c, uC, smoothstep(0.78, 1.0, m) * 0.7);
+    float h = skinHash(floor(p * 70.0));
+    return c + vec3(step(0.992, h) * (0.6 + 0.4 * sin(uTime * 3.0 + h * 40.0)));
+  }
+  // hazard: a band of warning stripes, edged
+  if (uPat < 35.5) {
+    float d = abs(p.y - 0.42), st = step(0.5, fract((p.x + p.y) * 4.0));
+    vec3 c = mix(uA, mix(uB, uC, st), step(d, 0.12));
+    return mix(c, uB, step(abs(d - 0.12), 0.012));
+  }
+  // kaleidoscope: mirrored wedges turning slowly
+  if (uPat < 36.5) {
+    vec2 d = vec2(p.x + p.z * 0.2, p.y - 0.4) * 2.0; float r = length(d);
+    float a = abs(mod(atan(d.y, d.x) + uTime * 0.05, 0.7854) - 0.3927);
+    vec2 q = vec2(cos(a), sin(a)) * r;
+    float v = sin(q.x * 9.0) * sin(q.y * 9.0);
+    return mix(mix(uA, uB, step(0.0, v)), uC, step(0.85, abs(v)));
+  }
+  // speed: streaks of different lengths along the bike, bright tips
+  if (uPat < 37.5) {
+    float rowf = p.y * 14.0, row = floor(rowf), h = skinHash(vec3(row, 3.0, 1.0));
+    float s = fract(p.x * 0.6 * (0.5 + h) + h * 7.0);
+    float on = step(0.55, s) * step(0.3, fract(rowf)) * step(fract(rowf), 0.75);
+    return mix(mix(uA, uB, on), uC, on * step(0.93, s));
+  }
+  // crystal: faceted cells, each its own shade, bright edges
+  if (uPat < 38.5) {
+    vec2 q = vec2(p.x + p.z * 0.35, p.y) * 4.5, g = floor(q), f = fract(q);
+    float m1 = 8.0, m2 = 8.0, id = 0.0;
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+      vec2 o = vec2(float(i), float(j));
+      vec2 r = o + vec2(skinHash(vec3(g + o, 1.0)), skinHash(vec3(g + o, 2.0))) - f;
+      float dd = dot(r, r);
+      if (dd < m1) { m2 = m1; m1 = dd; id = skinHash(vec3(g + o, 3.0)); } else if (dd < m2) m2 = dd;
+    }
+    float edge = smoothstep(0.0, 0.06, sqrt(m2) - sqrt(m1));
+    return mix(uC, mix(uA, uB, id) * (0.85 + 0.3 * id), edge);
+  }
+  // prism: iridescent bands sliding over the paint
+  float s = (p.x * 0.8 + p.y * 1.4 + p.z * 0.3) * 1.5 - uTime * 0.15;
+  vec3 hue = skinHue(fract(s));
+  return mix(mix(uA, hue, 0.65), mix(uB, hue, 0.4), step(0.5, fract(s * 4.0)));
 }
 vec3 skinColor(vec3 p) {
   if (uPat < 0.5 || (uPat > 5.5 && uPat < 6.5)) return uA;

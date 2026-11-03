@@ -27,7 +27,7 @@ import { Casino } from './casino.js';
 import { hasBadWords } from '../shared/badwords.js';
 import { todaysChallenges, statsFor, dayNo, weekNo, dayEnds, weekEnds } from '../shared/challenges.js';
 import { Admin, ADMINS } from './admin.js';
-import { passTier } from '../shared/pass.js';
+import { PASS, passTier, PASS_PRICE } from '../shared/pass.js';
 
 const splitKey = (k) => { const [s, ...rest] = String(k).split(':'); return [s, rest.join(':')]; };
 const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
@@ -142,7 +142,7 @@ export class Accounts {
   hash(password, salt) { return crypto.scryptSync(String(password), salt, 32).toString('hex'); }
 
   profile(u) {
-    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, pass: u.pass || [], admin: this.admin.isAdmin(u) };
+    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, pass: u.pass || [], passP: u.passP || [], passPremium: !!u.passPremium, admin: this.admin.isAdmin(u) };
   }
 
   issue(u) {
@@ -312,7 +312,7 @@ export class Accounts {
     if (!item) return { error: 'No such item' };
     const k = slot + ':' + id;
     if (u.owned.includes(k)) return { profile: this.profile(u) };
-    if (item.special) return { error: 'That one is not for sale' };
+    if (item.special || item.pass) return { error: 'That one is not for sale' };
     if (!inShop(slot, id)) return { error: 'That is not in the item shop right now - check back when it rotates' };
     const need = vehicleLevel(item);
     if (levelInfo(u.xp || 0).level < need) return { error: `Reach level ${need} to buy this` };
@@ -372,23 +372,49 @@ export class Accounts {
   }
 
   // ---- the pass: one reward per level reached (shared/pass.js); each tier once
-  claimPass(u, tier) {
-    const P = passTier(tier);
-    if (!P) return { error: 'No such reward' };
-    u.pass = u.pass || [];
-    if (u.pass.includes(tier)) return { error: 'Already claimed' };
-    if (levelInfo(u.xp || 0).level < P.level) return { error: `Reach level ${P.level} first` };
-    let got;
-    if (P.coins) { u.coins += P.coins; got = `+${P.coins.toLocaleString()} coins`; }
-    else {
-      const key = P.slot + ':' + P.id, item = shopItem(P.slot, P.id);
-      if (!item) return { error: 'That reward is not available' };
-      if (u.owned.includes(key)) { const c = Math.max(300, Math.round((item.price || 600) / 2)); u.coins += c; got = `already owned: +${c.toLocaleString()} coins`; }
-      else { u.owned.push(key); got = 'unlocked'; }
+  // give one pass reward (an owned item turns into coins: half its price, pass-only items by rarity)
+  grantPass(u, R) {
+    if (R.coins) { u.coins += R.coins; return `+${R.coins.toLocaleString()} coins`; }
+    const key = R.slot + ':' + R.id, item = shopItem(R.slot, R.id);
+    if (!item) return null;
+    if (u.owned.includes(key)) {
+      const c = item.pass ? ({ Rare: 1000, Epic: 2000, Legendary: 4000 }[item.rarity] || 800) : Math.max(300, Math.round((item.price || 600) / 2));
+      u.coins += c; return `already owned: +${c.toLocaleString()} coins`;
     }
-    u.pass.push(tier);
+    u.owned.push(key); return 'unlocked';
+  }
+  // claim a tier on one track ('free' or 'premium'); tier 0 = everything that is ready on both
+  claimPass(u, tier, track) {
+    u.pass = u.pass || []; u.passP = u.passP || [];
+    const level = levelInfo(u.xp || 0).level, got = [];
+    const one = (P, tr) => {
+      const R = tr === 'premium' ? P.premium : P.free, list = tr === 'premium' ? u.passP : u.pass;
+      if (!R || list.includes(P.tier) || level < P.level || (tr === 'premium' && !u.passPremium)) return;
+      const g = this.grantPass(u, R);
+      if (g) { list.push(P.tier); got.push(g); }
+    };
+    if (!tier) { for (const P of PASS) { one(P, 'free'); one(P, 'premium'); } }
+    else {
+      const P = passTier(tier);
+      if (!P) return { error: 'No such reward' };
+      const tr = track === 'premium' ? 'premium' : 'free', R = tr === 'premium' ? P.premium : P.free;
+      if (!R) return { error: 'Nothing on that tier' };
+      if (tr === 'premium' && !u.passPremium) return { error: 'That one is on the Premium Pass' };
+      if ((tr === 'premium' ? u.passP : u.pass).includes(tier)) return { error: 'Already claimed' };
+      if (level < P.level) return { error: `Reach level ${P.level} first` };
+      one(P, tr);
+    }
+    if (!got.length) return { error: 'Nothing to claim yet' };
     this.save();
-    return { ok: got, profile: this.profile(u) };
+    return { ok: got.length === 1 ? got[0] : `${got.length} rewards claimed`, profile: this.profile(u) };
+  }
+  // the premium pass: coins only, once
+  buyPass(u) {
+    if (u.passPremium) return { error: 'You already have the Premium Pass' };
+    if (u.coins < PASS_PRICE) return { error: `The Premium Pass costs ${PASS_PRICE.toLocaleString()} coins` };
+    u.coins -= PASS_PRICE; u.passPremium = true;
+    this.save();
+    return { ok: 'Premium Pass unlocked!', profile: this.profile(u) };
   }
 
   // ---- challenges: today's / this week's counters (reset when the day / week turns over, UTC)
@@ -487,7 +513,8 @@ export class Accounts {
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));
       if (r === 'challenges') return send(200, this.challenges(u));
       if (r === 'challenges/claim') return send(200, this.claimChallenge(u, String(m.id || '')));
-      if (r === 'pass/claim') return send(200, this.claimPass(u, Number(m.tier)));
+      if (r === 'pass/claim') return send(200, this.claimPass(u, Number(m.tier) || 0, String(m.track || 'free')));
+      if (r === 'pass/buy') return send(200, this.buyPass(u));
       if (r === 'logout') return send(200, this.logout(token));
       if (r.startsWith('casino/')) { const out = this.casino.handle(r, u, m); if (out) return send(200, out); }
       if (r === 'chat' || r.startsWith('chat/')) { const out = this.chat.handle(r, u, m, url); if (out) return send(200, out); }

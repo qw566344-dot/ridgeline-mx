@@ -22,6 +22,7 @@ import { preloadModels, skinTime } from './render/modelRig.js';
 import { escapeHtml, setStaffTags } from './util.js';
 import { serverBase } from './config.js';
 import { Tutorial } from './tutorial.js';
+import { watchVersion } from './version.js';
 
 const settings = new Settings();
 const R = new Renderer(document.getElementById('game'));
@@ -38,7 +39,7 @@ const social = new Social(account);
 ui.account = account; ui.game = game; ui.stage = stage; ui.social = social; ui.thumbs = thumbs;
 // shop pictures: redraw the shop a moment after new ones are ready
 let thumbTimer = null;
-thumbs.onReady(() => { if (ui.screen === 'shop' && !thumbTimer) thumbTimer = setTimeout(() => { thumbTimer = null; const y = document.getElementById('shop-grid').scrollTop; ui.renderShop(); document.getElementById('shop-grid').scrollTop = y; }, 250); });
+thumbs.onReady(() => { if (ui.screen === 'pass' && !thumbTimer) thumbTimer = setTimeout(() => { thumbTimer = null; const t = document.getElementById('pass-track'), x = t.scrollLeft; ui.renderPass(); t.scrollLeft = x; }, 250); if (ui.screen === 'shop' && !thumbTimer) thumbTimer = setTimeout(() => { thumbTimer = null; const y = document.getElementById('shop-grid').scrollTop; ui.renderShop(); document.getElementById('shop-grid').scrollTop = y; }, 250); });
 game.account = account;
 const net = new Net(ui, game, settings);
 ui.casino = new CasinoUI(ui, account);
@@ -131,6 +132,7 @@ ui.on('joinParty', async (inv) => {
 });
 
 // expose for debugging / automated tests in the console
+watchVersion(); // "new version - refresh" when the game has been updated under an open page
 window.MX = { game, ui, settings, R, net, stage, input, account, social, loadTags };
 
 // ---- menu wiring
@@ -245,7 +247,7 @@ function loop(now) {
   last = now;
   skinTime.value = now / 1000; // animated skins
   input.update(dt);
-  if (ui.screen === 'shop') thumbs.step();
+  if (ui.screen === 'shop' || ui.screen === 'pass') thumbs.step();
   if (STAGE_SCREENS.has(ui.screen) && game.state !== 'running') stage.render(dt);
   else { stage.active = false; game.frame(dt); }
   tutorial.tick(dt);
