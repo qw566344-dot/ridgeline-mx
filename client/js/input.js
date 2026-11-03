@@ -23,10 +23,10 @@ export const KEYS = {
   trick2: ['Digit2', 'Numpad2'],   // Nac-Nac
   trick3: ['Digit3', 'Numpad3'],   // Heel Clicker
   trick4: ['Digit4', 'Numpad4'],   // Cliffhanger
-  trick5: ['Digit5', 'Numpad5'],   // Can-Can
-  trick6: ['Digit6', 'Numpad6'],   // Lazy Boy
-  trick7: ['Digit7', 'Numpad7'],   // Seat Grab
-  trick8: ['Digit8', 'Numpad8'],   // Rock Solid
+  trick5: ['Digit5', 'Numpad5'],   // Indian Air
+  trick6: ['Digit6', 'Numpad6'],   // Hart Attack
+  trick7: ['Digit7', 'Numpad7'],   // Tsunami
+  trick8: ['Digit8', 'Numpad8'],   // Kiss of Death
   pause: ['Escape', 'KeyP'],
   fps: ['F3'],
 };

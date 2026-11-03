@@ -65,34 +65,67 @@ export class Audio {
     return { src, f, g };
   }
 
-  // one engine voice
+  // an exhaust pulse as a waveform: a narrow pulse (width d) has every harmonic, the narrower the
+  // punchier; 'soft' rolls the top off. Built once per shape and shared by every voice.
+  pulseWave(d, soft) {
+    const key = d + ':' + soft;
+    this.waves = this.waves || {};
+    if (!this.waves[key]) {
+      const N = 48, re = new Float32Array(N), im = new Float32Array(N);
+      for (let n = 1; n < N; n++) im[n] = (Math.sin(n * Math.PI * d) / n) * Math.exp(-n * soft);
+      this.waves[key] = this.ctx.createPeriodicWave(re, im);
+    }
+    return this.waves[key];
+  }
+
+  // one engine voice. Not a buzzer any more: the firing pulses are shaped like exhaust pulses
+  // (fat and punchy on a four-stroke, thin and ringing on a two-stroke), a four-stroke has a slower
+  // lump under it (it only fires every other turn), the pulses go through the bike's body resonance
+  // and an exhaust "pipe" formant that climbs with the revs, and the firing wanders a little,
+  // most at idle, so it never sounds like a pure tone. Electric: a clean motor whine.
   makeEngine(kind, full, cfg = {}) {
     const c = this.ctx;
     const two = cfg.stroke === 2, elec = !!cfg.electric;
     const out = c.createGain(); out.gain.value = 0;
-    const filter = c.createBiquadFilter(); filter.type = 'lowpass'; filter.Q.value = 1.2;
+    const filter = c.createBiquadFilter(); filter.type = 'lowpass'; filter.Q.value = 0.9;
     const shaper = c.createWaveShaper();
     const curve = new Float32Array(512);
-    for (let i = 0; i < 512; i++) { const x = (i / 511) * 2 - 1; curve[i] = Math.tanh(x * ({ atv: 2.5, utv: 2.2, buggy: 1.8 }[kind] || 3.5)); }
-    shaper.curve = curve;
-    const pre = c.createGain(); pre.gain.value = 0.5;
-    // pulse train: sawtooth + square an octave apart, plus a "rasp" noise gate
-    const o1 = c.createOscillator(); o1.type = elec ? 'sine' : 'sawtooth';
-    const o2 = c.createOscillator(); o2.type = elec ? 'triangle' : 'square';
+    const drive = { atv: 2.2, utv: 2, buggy: 1.7 }[kind] || (two ? 3 : 2.6);
+    for (let i = 0; i < 512; i++) { const x = (i / 511) * 2 - 1; curve[i] = Math.tanh(x * drive) / Math.tanh(drive); }
+    shaper.curve = curve; shaper.oversample = '2x';
+    const pre = c.createGain(); pre.gain.value = 0.42;
+    const o1 = c.createOscillator(), o2 = c.createOscillator();
     const g1 = c.createGain(), g2 = c.createGain();
-    g1.gain.value = 0.6; g2.gain.value = two ? 0.55 : ({ atv: 0.45, utv: 0.4, buggy: 0.55 }[kind] || 0.3);
+    if (elec) {
+      o1.type = 'sine'; o2.type = 'triangle';
+      g1.gain.value = 0.55; g2.gain.value = 0.25;
+    } else {
+      // the firing pulse, and the lump under it (or, on a two-stroke, its ring an octave up)
+      o1.setPeriodicWave(this.pulseWave(two ? 0.32 : { buggy: 0.24, utv: 0.2 }[kind] || 0.16, two ? 0.025 : 0.05));
+      o2.setPeriodicWave(this.pulseWave(two ? 0.5 : 0.3, 0.12));
+      g1.gain.value = 0.62; g2.gain.value = two ? 0.22 : ({ atv: 0.42, utv: 0.3, buggy: 0.35 }[kind] || 0.38);
+    }
     o1.connect(g1); o2.connect(g2); g1.connect(pre); g2.connect(pre);
+    // combustion wander: a slow wobble on the pitch of both oscillators
+    const lfo = c.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 5.5 + Math.random() * 2.5;
+    const lfoG = c.createGain(); lfoG.gain.value = 0;
+    lfo.connect(lfoG); lfoG.connect(o1.detune); lfoG.connect(o2.detune); lfo.start();
     let rasp = null;
     if (full && !elec) {
       const ns = c.createBufferSource(); ns.buffer = this.noise; ns.loop = true;
       const nf = c.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 1800; nf.Q.value = 0.7;
       const ng = c.createGain(); ng.gain.value = 0;
-      const am = c.createGain(); am.gain.value = 0;
       ns.connect(nf); nf.connect(ng); ng.connect(pre);
       ns.start();
       rasp = { ns, nf, ng };
     }
-    pre.connect(shaper); shaper.connect(filter); filter.connect(out);
+    // body resonance (a fixed low-mid hump) and the pipe formant (moves with the revs), in parallel
+    const body = c.createBiquadFilter(); body.type = 'peaking'; body.frequency.value = { buggy: 110, utv: 140, atv: 150 }[kind] || (two ? 210 : 165); body.Q.value = 1.1; body.gain.value = elec ? 0 : 5;
+    const pipe = c.createBiquadFilter(); pipe.type = 'bandpass'; pipe.Q.value = two ? 5 : 3;
+    const pipeG = c.createGain(); pipeG.gain.value = elec ? 0 : two ? 0.55 : 0.32;
+    pre.connect(shaper); shaper.connect(body); body.connect(filter);
+    shaper.connect(pipe); pipe.connect(pipeG); pipeG.connect(filter);
+    filter.connect(out);
     o1.start(); o2.start();
     let panner = null;
     if (!full) {
@@ -108,7 +141,7 @@ export class Audio {
       o3.connect(g3); g3.connect(out); o3.start();
       turbo = { o3, g3 };
     }
-    return { o1, o2, filter, out, panner, rasp, kind, turbo, two, elec, pitch: cfg.pitch || 1, sig: kind + (two ? '2' : elec ? 'e' : '') };
+    return { o1, o2, lfo, lfoG, pipe, filter, out, panner, rasp, kind, turbo, two, elec, pitch: cfg.pitch || 1, sig: kind + (two ? '2' : elec ? 'e' : '') };
   }
 
   // called every frame for the player's vehicle
@@ -155,18 +188,33 @@ export class Audio {
   }
 
   // exhaust backfire: n pops, each a sharp crack with a low thump (k = how hard)
+  // a backfire: for each pop a sharp CRACK (bright noise, a couple of ms to full), a BANG under it
+  // (a sine dropping fast through the low end, slightly overdriven) and a short rumbling tail
   backfire(n, k) {
     if (!this.ready) return;
     const c = this.ctx, t0 = c.currentTime;
+    if (!this.bangShape) { // soft clipper: makes the thump punchy instead of a clean beep
+      const cv = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 127.5 - 1; cv[i] = Math.tanh(x * 3) / Math.tanh(3); }
+      this.bangShape = cv;
+    }
+    const v = Math.min(1.2, 0.55 + k * 0.6);
     for (let j = 0; j < n; j++) {
-      const t = t0 + j * (0.05 + Math.random() * 0.07);
+      const t = t0 + j * (0.045 + Math.random() * 0.05);
+      // crack
       const src = c.createBufferSource(); src.buffer = this.noise;
-      const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 700 + Math.random() * 900; f.Q.value = 0.9;
-      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.35 * k, t + 0.004); g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
-      src.connect(f); f.connect(g); g.connect(this.fxBus); src.start(t, Math.random()); src.stop(t + 0.1);
-      const o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.08);
-      const og = c.createGain(); og.gain.setValueAtTime(0.3 * k, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-      o.connect(og); og.connect(this.fxBus); o.start(t); o.stop(t + 0.11);
+      const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900 + Math.random() * 500;
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.58 * v, t + 0.002); g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+      src.connect(hp); hp.connect(g); g.connect(this.fxBus); src.start(t, Math.random()); src.stop(t + 0.07);
+      // bang
+      const o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(150 + Math.random() * 30, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.09);
+      const sh = c.createWaveShaper(); sh.curve = this.bangShape;
+      const og = c.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.linearRampToValueAtTime(0.52 * v, t + 0.003); og.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+      o.connect(sh); sh.connect(og); og.connect(this.fxBus); o.start(t); o.stop(t + 0.14);
+      // tail
+      const tl = c.createBufferSource(); tl.buffer = this.noise;
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
+      const tg = c.createGain(); tg.gain.setValueAtTime(0.0001, t); tg.gain.linearRampToValueAtTime(0.28 * v, t + 0.01); tg.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      tl.connect(lp); lp.connect(tg); tg.connect(this.fxBus); tl.start(t, Math.random()); tl.stop(t + 0.24);
     }
   }
 
@@ -199,12 +247,15 @@ export class Audio {
     fire *= Math.sqrt(v.pitch || 1);
     if (v.turbo) { v.turbo.o3.frequency.setTargetAtTime(1800 + rpm * 0.55, t, 0.05); v.turbo.g3.gain.setTargetAtTime(thr * 0.05 * Math.min(1, rpm / 5000), t, 0.15); }
     v.o1.frequency.setTargetAtTime(fire, t, 0.02);
-    v.o2.frequency.setTargetAtTime(fire * 0.5, t, 0.02);
-    v.filter.frequency.setTargetAtTime((v.kind === 'buggy' ? 260 : 400) + thr * (v.kind === 'buggy' ? 1500 : v.two ? 3400 : 2600) + rpm * (v.two ? 0.2 : 0.12), t, 0.04);
+    v.o2.frequency.setTargetAtTime(v.elec ? fire * 2.01 : v.two ? fire * 2 : fire * 0.5, t, 0.02);
+    // the pipe formant climbs with the revs; the firing wanders most at idle and off the gas
+    if (v.pipe) v.pipe.frequency.setTargetAtTime(Math.min(4200, (v.two ? 5 : 3.2) * fire + 180), t, 0.05);
+    if (v.lfoG) v.lfoG.gain.setTargetAtTime(v.elec ? 2 : Math.max(3, 22 - rpm * 0.0022) * (1 - thr * 0.5), t, 0.1);
+    v.filter.frequency.setTargetAtTime((v.kind === 'buggy' ? 300 : 520) + thr * (v.kind === 'buggy' ? 1700 : v.two ? 3800 : 3000) + rpm * (v.two ? 0.24 : 0.15), t, 0.04);
     const crashed = veh.crashed;
     // rev limiter: the engine cuts in and out, about 22 times a second
     const bounce = veh.engine && veh.engine.limiter && thr > 0.3 ? (Math.floor(t * 22) % 2 ? 0.3 : 1) : 1;
-    v.out.gain.setTargetAtTime(crashed ? 0.04 : (v.elec ? 0.07 + thr * 0.08 : 0.16 + thr * 0.14) * gain * bounce, t, bounce < 1 ? 0.005 : 0.05);
+    v.out.gain.setTargetAtTime(crashed ? 0.04 : (v.elec ? 0.07 + thr * 0.08 : 0.16 + thr * 0.14) * 1.45 * gain * bounce, t, bounce < 1 ? 0.005 : 0.05);
     if (v.rasp) {
       v.rasp.ng.gain.setTargetAtTime(thr * 0.25, t, 0.05);
       v.rasp.nf.frequency.setTargetAtTime(900 + rpm * 0.18, t, 0.05);
@@ -241,7 +292,7 @@ export class Audio {
     try {
       const t = this.ctx.currentTime;
       v.out.gain.setTargetAtTime(0, t, 0.05);
-      setTimeout(() => { try { v.o1.stop(); v.o2.stop(); if (v.rasp) v.rasp.ns.stop(); if (v.turbo) v.turbo.o3.stop(); v.out.disconnect(); } catch { /* already stopped */ } }, 300);
+      setTimeout(() => { try { v.o1.stop(); v.o2.stop(); if (v.lfo) v.lfo.stop(); if (v.rasp) v.rasp.ns.stop(); if (v.turbo) v.turbo.o3.stop(); v.out.disconnect(); } catch { /* already stopped */ } }, 300);
     } catch { /* ignore */ }
   }
 

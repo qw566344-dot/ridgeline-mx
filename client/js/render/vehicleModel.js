@@ -285,6 +285,124 @@ function buildChair(cfg, scheme) {
   return meshGroup({ paint, metal, rubber });
 }
 
+// ---------------------------------------------------------------------
+// the other built specials. Each returns { group, wheels: [{ m, r, axis }], steer: [...], ... }
+// so update() can spin the wheels with the physics and turn what steers.
+const spinner = (list, r, mat = 'rubber') => { const g = meshGroup({ [mat]: list }); return { m: g, r }; };
+
+// shopping cart: a wire basket on a frame, four swivel casters, a red handle at the back
+// and a little step behind it to stand on
+function buildCart(cfg) {
+  const g = -cfg.rideHeight, chrome = 0xc9ced6, red = 0xd23a2a, metal = [], paint = [];
+  const bx = 0.27, bz0 = -0.42, bz1 = 0.48, y0 = g + 0.42, y1 = g + 0.92;
+  // basket: corner posts, top and bottom rims, side and floor wires
+  const top = [[-bx - 0.03, y1, bz0], [bx + 0.03, y1, bz0], [bx, y1, bz1], [-bx, y1, bz1]];
+  const bot = [[-bx + 0.03, y0, bz0 + 0.06], [bx - 0.03, y0, bz0 + 0.06], [bx - 0.05, y0, bz1 - 0.04], [-bx + 0.05, y0, bz1 - 0.04]];
+  for (let i = 0; i < 4; i++) {
+    metal.push(tube(top[i], top[(i + 1) % 4], 0.012, chrome, 6), tube(bot[i], bot[(i + 1) % 4], 0.01, chrome, 6), tube(top[i], bot[i], 0.01, chrome, 6));
+  }
+  for (let k = 1; k < 8; k++) {
+    const t = k / 8, z = bz0 + (bz1 - bz0) * t;
+    for (const sx of [1, -1]) metal.push(tube([sx * (bx + 0.03 - 0.03 * t), y1, z], [sx * (bx - 0.03 - 0.02 * t), y0, z + 0.03], 0.006, chrome, 4));
+    metal.push(tube([-bx + 0.04, y0, z], [bx - 0.04, y0, z], 0.006, chrome, 4));
+  }
+  for (let k = 1; k < 5; k++) { const x = -bx + (2 * bx * k) / 5; metal.push(tube([x, y1, bz1], [x, y0, bz1 - 0.04], 0.006, chrome, 4), tube([x, y1, bz0], [x, y0, bz0 + 0.06], 0.006, chrome, 4)); }
+  for (let k = 1; k < 4; k++) { const y = y0 + ((y1 - y0) * k) / 4; metal.push(tube([-bx, y, bz1 - 0.01], [bx, y, bz1 - 0.01], 0.006, chrome, 4)); }
+  // frame and bottom tray down to the casters
+  for (const sx of [1, -1]) {
+    metal.push(tube([sx * 0.24, g + 0.12, bz0 - 0.02], [sx * 0.22, g + 0.12, bz1], 0.014, chrome, 6));
+    metal.push(tube([sx * 0.24, g + 0.12, bz0 - 0.02], [sx * (bx + 0.02), y1 + 0.06, bz0 - 0.08], 0.014, chrome, 6)); // back legs up to the handle
+    metal.push(tube([sx * 0.22, g + 0.12, bz1], [sx * (bx - 0.03), y0, bz1 - 0.06], 0.012, chrome, 6));
+  }
+  for (let k = 0; k < 5; k++) metal.push(tube([-0.22, g + 0.16, bz0 + 0.1 + k * 0.17], [0.22, g + 0.16, bz0 + 0.1 + k * 0.17], 0.006, chrome, 4));
+  paint.push(cyl(0.02, 0.02, 2 * bx + 0.12, red, [0, y1 + 0.07, bz0 - 0.09], [0, 0, Math.PI / 2], 10));       // the handle
+  metal.push(box(0.4, 0.02, 0.12, 0x6d737c, [0, g + 0.2, bz0 - 0.16]));                                      // the step at the back
+  const group = meshGroup({ metal, paint });
+  const wheels = [], steer = [];
+  for (const [x, z, front] of [[0.22, bz1 - 0.02, true], [-0.22, bz1 - 0.02, true], [0.24, bz0, false], [-0.24, bz0, false]]) {
+    const piv = new THREE.Group(); piv.position.set(x, g + 0.06, z);
+    piv.add(meshGroup({ metal: [box(0.012, 0.07, 0.04, chrome, [0.025, 0.03, 0]), box(0.012, 0.07, 0.04, chrome, [-0.025, 0.03, 0])] }));
+    const w = spinner([cyl(0.055, 0.055, 0.035, 0x1a1a1a, [0, 0, 0], [0, 0, Math.PI / 2], 12), cyl(0.03, 0.03, 0.04, 0x9aa0a8, [0, 0, 0], [0, 0, Math.PI / 2], 8)], 0.055);
+    piv.add(w.m); group.add(piv); wheels.push(w);
+    if (front) steer.push({ m: piv, k: 1.1 });
+  }
+  return { group, wheels, steer };
+}
+
+// ride-on mower: a green bonnet, a yellow seat on a frame, the cutting deck slung underneath,
+// big rear wheels, small front ones that steer, and a steering wheel on a column
+function buildMower(cfg, scheme) {
+  const g = -cfg.rideHeight, body = scheme && scheme.body !== undefined && scheme.paintId !== 'stock' ? scheme.body : 0x3f9a3a;
+  const yellow = 0xf2c230, dark = 0x26292e, paint = [], metal = [], rubber = [];
+  paint.push(box(0.58, 0.3, 0.62, body, [0, g + 0.42, 0.42], [0.08, 0, 0], 0.06));        // bonnet
+  paint.push(box(0.6, 0.12, 0.5, body, [0, g + 0.3, -0.1], [0, 0, 0], 0.03));              // floor pan
+  paint.push(box(0.62, 0.22, 0.38, body, [0, g + 0.42, -0.42], [0, 0, 0], 0.05));          // rear body / fenders
+  metal.push(box(0.9, 0.08, 0.6, dark, [0, g + 0.16, 0.05], [0, 0, 0], 0.03));             // cutting deck
+  metal.push(box(0.6, 0.035, 0.3, 0x6d737c, [0, g + 0.37, 0.18]));                          // foot plate
+  metal.push(box(0.05, 0.22, 0.05, dark, [0, g + 0.62, -0.32]));                            // seat post
+  paint.push(box(0.42, 0.08, 0.36, yellow, [0, g + 0.74, -0.32], [0, 0, 0], 0.035));        // seat
+  paint.push(box(0.42, 0.28, 0.07, yellow, [0, g + 0.9, -0.52], [-0.2, 0, 0], 0.035));      // seat back
+  metal.push(cyl(0.025, 0.025, 0.42, dark, [0, g + 0.72, 0.18], [-0.55, 0, 0], 8));          // steering column
+  paint.push(box(0.5, 0.06, 0.16, yellow, [0, g + 0.58, 0.72], [0.1, 0, 0], 0.02));          // front bumper stripe
+  for (const sx of [1, -1]) metal.push(box(0.06, 0.05, 0.05, 0xfff2b0, [sx * 0.18, g + 0.5, 0.74])); // headlights
+  const group = meshGroup({ paint, metal, rubber });
+  const wheel = new THREE.Group(); wheel.position.set(0, g + 0.9, 0.06); wheel.rotation.x = -0.55;
+  wheel.add(meshGroup({ rubber: [torus(0.13, 0.018, 0x1d1f24, [0, 0, 0], [Math.PI / 2, 0, 0], 8, 20)], metal: [box(0.24, 0.015, 0.02, dark), box(0.02, 0.015, 0.24, dark)] }));
+  group.add(wheel);
+  const wheels = [], steer = [{ m: wheel, k: -2.2, axis: 'y', local: true }];
+  for (const [x, z, r, front] of [[0.36, 0.5, 0.15, true], [-0.36, 0.5, 0.15, true], [0.38, -0.42, 0.24, false], [-0.38, -0.42, 0.24, false]]) {
+    const piv = new THREE.Group(); piv.position.set(x, g + r, z);
+    const w = spinner([cyl(r, r, front ? 0.1 : 0.16, 0x1a1a1a, [0, 0, 0], [0, 0, Math.PI / 2], 16), cyl(r * 0.55, r * 0.55, (front ? 0.1 : 0.16) + 0.01, 0xd9d9d9, [0, 0, 0], [0, 0, Math.PI / 2], 12)], r);
+    piv.add(w.m); group.add(piv); wheels.push(w);
+    if (front) steer.push({ m: piv, k: 0.5 });
+  }
+  return { group, wheels, steer, wheel };
+}
+
+// skateboard: a deck with kicktails, two trucks and four little wheels; the deck tilts as you carve
+function buildBoard(cfg, scheme) {
+  const g = -cfg.rideHeight, deckCol = scheme && scheme.body !== undefined && scheme.paintId !== 'stock' ? scheme.body : 0xe0532b;
+  const grip = 0x222428, paint = [], metal = [];
+  paint.push(box(0.22, 0.018, 0.62, deckCol, [0, g + 0.11, 0], [0, 0, 0], 0.008));
+  paint.push(box(0.22, 0.004, 0.62, grip, [0, g + 0.121, 0]));
+  for (const sz of [1, -1]) {
+    paint.push(box(0.22, 0.018, 0.16, deckCol, [0, g + 0.13, sz * 0.38], [sz * -0.35, 0, 0], 0.008));
+    paint.push(box(0.22, 0.004, 0.16, grip, [0, g + 0.141, sz * 0.38], [sz * -0.35, 0, 0]));
+    metal.push(box(0.05, 0.04, 0.05, 0x9aa0a8, [0, g + 0.08, sz * 0.22]), cyl(0.008, 0.008, 0.2, 0x9aa0a8, [0, g + 0.035, sz * 0.22], [0, 0, Math.PI / 2], 6));
+  }
+  const deck = meshGroup({ paint, metal });
+  const group = new THREE.Group(); group.add(deck);
+  const wheels = [];
+  for (const [x, z] of [[0.09, 0.22], [-0.09, 0.22], [0.09, -0.22], [-0.09, -0.22]]) {
+    const piv = new THREE.Group(); piv.position.set(x, g + 0.03, z);
+    const w = spinner([cyl(0.03, 0.03, 0.035, 0xf4efe0, [0, 0, 0], [0, 0, Math.PI / 2], 12)], 0.03, 'paint');
+    piv.add(w.m); deck.add(piv); wheels.push(w);
+  }
+  return { group, wheels, steer: [], deck };
+}
+
+// unicycle: one wheel, a fork up to the saddle, and cranks with pedals that turn with the wheel
+const UNI_R = 0.27, UNI_CRANK = 0.12;
+function buildUnicycle(cfg, scheme) {
+  const g = -cfg.rideHeight, frame = scheme && scheme.body !== undefined && scheme.paintId !== 'stock' ? scheme.body : 0x2f6fe0;
+  const group = new THREE.Group();
+  const hub = new THREE.Group(); hub.position.set(0, g + UNI_R, 0); group.add(hub);
+  const spokes = [];
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; spokes.push(tube([0, 0, 0], [0, Math.sin(a) * (UNI_R - 0.03), Math.cos(a) * (UNI_R - 0.03)], 0.003, 0xc9ced6, 4)); }
+  const w = { m: meshGroup({ rubber: [torus(UNI_R - 0.02, 0.025, 0x1a1a1a, [0, 0, 0], [0, Math.PI / 2, 0], 10, 32)], metal: [...spokes, cyl(0.03, 0.03, 0.06, 0x9aa0a8, [0, 0, 0], [0, 0, Math.PI / 2], 10)] }), r: UNI_R };
+  hub.add(w.m);
+  // cranks + pedals turn with the wheel too (they are on the axle)
+  const cranks = new THREE.Group(); hub.add(cranks);
+  cranks.add(meshGroup({ metal: [box(0.015, UNI_CRANK, 0.02, 0x9aa0a8, [0.06, UNI_CRANK / 2, 0]), box(0.015, UNI_CRANK, 0.02, 0x9aa0a8, [-0.06, -UNI_CRANK / 2, 0]),
+    box(0.07, 0.015, 0.05, 0x1d1f24, [0.1, UNI_CRANK, 0]), box(0.07, 0.015, 0.05, 0x1d1f24, [-0.1, -UNI_CRANK, 0])] }));
+  group.add(meshGroup({
+    paint: [tube([0.045, g + UNI_R, 0], [0.04, g + 0.72, 0], 0.014, frame, 8), tube([-0.045, g + UNI_R, 0], [-0.04, g + 0.72, 0], 0.014, frame, 8), box(0.1, 0.03, 0.05, frame, [0, g + 0.73, 0])],
+    metal: [cyl(0.016, 0.016, 0.2, 0xc9ced6, [0, g + 0.83, 0], [0, 0, 0], 8)],
+    rubber: [box(0.12, 0.05, 0.28, 0x1d1f24, [0, g + 0.95, -0.01], [0, 0, 0], 0.025)],
+  }));
+  return { group, wheels: [w], steer: [], cranks };
+}
+
 export class VehicleVisual {
   constructor(def, scheme, number = 1) {
     this.def = def;
@@ -310,6 +428,8 @@ export class VehicleVisual {
     if (this.special) {
       this.seated = false; this.isBike = false; this.camDist = 0;
       if (this.special === 'chair') { this.chair = buildChair(this.cfg, scheme); this.model.add(this.chair); }
+      const build = { cart: buildCart, mower: buildMower, board: buildBoard, unicycle: buildUnicycle }[this.special];
+      if (build) { this.spec = build(this.cfg, scheme); this.model.add(this.spec.group); this.crank = 0; }
       return;
     }
     // the real 3D model (see modelRig.js); the built-in model is only a fallback
@@ -509,6 +629,16 @@ export class VehicleVisual {
       // the chair turns a little under the rider as you steer; the crawler has nothing to move
       if (this.chair) this.chair.rotation.y = -(state.steer || 0) * 0.35;
       this.lean.rotation.z = 0;
+      const S = this.spec;
+      if (S) {
+        // wheels roll with the physics wheels (scaled to their own size), steering parts turn
+        const w0 = state.wheels && state.wheels[2] ? state.wheels[2] : state.wheels && state.wheels[0];
+        const ang = w0 ? w0.spin * (this.cfg.wheels[2] ? this.cfg.wheels[2].r : 0.26) : 0; // metres rolled
+        for (const w of S.wheels) w.m.rotation.x = ang / w.r;
+        for (const p of S.steer) p.m.rotation[p.axis || 'y'] = (state.steer || 0) * p.k;
+        if (S.deck) S.deck.rotation.z = -(state.steer || 0) * 0.25;                    // carving: the deck tilts
+        if (S.cranks) { S.cranks.rotation.x = 0; this.crank = ang / UNI_R; }        // the cranks are on the hub already
+      }
       return;
     }
     if (this.inst) return this.updateRigged(state);

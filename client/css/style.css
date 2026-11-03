@@ -1112,3 +1112,9 @@ button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 .ch-ok { color: var(--good); font-weight: 700; font-size: 13px; }
 #nav button { position: relative; }
 #chal-dot { position: absolute; top: 5px; right: 6px; width: 8px; height: 8px; background: var(--gold); min-width: 0; padding: 0; margin: 0; border-radius: 50%; font-size: 0; box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.9); }
+
+/* garage / shop cards: never squashed by the scrolling list (the Saira text is taller), a little air between the lines */
+.vehicle-cards .vcard { flex-shrink: 0; }
+.vcard { row-gap: 3px; padding-top: 12px; padding-bottom: 12px; }
+.vcard b { line-height: 1.2; }
+.vcard small { line-height: 1.25; }

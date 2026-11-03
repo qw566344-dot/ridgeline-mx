@@ -18,8 +18,8 @@ export const TRICK_POINTS = {
 };
 
 // keys 1-8 in the air
-export const POSES = ['Superman', 'Nac-Nac', 'Heel Clicker', 'Cliffhanger', 'Can-Can', 'Lazy Boy', 'Seat Grab', 'Rock Solid'];
-const POSE_POINTS = { Superman: 450, 'Nac-Nac': 350, 'Heel Clicker': 400, Cliffhanger: 600, 'Can-Can': 380, 'Lazy Boy': 550, 'Seat Grab': 320, 'Rock Solid': 700 };
+export const POSES = ['Superman', 'Nac-Nac', 'Heel Clicker', 'Cliffhanger', 'Indian Air', 'Hart Attack', 'Tsunami', 'Kiss of Death'];
+const POSE_POINTS = { Superman: 450, 'Nac-Nac': 350, 'Heel Clicker': 400, Cliffhanger: 600, 'Indian Air': 520, 'Hart Attack': 680, Tsunami: 820, 'Kiss of Death': 950 };
 
 // hold time of the rider trick on keys 1-4 (bikes and quads)
 export function trackPose(tr, inp, dt) {

@@ -32,6 +32,17 @@ void main() {
   #include <fog_fragment>
 }`;
 
+const _fp = new THREE.Vector3();
+// a soft round glow: white in the middle fading to nothing (for flashes)
+function makeGlowSprite() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,240,200,0.85)'); g.addColorStop(0.6, 'rgba(255,170,80,0.3)'); g.addColorStop(1, 'rgba(255,120,40,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export class Effects {
   constructor(scene, world, quality) {
     this.scene = scene;
@@ -68,6 +79,19 @@ export class Effects {
     scene.add(this.points);
     this.marks = new TyreMarks(scene, quality.tireMarks);
     this.emitAcc = new Map();
+    // backfire flashes: a few lights and glow sprites made up front (so adding one never changes
+    // the scene's light count and recompiles every material), switched on for a split second
+    this.flashTex = makeGlowSprite();
+    this.flashPool = [];
+    for (let i = 0; i < 3; i++) {
+      const light = new THREE.PointLight(0xff9a3c, 0, 7, 2);
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.flashTex, color: 0xffd08a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: true }));
+      const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.flashTex, color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: true }));
+      glow.visible = core.visible = false; glow.renderOrder = core.renderOrder = 6;
+      scene.add(light, glow, core);
+      this.flashPool.push({ light, glow, core, busy: false });
+    }
+    this.flashes = [];
   }
 
   setQuality(q) { this.budget = q.particles; this.marks.setEnabled(q.tireMarks); }
@@ -161,18 +185,42 @@ export class Effects {
   }
 
   // exhaust backfire: a short tongue of flame and a puff out of the back of the vehicle
+  // backfire / anti-lag: a BANG and a flash out of the exhaust - no smoke. Each pop is a split
+  // second of light on the bike and the ground, a white-hot core with an orange glow round it,
+  // and a short hard jet of flame. Pops come a few hundredths apart; harder (k) = bigger.
   backfire(veh, n, k) {
-    const f = veh.fwd, l = veh.left, p = veh.pos;
-    const back = veh.cfg.type === 'bike' ? 0.95 : 1.15;
-    const x = p.x - f.x * back - l.x * 0.18, y = p.y + 0.12, z = p.z - f.z * back - l.z * 0.18;
-    for (let j = 0; j < n; j++) {
-      const t = j * 0.04;
-      for (let i = 0; i < 4 + k * 6; i++) {
-        const s = 3 + Math.random() * 5 * k, hot = Math.random();
-        this.spawn(x - f.x * t, y, z - f.z * t, veh.vel.x - f.x * s + (Math.random() - 0.5), veh.vel.y + Math.random(), veh.vel.z - f.z * s + (Math.random() - 0.5),
-          0.18 + k * 0.22, 1.5, 0.12 + Math.random() * 0.1, 0.95, 1, 0.5 + hot * 0.4, 0.08 + hot * 0.2, 0, 4);
+    for (let j = 0; j < n; j++) this.flashes.push({ veh, k: k * (0.75 + Math.random() * 0.35), wait: j * (0.045 + Math.random() * 0.05), t: 0, slot: null });
+  }
+  exhaustPoint(veh, out) {
+    const f = veh.fwd, l = veh.left, p = veh.pos, back = veh.cfg.type === 'bike' ? 0.95 : 1.15;
+    return out.set(p.x - f.x * back - l.x * 0.18, p.y + 0.14, p.z - f.z * back - l.z * 0.18);
+  }
+  updateFlashes(dt) {
+    for (let i = this.flashes.length - 1; i >= 0; i--) {
+      const F = this.flashes[i];
+      if (F.wait > 0) { F.wait -= dt; continue; }
+      if (!F.slot) {
+        F.slot = this.flashPool.find((s) => !s.busy);
+        if (!F.slot) { this.flashes.splice(i, 1); continue; }
+        F.slot.busy = true;
+        // the flame jet, fired once: fast, short-lived, white-yellow in the middle, orange outside
+        const v = F.veh, f = v.fwd, x = this.exhaustPoint(v, _fp);
+        for (let q = 0; q < 6 + F.k * 10; q++) {
+          const s = 6 + Math.random() * 9 * F.k, hot = Math.random(), sp = 0.9;
+          this.spawn(x.x, x.y, x.z, v.vel.x - f.x * s + (Math.random() - 0.5) * sp, v.vel.y + (Math.random() - 0.3) * sp, v.vel.z - f.z * s + (Math.random() - 0.5) * sp,
+            0.1 + F.k * 0.16 * (1 - hot * 0.5), 2.2, 0.05 + Math.random() * 0.06, 1, 1.6, 1.0 + hot * 0.5, 0.35 + hot * 0.55, 0, 6);
+        }
       }
-      this.spawn(x, y, z, veh.vel.x - f.x * 2, 0.6, veh.vel.z - f.z * 2, 0.3, 1.6, 0.7, 0.35, 0.2, 0.2, 0.2, -0.3, 2);
+      F.t += dt;
+      const life = 0.075 + F.k * 0.03, a = Math.max(0, 1 - F.t / life), e = a * a;
+      const S = F.slot, x = this.exhaustPoint(F.veh, _fp);
+      S.light.position.copy(x); S.light.intensity = e * (14 + F.k * 22);
+      S.glow.position.copy(x); S.core.position.copy(x);
+      const sz = 0.55 + F.k * 0.7;
+      S.glow.scale.setScalar(sz * (1 + (1 - a) * 0.5)); S.core.scale.setScalar(sz * 0.4);
+      S.glow.material.opacity = e * 0.95; S.core.material.opacity = e;
+      S.glow.visible = S.core.visible = a > 0;
+      if (a <= 0) { S.busy = false; S.light.intensity = 0; this.flashes.splice(i, 1); }
     }
   }
 
@@ -214,6 +262,7 @@ export class Effects {
       const t = this.age[i] / this.life[i];
       this.alpha[i] = this.a0[i] * (t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85);
     }
+    this.updateFlashes(dt);
     this.geo.setDrawRange(0, n);
     this.attrPos.needsUpdate = true; this.attrSize.needsUpdate = true; this.attrAlpha.needsUpdate = true; this.attrColor.needsUpdate = true;
     const h = renderer.domElement.height;
@@ -222,6 +271,8 @@ export class Effects {
   }
 
   dispose() {
+    for (const s of this.flashPool) { s.light.removeFromParent(); s.glow.removeFromParent(); s.core.removeFromParent(); s.glow.material.dispose(); s.core.material.dispose(); }
+    this.flashTex.dispose();
     this.points.removeFromParent();
     this.geo.dispose(); this.mat.dispose(); this.sprite.dispose();
     this.marks.dispose();

@@ -18,6 +18,7 @@ import { helmetModel, helmetMaterial, SKIN_GLSL, skinUniforms, patterned, simpli
 const B = { root: 0, pelvis: 1, torso: 2, head: 3, uaL: 4, faL: 5, hL: 6, uaR: 7, faR: 8, hR: 9, thL: 10, shL: 11, ftL: 12, thR: 13, shR: 14, ftR: 15 };
 const BONES = 16;
 const LEN = { ua: 0.29, fa: 0.27, th: 0.44, sh: 0.43, torso: 0.52 };
+const UNI_R_RIDER = 0.27; // the unicycle's wheel radius (vehicleModel.js UNI_R): the pedals turn round its hub
 const geoCache = new Map(), loBody = new Map();
 // far away riders use simplified copies (and every rider's shadow comes from one, see shadowProxy)
 const loCache = new WeakMap();
@@ -430,6 +431,113 @@ export class Rider {
     this.applyBones(t.up, t.fwd);
   }
 
+  // the shared start of the standing / sitting special poses: pelvis, spine and shoulders
+  // from a pelvis point and a forward lean (t.up / t.fwd / t.left are left set for the limbs)
+  spine(px, py, pz, lean, side = 0) {
+    const J = this.j, t = this.tmp;
+    J.pelvis.set(px, py, pz);
+    t.up.set(Math.sin(side), Math.cos(lean), Math.sin(lean)).normalize();
+    J.neck.copy(J.pelvis).addScaledVector(t.up, LEN.torso);
+    t.fwd.set(0, -Math.sin(lean), Math.cos(lean));
+    t.left.crossVectors(t.up, t.fwd).normalize();
+    J.shL.copy(J.neck).addScaledVector(t.left, 0.19).addScaledVector(t.up, -0.07);
+    J.shR.copy(J.neck).addScaledVector(t.left, -0.19).addScaledVector(t.up, -0.07);
+    J.head.copy(J.neck).addScaledVector(t.up, 0.04);
+  }
+  arm(sh, el, ha, target, pole) { ik(sh, target, LEN.ua, LEN.fa, pole, el, ha); }
+  leg(hip, kn, an, toe, target, pole, toeOff) { ik(hip, target, LEN.th, LEN.sh, pole, kn, an); toe.copy(an).add(toeOff); }
+
+  // --- special: Shopping Cart - standing on the step at the back, leaning on the handle;
+  // the back foot kicks off the ground while you are on the gas, and you crouch in the air
+  updateCart(dt, veh, vis) {
+    const s = this.s, J = this.j, t = this.tmp;
+    const g = -vis.cfg.rideHeight;
+    const spd = Math.abs(veh.fwdSpeed !== undefined ? veh.fwdSpeed : veh.speed || 0);
+    const thr = Math.max(0, (veh.input && veh.input.throttle) || 0);
+    const air = !veh.grounded && (veh.airTime || 0) > 0.08;
+    s.walk = (s.walk || 0) + (3 + Math.min(4, spd * 0.25)) * dt;
+    const kick = air ? 0 : Math.min(1, thr * 1.5) * (spd < 14 ? 1 : 0.3);
+    this.spine(0, g + 1.0 - (air ? 0.12 : 0), -0.72, 0.55 + (air ? 0.15 : 0));
+    for (const [sh, el, ha, sx] of [[J.shL, J.elL, J.haL, 1], [J.shR, J.elR, J.haR, -1]]) this.arm(sh, el, ha, t.b.set(sx * 0.2, g + 1.0, -0.5), t.a.copy(sh).add(t.c.set(sx * 0.4, -0.2, -0.2)));
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1); J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    // left foot on the step; right foot on the step too, or kicking the ground behind
+    this.leg(J.hipL, J.knL, J.anL, J.toeL, t.b.set(0.1, g + 0.27, -0.6), t.a.copy(J.hipL).add(t.c.set(0.1, 0.1, 0.6)), t.c.set(0, -0.05, 0.22));
+    const ph = s.walk * Math.PI, k = Math.max(0, Math.sin(ph)) * kick;
+    t.b.set(-0.14, g + 0.27 - k * 0.25 + Math.max(0, -Math.sin(ph)) * kick * 0.08, -0.6 - Math.cos(ph) * kick * 0.35);
+    this.leg(J.hipR, J.knR, J.anR, J.toeR, t.b, t.a.copy(J.hipR).add(t.c.set(-0.1, 0.1, 0.6)), t.c.set(0, -0.05, 0.22));
+    this.applyBones(t.up, t.fwd);
+  }
+
+  // --- special: Ride-on Mower - sat on the seat, both hands on the wheel, feet on the plate
+  updateMower(dt, veh, vis) {
+    const J = this.j, t = this.tmp, g = -vis.cfg.rideHeight, st = (veh.controller && veh.controller.steer) || (veh.input && veh.input.steer) || 0;
+    this.spine(0, g + 0.86, -0.3, 0.12, -st * 0.06);
+    // hands on the rim of the steering wheel, turning with it
+    const C = t.c.set(0, g + 0.9, 0.06), ang = -st * 2.2;
+    for (const [sh, el, ha, sx] of [[J.shL, J.elL, J.haL, 1], [J.shR, J.elR, J.haR, -1]]) {
+      const a = (sx > 0 ? Math.PI * 0.15 : Math.PI * 0.85) + ang;
+      t.b.set(C.x + Math.cos(a) * 0.12, C.y + Math.sin(a) * 0.12 * 0.85, C.z - Math.sin(a) * 0.12 * 0.5);
+      this.arm(sh, el, ha, t.b, t.a.copy(sh).add(t.c.set(sx * 0.4, -0.3, 0)));
+    }
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1); J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    for (const [hip, kn, an, toe, sx] of [[J.hipL, J.knL, J.anL, J.toeL, 1], [J.hipR, J.knR, J.anR, J.toeR, -1]]) {
+      this.leg(hip, kn, an, toe, t.b.set(sx * 0.17, g + 0.44, 0.2), t.a.copy(hip).add(t.c.set(sx * 0.15, 0.5, 0.4)), t.c.set(0, 0.03, 0.22));
+    }
+    this.applyBones(t.up, t.fwd);
+  }
+
+  // --- special: Skateboard - side-on (the rider group is turned a quarter, see updateRiding,
+  // so the board runs along the rider's own x). Knees bent, arms out; on the gas at low speed
+  // the back foot comes off and pushes along the ground beside the board
+  updateBoard(dt, veh, vis) {
+    const s = this.s, J = this.j, t = this.tmp, g = -vis.cfg.rideHeight;
+    const spd = Math.abs(veh.fwdSpeed !== undefined ? veh.fwdSpeed : veh.speed || 0);
+    const thr = Math.max(0, (veh.input && veh.input.throttle) || 0), st = (veh.controller && veh.controller.steer) || 0;
+    const air = !veh.grounded && (veh.airTime || 0) > 0.08;
+    s.walk = (s.walk || 0) + (2.4 + Math.min(3, spd * 0.15)) * dt;
+    s.idle = (s.idle || 0) + dt;
+    const push = air ? 0 : Math.min(1, thr * 1.4) * (spd < 12 ? 1 : 0.25);
+    const crouch = air ? 0.22 : 0.1 + push * 0.06;
+    // pelvis over the front foot when pushing, centred otherwise; lean into the carve (toe / heel side)
+    this.spine(0.06 * push, g + 0.98 - crouch, 0, 0.18 + (air ? 0.2 : 0), st * 0.25);
+    J.pelvis.z += st * 0.06;
+    for (const [sh, el, ha, sx] of [[J.shL, J.elL, J.haL, 1], [J.shR, J.elR, J.haR, -1]]) {
+      const sway = Math.sin(s.idle * 1.7 + sx) * 0.06;
+      this.arm(sh, el, ha, t.b.copy(sh).add(t.c.set(sx * 0.42, -0.32 + sway, 0.08)), t.a.copy(sh).add(t.c.set(sx * 0.4, -0.1, -0.3)));
+    }
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1); J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    const deckY = g + 0.14 + (air ? 0.03 : 0);
+    // front foot (rider's left, toward +x = where the board is going), across the board
+    this.leg(J.hipL, J.knL, J.anL, J.toeL, t.b.set(0.2, deckY, 0), t.a.copy(J.hipL).add(t.c.set(0.3, 0, 0.6)), t.c.set(0.02, -0.04, 0.2));
+    // back foot: on the tail, or pushing along the ground beside the board
+    const ph = s.walk * Math.PI, down = Math.max(0, Math.sin(ph)) * push;
+    t.b.set(-0.2 - Math.cos(ph) * push * 0.35, deckY - down * 0.13 + Math.max(0, -Math.sin(ph)) * push * 0.06, push * 0.2);
+    this.leg(J.hipR, J.knR, J.anR, J.toeR, t.b, t.a.copy(J.hipR).add(t.c.set(-0.3, 0, 0.6)), t.c.set(-0.02, -0.04, 0.2));
+    this.applyBones(t.up, t.fwd);
+  }
+
+  // --- special: Unicycle - on the saddle, feet on the pedals going round with the wheel,
+  // arms out wide and wobbling for balance
+  updateUnicycle(dt, veh, vis) {
+    const s = this.s, J = this.j, t = this.tmp, g = -vis.cfg.rideHeight;
+    s.idle = (s.idle || 0) + dt;
+    const st = (veh.controller && veh.controller.steer) || 0, a = vis.crank || 0;
+    const wob = Math.sin(s.idle * 2.3) * 0.05 + st * 0.12;
+    this.spine(0, g + 1.0, 0, 0.05, wob);
+    for (const [sh, el, ha, sx] of [[J.shL, J.elL, J.haL, 1], [J.shR, J.elR, J.haR, -1]]) {
+      const flap = Math.sin(s.idle * 3.1 + (sx > 0 ? 0 : 1.7)) * 0.12;
+      this.arm(sh, el, ha, t.b.copy(sh).add(t.c.set(sx * 0.55, 0.02 + flap * sx * (wob > 0 ? 1 : -1), 0.05)), t.a.copy(sh).add(t.c.set(sx * 0.3, 0.3, -0.2)));
+    }
+    J.hipL.copy(J.pelvis).addScaledVector(t.left, 0.1); J.hipR.copy(J.pelvis).addScaledVector(t.left, -0.1);
+    const hubY = g + UNI_R_RIDER;
+    for (const [hip, kn, an, toe, sx, off] of [[J.hipL, J.knL, J.anL, J.toeL, 1, 0], [J.hipR, J.knR, J.anR, J.toeR, -1, Math.PI]]) {
+      const ca = a + off; // the pedal goes round with the wheel
+      t.b.set(sx * 0.1, hubY + Math.cos(ca) * 0.12 + 0.03, Math.sin(ca) * 0.12);
+      this.leg(hip, kn, an, toe, t.b, t.a.copy(hip).add(t.c.set(sx * 0.1, 0, 0.6)), t.c.set(0, -0.03, 0.2));
+    }
+    this.applyBones(t.up, t.fwd);
+  }
+
   // --- special: an office chair, ridden BACKWARDS -----------------------------
   // The rider group is turned round (see updateRiding), so this pose is built
   // facing the rider's own front, which is the back of the chair's travel.
@@ -517,7 +625,11 @@ export class Rider {
   }
 
   updateRiding(dt, veh, vis) {
-    this.group.rotation.y = vis.special === 'chair' ? Math.PI : 0;
+    this.group.rotation.y = vis.special === 'chair' ? Math.PI : vis.special === 'board' ? -Math.PI / 2 : 0;
+    if (vis.special === 'cart') return this.updateCart(dt, veh, vis);
+    if (vis.special === 'mower') return this.updateMower(dt, veh, vis);
+    if (vis.special === 'board') return this.updateBoard(dt, veh, vis);
+    if (vis.special === 'unicycle') return this.updateUnicycle(dt, veh, vis);
     if (vis.special === 'crawl') return this.updateCrawl(dt, veh, vis);
     if (vis.special === 'chair') return this.updateChair(dt, veh, vis);
     if (vis.special === 'penguin') return this.updatePenguin(dt, veh, vis);
@@ -574,21 +686,34 @@ export class Rider {
     J.pelvis.z += s.fore * 0.14 * (0.5 + s.stand);
     J.pelvis.y -= s.crouch * 0.22 * (0.4 + s.stand);
     J.pelvis.x += Math.sin(s.leanBody) * (air ? 0.16 : 0.1); // hips shift to the high side in a whip
-    // rider tricks (keys 1-4 in the air): blend into the pose
+    // rider tricks (keys 1-8 in the air). The weight eases in and out (smoothstep, not a straight
+    // fade) and the parts are staged: the legs lead and the body follows a beat later, so a trick
+    // reads as a movement, not a morph. While it is held there is a little life in it.
     const curPose = veh.controller && veh.controller.trick && !veh.grounded ? veh.controller.trick.cur : null;
+    if (curPose && curPose !== s.poseId) s.poseT = 0;
     if (curPose) s.poseId = curPose;
-    s.pose += ((curPose ? 1 : 0) - s.pose) * Math.min(1, dt * 9);
-    const P = s.pose > 0.01 ? s.poseId : null, pw = s.pose;
-    if (P === 'Superman') { J.pelvis.y += 0.24 * pw; J.pelvis.z -= 0.3 * pw; }                  // body stretched out behind the bars
-    if (P === 'Cliffhanger') J.pelvis.y += 0.28 * pw;
-    if (P === 'Heel Clicker') { J.pelvis.y += 0.12 * pw; J.pelvis.z -= 0.12 * pw; }
-    if (P === 'Nac-Nac') { J.pelvis.x -= 0.12 * pw; J.pelvis.y += 0.14 * pw; }
-    if (P === 'Can-Can') { J.pelvis.x += 0.08 * pw; J.pelvis.y += 0.1 * pw; }                  // one leg kicked over the seat
-    if (P === 'Lazy Boy') { J.pelvis.y += 0.08 * pw; J.pelvis.z -= 0.22 * pw; }                // lying back, feet up on the bars
-    if (P === 'Seat Grab') { J.pelvis.x += 0.12 * pw; J.pelvis.y += 0.16 * pw; J.pelvis.z -= 0.08 * pw; } // off to the side, hand on the seat
-    if (P === 'Rock Solid') { J.pelvis.y += 0.42 * pw; J.pelvis.z -= 0.42 * pw; }             // whole body flat out above the bike
-    // torso direction (forward lean + side lean)
-    const pitch = (isBike ? 0.32 : 0.25) + s.stand * 0.38 + s.fore * 0.25 + s.crouch * 0.35 + (P === 'Superman' ? 1.1 * pw : P === 'Cliffhanger' ? -0.3 * pw : P === 'Heel Clicker' ? -0.45 * pw : P === 'Nac-Nac' ? 0.15 * pw : P === 'Lazy Boy' ? -0.95 * pw : P === 'Rock Solid' ? 1.35 * pw : P === 'Can-Can' ? 0.1 * pw : 0);
+    s.poseT = (s.poseT || 0) + dt;
+    s.pose += ((curPose ? 1 : 0) - s.pose) * Math.min(1, dt * 6.5);
+    const P = s.pose > 0.01 ? s.poseId : null;
+    const ease = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+    const pw = ease(s.pose), pwL = ease(s.pose * 1.35), pwB = ease(s.pose * 1.35 - 0.35); // whole / legs first / body after
+    const life = P ? Math.sin(s.poseT * 2.4) * pw : 0;
+    const gY = A.gripL.y, gZ = A.gripL.z;
+    if (P === 'Superman') { J.pelvis.y += 0.24 * pwB; J.pelvis.z -= 0.3 * pwB; }                // body stretched out behind the bars
+    if (P === 'Cliffhanger') J.pelvis.y += 0.28 * pwB;
+    if (P === 'Heel Clicker') { J.pelvis.y += 0.12 * pwB; J.pelvis.z -= 0.12 * pwB; }
+    if (P === 'Nac-Nac') { J.pelvis.x -= 0.12 * pwB; J.pelvis.y += 0.14 * pwB; }
+    if (P === 'Indian Air') { J.pelvis.y += (0.26 + life * 0.02) * pwB; J.pelvis.z -= 0.34 * pwB; } // stretched out back, legs running
+    if (P === 'Hart Attack') { J.pelvis.y += (0.4 + life * 0.02) * pwB; J.pelvis.z -= 0.24 * pwB; } // chest down on the bars, legs to the sky
+    if (P === 'Tsunami') J.pelvis.lerp(t.a.set(life * 0.015, gY + 1.0, gZ - 0.2), pwB);            // a handstand on the bars
+    if (P === 'Kiss of Death') J.pelvis.lerp(t.a.set(life * 0.015, gY + 0.98, gZ - 0.34), pwB);    // upside down, over the seat
+    // torso direction (forward lean + side lean). Most tricks add to the riding lean; the handstands
+    // turn the body right over (and the head goes with it, see applyBones)
+    const base = (isBike ? 0.32 : 0.25) + s.stand * 0.38 + s.fore * 0.25 + s.crouch * 0.35;
+    const ADD = { Superman: 1.1, Cliffhanger: -0.3, 'Heel Clicker': -0.45, 'Nac-Nac': 0.15, 'Indian Air': 1.05, 'Hart Attack': 1.3 };
+    const OVER = { Tsunami: 2.72, 'Kiss of Death': 3.02 };
+    const pitch = P in OVER ? base + (OVER[P] + life * 0.03 - base) * pwB : base + (ADD[P] || 0) * pwB;
+    this.headFollow = P in OVER ? pwB : 0;
     t.up.set(Math.sin(s.leanBody) * 0.9, Math.cos(pitch), Math.sin(pitch)).normalize();
     J.neck.copy(J.pelvis).addScaledVector(t.up, LEN.torso);
     // shoulders
@@ -608,10 +733,8 @@ export class Rider {
       G.dir.set(0, -0.45, 1).addScaledVector(t.a, 0.35).normalize();           // where the hand points
       t.c.set(0, 1, -0.3).addScaledVector(G.dir, -G.dir.dot(t.c.set(0, 1, -0.3))).normalize(); // back of the hand
       bar.addScaledVector(G.dir, -0.085).addScaledVector(t.c, 0.025);         // the wrist, from the bar
-      G.off = (P === 'Cliffhanger' || P === 'Lazy Boy' || (P === 'Seat Grab' && sx < 0)) ? pw : 0; // tricks that let go
+      G.off = P === 'Cliffhanger' ? pw : 0; // tricks that let go of the bars
       if (P === 'Cliffhanger') t.b.lerp(t.c.set(sh.x + sx * 0.3, sh.y + 0.5, sh.z + 0.05), pw);   // hands up
-      if (P === 'Lazy Boy') t.b.lerp(t.c.set(sh.x + sx * 0.45, sh.y + 0.15, sh.z - 0.1), pw);      // arms out wide
-      if (P === 'Seat Grab' && sx < 0) t.b.lerp(t.c.set(-0.12, seat.y + 0.12, seat.z - 0.35), pw);  // right hand on the back of the seat
       t.a.copy(sh).add(t.c.set(sx * 0.5, 0.12, -0.25));
       ik(sh, t.b, LEN.ua, LEN.fa, t.a, el, ha);
     }
@@ -623,14 +746,17 @@ export class Rider {
       t.b.copy(peg).add(t.c.set(0, 0.08, -0.02));
       if (out > 0.01) t.b.lerp(t.c.set(sx * 0.42, -0.42, 0.55), out);
       if (dabK > 0.01) t.b.lerp(t.c.set(sx * 0.45, -0.8, 0.05), dabK);
-      if (P === 'Superman') t.b.lerp(t.c.set(sx * 0.18, seat.y + 0.55, seat.z - 1.05), pw);           // legs flying out behind
-      if (P === 'Nac-Nac' && sx > 0) t.b.lerp(t.c.set(-0.55, pegY + 0.75, pegZ - 0.45), pw);          // left leg swung over the back
-      if (P === 'Heel Clicker') t.b.lerp(t.c.set(sx * 0.13, A.gripL.y + 0.14, A.gripL.z + 0.32), pw);  // heels together over the bars
-      if (P === 'Cliffhanger') t.b.lerp(t.c.set(sx * 0.12, A.gripL.y - 0.18, A.gripL.z + 0.08), pw);
-      if (P === 'Can-Can' && sx < 0) t.b.lerp(t.c.set(0.5, pegY + 0.62, pegZ + 0.4), pw);             // right leg over to the left side
-      if (P === 'Lazy Boy') t.b.lerp(t.c.set(sx * 0.2, A.gripL.y + 0.06, A.gripL.z + 0.12), pw);       // feet hooked on the bars
-      if (P === 'Seat Grab') t.b.lerp(t.c.set(sx * 0.3 - 0.25, pegY + 0.35, pegZ - 0.35), pw);         // legs swung out to the side
-      if (P === 'Rock Solid') t.b.lerp(t.c.set(sx * 0.15, seat.y + 0.9, seat.z - 1.2), pw);            // legs straight out, way up
+      if (P === 'Superman') t.b.lerp(t.c.set(sx * 0.18, seat.y + 0.55, seat.z - 1.05), pwL);          // legs flying out behind
+      if (P === 'Nac-Nac' && sx > 0) t.b.lerp(t.c.set(-0.55, pegY + 0.75, pegZ - 0.45), pwL);         // left leg swung over the back
+      if (P === 'Heel Clicker') t.b.lerp(t.c.set(sx * 0.13, gY + 0.14, gZ + 0.32), pwL);               // heels together over the bars
+      if (P === 'Cliffhanger') t.b.lerp(t.c.set(sx * 0.12, gY - 0.18, gZ + 0.08), pwL);
+      if (P === 'Indian Air') {                                                                         // legs scissor-running in the air
+        const ph = s.poseT * 8.5 + (sx > 0 ? 0 : Math.PI);
+        t.b.lerp(t.c.set(sx * 0.15, seat.y + 0.4 + Math.sin(ph) * 0.24, seat.z - 0.92 + Math.cos(ph) * 0.2), pwL);
+      }
+      if (P === 'Hart Attack') t.b.lerp(t.c.copy(J.pelvis).add(t.a.set(sx * (0.12 + life * 0.02), 0.84, -0.14)), pwL); // legs straight up
+      if (P === 'Tsunami') t.b.lerp(t.c.copy(J.pelvis).add(t.a.set(sx * 0.1, 0.82, 0.14 + life * 0.03)), pwL);         // legs up, tipped over the front
+      if (P === 'Kiss of Death') t.b.lerp(t.c.copy(J.pelvis).add(t.a.set(sx * (0.08 + Math.max(0, life) * 0.04), 0.84, -0.18)), pwL); // straight up, a little scissor
       t.a.copy(hip).add(t.c.set(sx * 0.18, 0.05, 0.6));
       ik(hip, t.b, LEN.th, LEN.sh, t.a, kn, an);
       toe.copy(an).add(t.c.set(0, -0.06, 0.24));
@@ -654,7 +780,8 @@ export class Rider {
     const J = this.j, b = this.bones, t = this.tmp;
     setBone(b[B.pelvis], J.pelvis, t.c.copy(J.pelvis).add(up), fwd);
     setBone(b[B.torso], J.pelvis, J.neck, fwd);
-    setBone(b[B.head], J.head, t.c.copy(J.head).add(t.a.set(0, 1, 0).lerp(up, 0.3)), t.b.set(0, 0, 1).lerp(fwd, 0.2));
+    const hf = this.headFollow || 0; // upside down in a trick the head goes with the body, not the horizon
+    setBone(b[B.head], J.head, t.c.copy(J.head).add(t.a.set(0, 1, 0).lerp(up, 0.3 + 0.7 * hf)), t.b.set(0, 0, 1).lerp(fwd, 0.2 + 0.8 * hf));
     const back = t.b.copy(fwd).negate();
     setBone(b[B.uaL], J.shL, J.elL, back); setBone(b[B.faL], J.elL, J.haL, fwd);
     this.setHand(b[B.hL], J.haL, J.elL, this.grip[0], fwd);

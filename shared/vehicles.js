@@ -609,6 +609,11 @@ export const CATEGORIES = ['Dirt Bikes', 'Quads', 'Side-by-Sides'];
 //          their feet (built from simple shapes, drawn in vehicleModel.js)
 //   penguin: no vehicle - belly-down slide with swim strokes (rider.js)
 //   hop:     no vehicle - a sack race, hopping along feet together (rider.js)
+//   cart:    a shopping cart, ridden standing on the back, kicking along
+//   mower:   a ride-on lawn mower, sat on, steering wheel and all
+//   board:   a skateboard, side-on stance, pushing with the back foot
+//   unicycle: one wheel, pedalling, arms out for balance
+//  (the cart, mower, board and unicycle are built from simple shapes in vehicleModel.js)
 // ---------------------------------------------------------------------
 export const SPECIAL_OWNERS = ['lmkk'];
 const RALLY = VEHICLES.find((v) => v.id === 'rally');
@@ -647,6 +652,49 @@ export const SPECIAL_VEHICLES = [
     steer: { ...ATV_BASE.steer, rate: 3.8 },
     air: { ...ATV_BASE.air, flipRate: 4.5, spinRate: 5 },
     engine: engine({ idle: 1400, redline: 9500, torque: [[1000, 22], [3000, 34], [6000, 42], [8000, 41], [9500, 35]], gearSpeeds: [11, 17, 23, 28, 33] }),
+    audio: { kind: 'none' },
+  },
+  {
+    ...ATV_BASE, id: 'cart', name: 'Shopping Cart', category: 'Specials', tier: 'Dev', special: 'cart', modelKey: 'none', paint: 'stock',
+    desc: 'Stand on the back, lean on the handle, kick off and let it roll. Wobbly wheels included. Only lmkk has this one.',
+    stats: { speed: 6, accel: 7, handling: 6, stability: 7, suspension: 2 },
+    mass: 130, inertia: [42, 52, 24],
+    steer: { ...ATV_BASE.steer, rate: 2.8 },
+    wheels: ATV_BASE.wheels.map((w) => ({ ...w, mu: w.mu * 0.9, travel: w.travel * 0.6 })),
+    engine: engine({ idle: 1200, redline: 8000, torque: [[1000, 24], [3000, 34], [6000, 40], [8000, 34]], gearSpeeds: [10, 16, 22, 27] }),
+    crash: { landPitch: 55, impact: 13, roll: 70, loop: 80 },
+    audio: { kind: 'none' },
+  },
+  {
+    ...ATV_BASE, id: 'mower', name: 'Ride-on Mower', category: 'Specials', tier: 'Dev', special: 'mower', modelKey: 'none', paint: 'stock',
+    desc: 'A sit-on lawn mower with a little too much engine. Slow off the line, never stops, cuts the track short. Only lmkk has this one.',
+    stats: { speed: 6, accel: 4, handling: 5, stability: 10, suspension: 3 },
+    mass: 260, inertia: [80, 96, 44],
+    steer: { ...ATV_BASE.steer, rate: 2.4 },
+    engine: engine({ idle: 1500, redline: 7200, torque: [[1000, 40], [3000, 52], [5500, 56], [7200, 48]], gearSpeeds: [7, 12, 17, 22, 26] }),
+    crash: { landPitch: 60, impact: 16, roll: 75, loop: 85 },
+  },
+  {
+    ...ATV_BASE, id: 'board', name: 'Skateboard', category: 'Specials', tier: 'Dev', special: 'board', modelKey: 'none', paint: 'stock',
+    desc: 'Side-on, knees bent, pushing with the back foot. Twitchy, quick and flips like crazy. Only lmkk has this one.',
+    stats: { speed: 8, accel: 7, handling: 10, stability: 4, suspension: 2 },
+    mass: 95, inertia: [30, 36, 16],
+    steer: { ...ATV_BASE.steer, rate: 4.4 },
+    air: { ...ATV_BASE.air, flipRate: 4.8, spinRate: 5.4 },
+    wheels: ATV_BASE.wheels.map((w) => ({ ...w, travel: w.travel * 0.5 })),
+    engine: engine({ idle: 1200, redline: 9000, torque: [[1000, 22], [3000, 32], [6000, 40], [9000, 34]], gearSpeeds: [12, 19, 26, 32, 37] }),
+    crash: { landPitch: 50, impact: 12, roll: 65, loop: 75 },
+    audio: { kind: 'none' },
+  },
+  {
+    ...ATV_BASE, id: 'unicycle', name: 'Unicycle', category: 'Specials', tier: 'Dev', special: 'unicycle', modelKey: 'none', paint: 'stock',
+    desc: 'One wheel, two pedals, arms everywhere. Somehow keeps up with the quads. Only lmkk has this one.',
+    stats: { speed: 6, accel: 6, handling: 8, stability: 5, suspension: 4 },
+    mass: 110, inertia: [36, 44, 20],
+    steer: { ...ATV_BASE.steer, rate: 3.6 },
+    air: { ...ATV_BASE.air, flipRate: 4.2, spinRate: 5 },
+    engine: engine({ idle: 1300, redline: 8500, torque: [[1000, 22], [3000, 32], [6000, 38], [8500, 32]], gearSpeeds: [10, 16, 22, 27, 31] }),
+    crash: { landPitch: 55, impact: 13, roll: 70, loop: 80 },
     audio: { kind: 'none' },
   },
 ];
