@@ -1,45 +1,83 @@
 // =====================================================================
 //  RANK BADGES: one drawn emblem per ranked tier (inline SVG, so it is
-//  sharp at any size and needs no image files). Bronze to Platinum are
-//  shields with one to four chevrons, Diamond is a cut gem, Pro a crest
-//  with a crown. Also the rank-up animation shown after a ranked race.
+//  sharp at any size and needs no image files). Each is a bevelled metal
+//  shield that gets grander up the ladder: Bronze one chevron, Silver two
+//  and small wings, Gold three, bigger wings and a star, Platinum a gem and
+//  full wings, Diamond a cut crystal with wings, Pro a crowned crest with a
+//  ruby. Also the rank-up animation shown after a ranked race.
 // =====================================================================
 import { RANK_TIERS } from '/shared/shop.js';
 
+// [light, mid, dark, deepest] per tier
 const COLORS = {
-  Bronze: ['#f0b27a', '#a0582a', '#5c2f12'],
-  Silver: ['#f4f7fb', '#a9b4c2', '#5b6675'],
-  Gold: ['#fff0a8', '#e2b23a', '#8a5a0c'],
-  Platinum: ['#d6fff8', '#5fd3c4', '#1c6f68'],
-  Diamond: ['#e3f1ff', '#6fb0ff', '#2a4fb8'],
-  Pro: ['#ffd2a8', '#ff6f3c', '#8a1f12'],
+  Bronze: ['#ffd1a6', '#c97a3f', '#7a3d17', '#3d1d09'],
+  Silver: ['#ffffff', '#c3ccd8', '#6f7b8c', '#343b46'],
+  Gold: ['#fff6c2', '#f0c03e', '#a26a0c', '#4f3105'],
+  Platinum: ['#eafffb', '#7fe3d6', '#258077', '#0d3b37'],
+  Diamond: ['#f2f8ff', '#8cc3ff', '#2f5fd0', '#132a6b'],
+  Pro: ['#ffe2c4', '#ff7a3d', '#a8231a', '#4a0c08'],
 };
 let uid = 0;
 
+const SHIELD = 'M50 9 L79 19 L79 47 C79 69 64 82 50 90 C36 82 21 69 21 47 L21 19 Z';
+const INNER = 'M50 16 L72 23.5 L72 47 C72 64 61 74.5 50 81 C39 74.5 28 64 28 47 L28 23.5 Z';
+const star = (cx, cy, r, fill, stroke) => {
+  let p = '';
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r * 0.45 : r; p += (i ? 'L' : 'M') + (cx + Math.cos(a) * rr).toFixed(1) + ' ' + (cy + Math.sin(a) * rr).toFixed(1); }
+  return `<path d="${p}Z" fill="${fill}" stroke="${stroke}" stroke-width="1.4" stroke-linejoin="round"/>`;
+};
+// a fan of feathers off the left side of the shield, mirrored to the right
+const wings = (n, len, metal, dark) => {
+  let f = '';
+  for (let i = 0; i < n; i++) {
+    const ang = -38 + i * (76 / Math.max(1, n - 1)), L = len - Math.abs(i - (n - 1) / 2) * 3;
+    f += `<ellipse cx="${(-L / 2).toFixed(1)}" cy="0" rx="${(L / 2).toFixed(1)}" ry="4.2" transform="translate(25 46) rotate(${ang.toFixed(1)})" fill="${metal}" stroke="${dark}" stroke-width="1.3"/>`;
+  }
+  return `<g>${f}</g><g transform="translate(100 0) scale(-1 1)">${f}</g>`;
+};
+// a chevron cut into the face: dark groove under a bright edge
+const chevron = (y, lo, hi) => `<polyline points="36,${y + 1.6} 50,${y - 7.4} 64,${y + 1.6}" fill="none" stroke="${lo}" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
+  <polyline points="36,${y} 50,${y - 9} 64,${y}" fill="none" stroke="${hi}" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+
 export function rankBadge(tier, size = 64) {
-  const [hi, mid, lo] = COLORS[tier] || COLORS.Bronze;
+  const [hi, mid, lo, deep] = COLORS[tier] || COLORS.Bronze;
   const id = 'rb' + (uid++);
-  const grad = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${hi}"/><stop offset="0.55" stop-color="${mid}"/><stop offset="1" stop-color="${lo}"/></linearGradient>
-    <linearGradient id="${id}s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>`;
+  const metal = `url(#${id}m)`, face = `url(#${id}f)`;
+  const defs = `<defs>
+    <linearGradient id="${id}m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${hi}"/><stop offset="0.45" stop-color="${mid}"/><stop offset="0.75" stop-color="${lo}"/><stop offset="1" stop-color="${mid}"/></linearGradient>
+    <radialGradient id="${id}f" cx="0.42" cy="0.3" r="0.8"><stop offset="0" stop-color="${mid}"/><stop offset="0.6" stop-color="${lo}"/><stop offset="1" stop-color="${deep}"/></radialGradient>
+    <linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.6"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <linearGradient id="${id}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="${tier === 'Pro' ? '#ff4a4a' : mid}"/><stop offset="1" stop-color="${tier === 'Pro' ? '#7a0a12' : lo}"/></linearGradient>
+  </defs>`;
+  const shine = `<path d="M50 16 L72 23.5 L72 36 C62 31 38 31 28 36 L28 23.5 Z" fill="url(#${id}s)"/>`;
+  const shield = (inner) => `<path d="${SHIELD}" fill="${deep}" transform="translate(0 2.5)" opacity="0.5"/>
+    <path d="${SHIELD}" fill="${metal}" stroke="${deep}" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="${INNER}" fill="${face}" stroke="${hi}" stroke-width="1.2" stroke-opacity="0.7" stroke-linejoin="round"/>${inner}${shine}`;
   let body;
   if (tier === 'Diamond') {
-    body = `<polygon points="32,4 56,22 32,60 8,22" fill="url(#${id})" stroke="${lo}" stroke-width="2.5" stroke-linejoin="round"/>
-      <polygon points="8,22 56,22 32,60" fill="${lo}" opacity="0.35"/><polyline points="20,22 32,4 44,22 32,60 20,22" fill="none" stroke="${hi}" stroke-width="1.6" opacity="0.8"/>
-      <polygon points="32,4 56,22 32,30 8,22" fill="url(#${id}s)"/>`;
+    // a cut crystal on wings, with a sparkle
+    body = wings(5, 30, metal, deep) + `<polygon points="50,8 78,32 50,92 22,32" fill="${deep}" transform="translate(0 2.5)" opacity="0.5"/>
+      <polygon points="50,8 78,32 50,92 22,32" fill="url(#${id}g)" stroke="${deep}" stroke-width="2.2" stroke-linejoin="round"/>
+      <polygon points="22,32 78,32 50,92" fill="${lo}" opacity="0.45"/>
+      <polyline points="36,32 50,8 64,32 50,92 36,32" fill="none" stroke="${hi}" stroke-width="1.6" opacity="0.85"/>
+      <polyline points="22,32 50,44 78,32" fill="none" stroke="${hi}" stroke-width="1.2" opacity="0.6"/>
+      <polygon points="50,8 78,32 50,38 22,32" fill="url(#${id}s)"/>
+      ${star(70, 18, 6, '#ffffff', 'none')}`;
   } else if (tier === 'Pro') {
-    body = `<path d="M32 8 L54 16 L54 34 C54 47 44 55 32 60 C20 55 10 47 10 34 L10 16 Z" fill="url(#${id})" stroke="${lo}" stroke-width="2.5" stroke-linejoin="round"/>
-      <path d="M20 40 L22 26 L28 33 L32 22 L36 33 L42 26 L44 40 Z" fill="#fff6e8" stroke="${lo}" stroke-width="1.6" stroke-linejoin="round"/>
-      <rect x="20" y="41" width="24" height="5" rx="1.5" fill="#fff6e8" stroke="${lo}" stroke-width="1.4"/>
-      <path d="M32 8 L54 16 L54 26 C44 22 20 22 10 26 L10 16 Z" fill="url(#${id}s)"/>`;
+    // a crowned crest with a ruby, on big wings
+    body = wings(6, 34, metal, deep) + shield(`<polygon points="50,40 60,52 50,66 40,52" fill="url(#${id}g)" stroke="${deep}" stroke-width="1.6" stroke-linejoin="round"/>
+      <polygon points="50,40 60,52 50,52 40,52" fill="#fff" opacity="0.35"/>`) + `
+      <path d="M30 22 L33 6 L41 15 L50 2 L59 15 L67 6 L70 22 Z" fill="${metal}" stroke="${deep}" stroke-width="1.8" stroke-linejoin="round"/>
+      <rect x="29" y="20" width="42" height="6" rx="2" fill="${metal}" stroke="${deep}" stroke-width="1.6"/>
+      <circle cx="50" cy="23" r="2.2" fill="#ff4a4a"/><circle cx="40" cy="23" r="1.6" fill="#fff"/><circle cx="60" cy="23" r="1.6" fill="#fff"/>`;
   } else {
     const n = { Bronze: 1, Silver: 2, Gold: 3, Platinum: 4 }[tier] || 1;
-    let chev = '';
-    for (let i = 0; i < n; i++) { const y = 46 - i * 8 - (4 - n) * 2; chev += `<polyline points="21,${y} 32,${y - 7} 43,${y}" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>`; }
-    body = `<path d="M32 4 L54 12 L54 32 C54 46 44 55 32 60 C20 55 10 46 10 32 L10 12 Z" fill="url(#${id})" stroke="${lo}" stroke-width="2.5" stroke-linejoin="round"/>
-      <path d="M32 9 L49 15.5 L49 32 C49 43 41 50 32 54.5 C23 50 15 43 15 32 L15 15.5 Z" fill="none" stroke="${hi}" stroke-width="1.4" opacity="0.7"/>
-      ${chev}<path d="M32 4 L54 12 L54 24 C44 20 20 20 10 24 L10 12 Z" fill="url(#${id}s)"/>`;
+    let inner = '';
+    for (let i = 0; i < Math.min(n, 3); i++) inner += chevron(70 - i * 11 - (3 - Math.min(n, 3)) * 5, deep, hi);
+    if (n === 4) inner = chevron(72, deep, hi) + chevron(62, deep, hi) + `<polygon points="50,28 60,40 50,52 40,40" fill="url(#${id}g)" stroke="${deep}" stroke-width="1.6" stroke-linejoin="round"/><polygon points="50,28 60,40 40,40" fill="#fff" opacity="0.35"/>`;
+    body = (n >= 2 ? wings(n + 1, 18 + n * 4, metal, deep) : '') + shield(inner) + (n >= 3 ? star(50, 9, 7.5, metal, deep) : '');
   }
-  return `<svg class="rank-badge" width="${size}" height="${size}" viewBox="0 0 64 64" aria-label="${tier}">${grad}${body}</svg>`;
+  return `<svg class="rank-badge" width="${size}" height="${size}" viewBox="0 0 100 100" aria-label="${tier}">${defs}${body}</svg>`;
 }
 
 // the tier after this one (and the rating it starts at), for the progress bar
