@@ -2,6 +2,32 @@
 // Per quad: model file, centre of mass offset (comX), steering axis, swingarm pivot, rider
 // points (model space: +x forward, -z left) and wheel centres / tyre radii for the physics.
 export const QUAD_MODELS = {
+  venomx: {
+    file: 'models/quad_venomx.glb',
+    comX: 0.051,
+    steerPivot: [0.321, 1.014, 0],
+    steerAxisTo: [0.419, 0.575, 0],
+    rearPivot: [-0.17, 0.375, 0],
+    attach: {
+      seat: [-0.261, 0.959, 0],
+      pegL: [-0.025, 0.294, -0.3],
+      pegR: [-0.025, 0.294, 0.3],
+      gripL: [0.278, 1.049, -0.37],
+      gripR: [0.278, 1.049, 0.37]
+    },
+    wheels: {
+      zF: 0.75,
+      zR: -0.75,
+      xF: 0.662,
+      xR: 0.74,
+      rF: 0.278,
+      rR: 0.298
+    },
+    size: {
+      length: 2.24,
+      width: 1.818
+    }
+  },
   atv450: {
     file: 'models/quad_atv450.glb',
     comX: 0.048,

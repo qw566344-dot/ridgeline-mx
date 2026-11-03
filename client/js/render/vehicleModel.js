@@ -418,6 +418,8 @@ const EXHAUST = {
   sxs: { p: [-1.67, 0.55, -0.22], d: [-0.9, -0.4, 0] },
 };
 EXHAUST.utvr = EXHAUST.utvbaja = EXHAUST.utv;
+EXHAUST.supermoto = EXHAUST.bike;
+EXHAUST.q_venomx = { p: [-0.88, 0.74, 0.2], d: [-1, 0.05, 0] }; // twin pipes: the left one
 EXHAUST.sxs_up = EXHAUST.sxs_race = EXHAUST.sxs;
 const _ex = new THREE.Vector3();
 

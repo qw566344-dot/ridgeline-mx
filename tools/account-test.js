@@ -110,10 +110,10 @@ try {
     ok(all.ok && all.profile.owned.includes('color:p-trailblazer') && all.profile.passP.includes(1), 'claim all pays the premium reward for each level reached');
     const sell = await api(tk, 'buy', { slot: 'color', id: 'p-nightrider' });
     ok(!!sell.error, 'pass-only skins can not be bought in the shop');
-    const sellV = await api(tk, 'buy', { slot: 'vehicle', id: 'apex' }), rims = await api(tk, 'equip', { slot: 'rims', id: 'gold' }), stockRims = await api(tk, 'equip', { slot: 'rims', id: 'stock' });
+    const sellV = await api(tk, 'buy', { slot: 'vehicle', id: 'smfactory' }), rims = await api(tk, 'equip', { slot: 'rims', id: 'gold' }), stockRims = await api(tk, 'equip', { slot: 'rims', id: 'stock' });
     ok(!!sellV.error && /own/i.test(rims.error || '') && stockRims.profile && stockRims.profile.equipped.rims === 'stock', 'pass vehicles can not be bought; pass rims need owning; factory rims always work');
-    const sneaky = await api(null, 'register', { name: 'PassSneak', password: pw, restore: { coins: 10, owned: ['vehicle:apex', 'rims:neon', 'color:p-prismelite'] } });
-    ok(sneaky.profile && !sneaky.profile.owned.some((k) => /apex|neon|p-prismelite/.test(k)), 'a restore can not bring in pass items');
+    const sneaky = await api(null, 'register', { name: 'PassSneak', password: pw, restore: { coins: 10, owned: ['vehicle:smfactory', 'rims:neon', 'color:p-prismelite'] } });
+    ok(sneaky.profile && !sneaky.profile.owned.some((k) => /smfactory|neon|p-prismelite/.test(k)), 'a restore can not bring in pass items');
   }
 } catch (e) { console.error(e); fails++; }
 srv.kill();

@@ -260,6 +260,15 @@ export const MODELS = {
     swingarm: 'swingarm', swingPivot: [-0.176, 0.488, 0], shock: null,
     attach: { seat: [-0.25, 1.0, 0], pegL: [-0.077, 0.40, -0.15], pegR: [-0.077, 0.40, 0.15], gripL: [0.255, 1.175, -0.31], gripR: [0.255, 1.175, 0.31] },
   },
+  supermoto: {
+    // the Supermoto Factory (pass reward): built on the KX's layout, grouped by tools/bake-supermoto.mjs
+    file: 'models/supermoto_factory.glb', kind: 'bike', comX: -0.02,
+    paint: ['pearl_white'], accent: ['signal_orange'],
+    steerGroup: 'front_end', steerPivot: [0.284, 1.099, 0], steerAxisTo: [0.765, 0.345, 0],
+    forkSlide: 'fork_lowers', wheelF: 'wheel_front', wheelR: 'wheel_rear',
+    swingarm: 'swingarm', swingPivot: [-0.176, 0.488, 0], shock: null,
+    attach: { seat: [-0.25, 1.0, 0], pegL: [-0.077, 0.40, -0.15], pegR: [-0.077, 0.40, 0.15], gripL: [0.255, 1.175, -0.31], gripR: [0.255, 1.175, 0.31] },
+  },
   // the quads: the ATV Garage pack, one model per quad (tools/bake-quads.mjs -> quadModels.js)
   ...Object.fromEntries(Object.entries(QUAD_MODELS).map(([id, q]) => ['q_' + id, quadModel(q)])),
 
@@ -787,12 +796,10 @@ export const SPECIAL_CATEGORY = 'Specials';
 // ---------------------------------------------------------------------
 const baseOf = (id) => VEHICLES.find((v) => v.id === id);
 export const PASS_VEHICLES = [
-  { ...baseOf('mx125'), id: 'heritage', name: 'Heritage 250', tier: 'Pass', paint: 'retro', native: false, passOnly: true,
-    desc: 'A twin-shock two-stroke from the golden era, rebuilt for the track. Screams to the redline. Premium Pass only.' },
-  { ...baseOf('atv700'), id: 'raptor', name: 'Desert Raptor', tier: 'Pass', paint: 'p-dustdevil', native: false, passOnly: true,
-    desc: 'A long-travel desert race quad with a wide stance. Built to fly whoops flat out. Premium Pass only.' },
-  { ...baseOf('sxsr'), id: 'apex', name: 'Apex Turbo RR', tier: 'Pass', paint: 'p-solarflare', native: false, passOnly: true,
-    desc: 'The top of the pass: a factory turbo side-by-side in Solar Flare. Premium Pass only.' },
+  { ...baseOf('atv700'), ...quadShape('venomx'), id: 'venomx', modelKey: 'q_venomx', name: 'Venom X', tier: 'Pass', paint: 'black', native: true, passOnly: true,
+    desc: 'A low, wide race quad with twin pipes, blade fenders and a pointed nose. Premium Pass only.' },
+  { ...baseOf('sm450'), id: 'smfactory', modelKey: 'supermoto', name: 'Supermoto Factory', tier: 'Pass', paint: 'white', native: true, passOnly: true,
+    desc: 'The factory supermoto in pearl white and signal orange, with bronze forks. The top of the pass. Premium Pass only.' },
 ];
 export const isPassVehicle = (id) => PASS_VEHICLES.some((v) => v.id === id);
 export const isSpecial = (id) => SPECIAL_VEHICLES.some((v) => v.id === id);

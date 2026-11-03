@@ -1,6 +1,7 @@
 // Quad models: the "ATV Garage" low-poly pack (one GLB per quad, named parts)
 // -> client/models/quad_<id>.glb + shared/quadModels.js (measured rig points).
 //   node tools/bake-quads.mjs "path/to/ATV Models"
+//   node tools/bake-quads.mjs --one <id> path/to/quad.glb   (one more quad in the same style; added to the others)
 // - turns each quad to face +x (MODELS convention; the pack faces +z)
 // - groups the parts the rig moves: wheel_FL/FR/RL/RR, handlebars, the front
 //   a-arms / knuckles / shocks per side, the rear swingarm + axle and its shock
@@ -16,8 +17,10 @@ import { MeshoptSimplifier, MeshoptEncoder } from 'meshoptimizer';
 import fs from 'fs';
 import path from 'path';
 
-const PACK = process.argv[2];
-const QUADS = { atv450: 'Pro 450R/pro-450r', atv700: 'Pro 700 Brute/pro-700-brute', atv250: 'Sport 250/sport-250', atv1000: 'Mud Pro 1000/mud-pro-1000', atv90: 'Pit Quad 90/pit-quad-90', atv450w: 'Pro 450R Works/pro-450r-works' };
+const ONE = process.argv[2] === '--one';
+const PACK = ONE ? '' : process.argv[2];
+let QUADS = { atv450: 'Pro 450R/pro-450r', atv700: 'Pro 700 Brute/pro-700-brute', atv250: 'Sport 250/sport-250', atv1000: 'Mud Pro 1000/mud-pro-1000', atv90: 'Pit Quad 90/pit-quad-90', atv450w: 'Pro 450R Works/pro-450r-works' };
+if (ONE) QUADS = { [process.argv[3]]: path.resolve(process.argv[4]).replace(/.glb$/i, '') };
 await MeshoptSimplifier.ready; await MeshoptEncoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder });
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -27,7 +30,7 @@ const turn = ([x, y, z]) => [r3(z), r3(y), r3(-x)];
 const out = {};
 
 for (const [id, rel] of Object.entries(QUADS)) {
-  const doc = await io.read(path.join(PACK, rel + '.glb'));
+  const doc = await io.read(ONE ? rel + '.glb' : path.join(PACK, rel + '.glb'));
   const root = doc.getRoot(), scene = root.listScenes()[0];
   await doc.transform(flatten());
   const nodes = root.listNodes().filter((n) => n.getMesh());
@@ -63,7 +66,7 @@ for (const [id, rel] of Object.entries(QUADS)) {
     else put('body', n);
   }
   // bodywork -> its own paint material (a copy of what it was)
-  const panels = nodes.filter((n) => /^(rear_fender_[LR]|front_fender_[LR]|nose_[LR]|tank_[LR]|tail|side_cover_[LR]|nose_intake)$/.test(n.getName()));
+  const panels = nodes.filter((n) => /^(rear_fender_[LR]|front_fender_[LR]|nose_[LR]|tank_[LR]|tail|side_cover_[LR]|nose_intake|front_blade_[LR]|rear_blade_[LR]|front_inner_fender_[LR]|rear_side_pod_[LR])$/.test(n.getName()));
   let paintMat = null;
   for (const n of panels) for (const p of n.getMesh().listPrimitives()) {
     if (!paintMat) paintMat = p.getMaterial().clone().setName('body_paint').setBaseColorFactor([0.2, 0.2, 0.2, 1]); // not identical, or dedup merges it back
@@ -105,9 +108,10 @@ for (const [id, rel] of Object.entries(QUADS)) {
   await io.write(file, doc);
   let tris = 0;
   for (const m of root.listMeshes()) for (const p of m.listPrimitives()) tris += p.getIndices().getCount() / 3;
-  console.log(`${id.padEnd(8)} ${rel.split('/')[0].padEnd(16)} ${Math.round(tris)} triangles, ${(fs.statSync(file).size / 1024).toFixed(0)} KB, groups: ${Object.keys(groups).join(' ')}`);
+  console.log(`${id.padEnd(8)} ${path.basename(rel).padEnd(16)} ${Math.round(tris)} triangles, ${(fs.statSync(file).size / 1024).toFixed(0)} KB, groups: ${Object.keys(groups).join(' ')}`);
 }
 
+if (ONE) { const { QUAD_MODELS } = await import('../shared/quadModels.js'); for (const [k, v] of Object.entries(QUAD_MODELS)) if (!(k in out)) out[k] = v; }
 fs.writeFileSync('shared/quadModels.js', `// Measured by tools/bake-quads.mjs from the ATV Garage pack - do not edit by hand, bake again.
 // Per quad: model file, centre of mass offset (comX), steering axis, swingarm pivot, rider
 // points (model space: +x forward, -z left) and wheel centres / tyre radii for the physics.
