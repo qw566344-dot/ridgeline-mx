@@ -15,7 +15,7 @@ export const UPDATES = [
       'Chrome skins have real-looking reflections, and the dull skins were redone with stronger colours (hazard, marble, pinstripe, ghost flame and more)',
       'Quads rotate faster in the air, so backflips come round in time',
       'Leaning in with E and letting go no longer bunny-hops the bike on flat ground',
-      'First person is fixed in whips and flips: the view stays behind your eyes and keeps looking where you are flying',
+      'First person no longer looks down in the middle of a whip',
       'Ranked 1v1 is solo only, and 2v2 takes a party of two at most',
     ],
   },
