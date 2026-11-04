@@ -10,7 +10,7 @@ export const UPDATES = [
     items: [
       'Ranked 2v2: teams of two race on total finishing places - queue alone for a teammate of your rank, or make a party of two and queue together. Pick 1v1 or 2v2 on the Ranked screen',
       'Your 2v2 rating is kept apart from 1v1, with its own list on the leaderboard (new Tricks / Ranked 1v1 / Ranked 2v2 tabs)',
-      'The Supermoto Factory is the level 30 Premium Pass reward',
+      'The Supermoto Factory is the level 30 Premium Pass reward - and it is maxed out: 110 mph, 0-60 in 3 seconds, the most grip in the game and tough suspension',
       'More rim colours on the pass: red, blue, bronze, white and violet join carbon, gold and neon',
       'Chrome skins have real-looking reflections, and the dull skins were redone with stronger colours (hazard, marble, pinstripe, ghost flame and more)',
       'Quads rotate faster in the air, so backflips come round in time',

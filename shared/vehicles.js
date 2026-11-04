@@ -797,7 +797,16 @@ export const SPECIAL_CATEGORY = 'Specials';
 const baseOf = (id) => VEHICLES.find((v) => v.id === id);
 export const PASS_VEHICLES = [
   { ...baseOf('sm450'), id: 'smfactory', modelKey: 'supermoto', name: 'Supermoto Factory', tier: 'Pass', paint: 'white', native: true, passOnly: true,
-    desc: 'The factory supermoto in pearl white and signal orange, with bronze forks. The top of the pass. Premium Pass only.' },
+    desc: 'The factory supermoto in pearl white and signal orange, with bronze forks. Maxed out everywhere: the fastest, quickest, grippiest bike in the game, and it shrugs off big landings. The top of the pass. Premium Pass only.',
+    // insane: about 45% more pull, taller gearing, more grip and steering, real suspension, quicker tricks
+    stats: { speed: 10, accel: 10, handling: 10, stability: 10, suspension: 10 },
+    mass: 190,
+    damping: { bump: 0.46, rebound: 0.68 },
+    steer: { ...baseOf('sm450').steer, rate: 4.3, latAcc: 14.5 },
+    wheels: baseOf('sm450').wheels.map((w) => ({ ...w, freq: w.freq / 1.08, travel: w.travel * 1.25, mu: w.mu * 1.15 })),
+    crash: { ...baseOf('sm450').crash, impact: baseOf('sm450').crash.impact * 1.3 },
+    air: { ...baseOf('sm450').air, flipRate: 5.2, spinRate: 4.3, whip: 80 },
+    engine: engine({ idle: 1600, redline: 11800, torque: [[1000, 40], [3000, 58], [6000, 70], [8000, 73], [10000, 66], [11800, 52]], gearSpeeds: [16, 24.5, 33, 41, 49] }) },
 ];
 export const isPassVehicle = (id) => PASS_VEHICLES.some((v) => v.id === id);
 export const isSpecial = (id) => SPECIAL_VEHICLES.some((v) => v.id === id);
