@@ -91,7 +91,11 @@ export class Net {
     if (rk && !(A && A.mode === 'online' && A.token)) { this.ui.popup('Ranked needs an online account - log in first.', 'bad'); return; }
     const home = regionList()[0];
     // 2v2 from a party of two: the leader queues both as a duo (the party is on the home server)
-    const duo = mode === 'ranked2' && this.party && !this.party.match && this.party.members.length === 2;
+    const size = this.party && !this.party.match ? this.party.members.length : 1;
+    // ranked is only for the right number of riders: 1v1 alone, 2v2 alone or as a party of two
+    if (mode === 'ranked' && size > 1) { this.ui.popup('Ranked 1v1 is solo only - leave your party to play it (casual works with a party).', 'bad'); return; }
+    if (mode === 'ranked2' && size > 2) { this.ui.popup('Ranked 2v2 is for a party of two at most - you have ' + size + '.', 'bad'); return; }
+    const duo = mode === 'ranked2' && size === 2;
     if (duo && !this.isLeader()) { this.ui.popup('Your party leader starts the 2v2 search for you both.', 'bad'); return; }
     if (duo && home && this.region.id !== home.id) { this.ui.popup(`Ranked is played on the <b>${escapeHtml(home.name)}</b> server - make your party there.`, 'bad'); return; }
     if (this.code && !duo) this.leave();

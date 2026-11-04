@@ -109,6 +109,25 @@ const pd = await until(dl.cl, (m) => m.t === 'party' && m.teams);
 const idOf = (c) => c.msgs.find((m) => m.t === 'welcome').id;
 check('2v2 duo: the party of two races on the same team', fd && fd.mate === 'PairM' && pd && pd.teams[idOf(dl.cl)] === pd.teams[idOf(dm.cl)] && pd.teams[idOf(D[2].cl)] === pd.teams[idOf(D[3].cl)]);
 
+// party too big for the mode: 2 in a party can't play 1v1, 3 can't play 2v2
+{
+  const [x, y] = [Q4[2], Q4[3]];
+  x.cl.send({ t: 'create' });
+  const pz = await until(x.cl, (m) => m.t === 'party' && m.code && !m.match);
+  y.cl.send({ t: 'join', code: pz.code });
+  await until(x.cl, (m) => m.t === 'party' && !m.match && m.members.length === 2);
+  x.cl.msgs.length = 0;
+  x.cl.send({ t: 'queue', mode: 'ranked', auth: x.acc.token });
+  const e1 = await until(x.cl, (m) => m.t === 'error', 4000);
+  check('a party of two can not queue ranked 1v1', e1 && e1.code === 'PARTY_SIZE');
+  r1.send({ t: 'leave' }); await wait(200); r1.send({ t: 'join', code: pz.code });
+  await until(x.cl, (m) => m.t === 'party' && !m.match && m.members.length === 3);
+  x.cl.msgs.length = 0;
+  x.cl.send({ t: 'queue', mode: 'ranked2', auth: x.acc.token, duo: true });
+  const e2 = await until(x.cl, (m) => m.t === 'error', 4000);
+  check('a party of three can not queue ranked 2v2', e2 && e2.code === 'PARTY_SIZE');
+}
+
 srv.kill();
 for (const x of [a, b, c, r1, r2, ...T.map((t) => t.cl), ...Q4.map((t) => t.cl), dl.cl, dm.cl]) x.ws.close();
 const bad = results.filter((x) => !x).length;

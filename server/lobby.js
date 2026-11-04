@@ -200,6 +200,9 @@ export class Lobby {
       if (!u) return this.err(p, 'RANKED_LOGIN', 'Ranked needs an online account - log in first.');
       key = u.key; p.acct = u.key; rating = (mode === 'ranked2' ? u.rating2 : u.rating) || RANK_START;
     }
+    const size = p.party && !p.party.match ? p.party.members.size : 1;
+    if (mode === 'ranked' && size > 1) return this.err(p, 'PARTY_SIZE', 'Ranked 1v1 is solo only - leave your party to play it.');
+    if (mode === 'ranked2' && (size > 2 || (size === 2 && !m.duo))) return this.err(p, 'PARTY_SIZE', 'Ranked 2v2 is for a party of two at most.');
     if (mode === 'ranked2' && m.duo) {
       const P = p.party;
       if (!P || P.match || P.members.size !== 2 || P.leader !== p.id) return this.err(p, 'DUO', 'A duo needs a party of exactly two: you (the leader) and your teammate.');
