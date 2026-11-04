@@ -192,14 +192,21 @@ export class CameraRig {
       // does not), and the view direction is smoothed too so jumps and whoops don't whip it around.
       const eye = riderHead ? _p.copy(riderHead) : _p.copy(target.pos).add(_v2.set(0, 0.9, 0));
       _qi.copy(target.quat).invert();
-      _e.copy(eye).sub(target.pos).applyQuaternion(_qi);               // eye in the vehicle's frame
-      // a little behind the head so the bars and your arms come into view (in a car: the wheel and your hands)
+      _e.copy(eye).sub(target.pos).applyQuaternion(_qi);               // the head in the vehicle's frame
       const car = target.type === 'car';
-      _e.y += car ? 0.05 : 0.2; _e.z -= car ? 0.14 : 0.55;
       if (!this.eyeLocal || this.snapNext) this.eyeLocal = _e.clone();
       this.eyeLocal.lerp(_e, Math.min(1, dt * 7));
-      cam.position.copy(this.eyeLocal).applyQuaternion(target.quat).add(target.pos);
-      // look where the bike points, eased toward where it is going; level-ish horizon
+      const headW = (this.headW || (this.headW = new THREE.Vector3())).copy(this.eyeLocal).applyQuaternion(target.quat).add(target.pos);
+      // where you are flying over the ground. In the air the bike's nose swings round in whips and
+      // flips but the path doesn't, so the view is built on this (the old one chased the nose)
+      const air = !target.grounded && (target.airTime || 0) > 0.1;
+      _h.set(target.vel.x, 0, target.vel.z);
+      if (_h.lengthSq() < 4) _h.copy(fwd).setY(0);
+      if (_h.lengthSq() < 1e-4) _h.set(0, 0, 1);
+      _h.normalize();
+      if (!this.fpPath || this.snapNext) this.fpPath = _h.clone();
+      this.fpPath.lerp(_h, Math.min(1, dt * (air ? 1.5 : 8))).normalize();
+      // on the ground: look where the bike points, eased toward where it is going; level-ish horizon
       _f.copy(fwd).lerp(this.heading, 0.25);
       _f.y = Math.max(-0.45, Math.min(0.35, _f.y)) - (car ? 0.08 : 0.3); // only a slight tilt down: bars / wheel and arms at the bottom edge
       _f.normalize();
@@ -208,45 +215,41 @@ export class CameraRig {
       if (target.lean) _u.applyAxisAngle(_f, -target.lean * 0.45);    // lean into turns, but less than the bike
       _m.lookAt(_v2.set(0, 0, 0), _f, _u); // camera looks down its -z: from the origin toward _f
       _q.setFromRotationMatrix(_m);
-      // Settings > first person follows tricks: in the air the view goes round with flips and 360s
-      // but NOT with whips. The view's heading comes from the bike's side axis (it turns in a
-      // spin, stays put in a flip), blended back to where you are flying while the bike is laid
-      // over in a whip; its nose angle follows the flip all the way round; the view never rolls
-      // sideways. It eases in after take-off and back out on landing, so it never snaps.
+      // In the air the view is built from angles, never from the bike's nose directly: its heading is
+      // the flight path; with Settings > first person follows tricks on, it also turns with 360s and
+      // its nose angle goes round with flips. Whips never move it (a whip lays the bike over and
+      // swings the nose sideways and back - the view keeps looking where you are flying). It never
+      // rolls, eases in after take-off and back out on landing, so it never snaps.
       let followW = 0;
-      if (this.followFlips && !target.grounded && (target.airTime || 0) > 0.1) {
+      if (air) {
         followW = 1;
+        if (!this.fSpinOn) { this.fSpinOn = true; this.fSpin = 0; this.fPrevL = null; }
         _w.set(1, 0, 0).applyQuaternion(target.quat);                    // the bike's left side
         const lay = Math.abs(_w.y);                                       // how far it is laid over (whips)
         _w.y = 0;
-        _h.copy(this.heading).setY(0);
-        if (_h.lengthSq() < 1e-4) _h.copy(fwd).setY(0);
-        _h.normalize();
-        if (_w.lengthSq() > 0.04) {
-          _l.crossVectors(_w.normalize(), THREE.Object3D.DEFAULT_UP).normalize(); // the bike's own heading (spins turn it)
-          // the follow heading only takes the bike's turning while its nose is near level (a 360).
-          // With the nose straight up or down mid-flip, the smallest roll of the bike swings its
-          // side axis round - read as heading, that shook the view left and right
-          if (!this.fHead) { this.fHead = _l.clone(); this.fPrevL = _l.clone(); }
-          const turn = Math.atan2(this.fPrevL.z * _l.x - this.fPrevL.x * _l.z, this.fPrevL.dot(_l));
-          const level = fwd.x * fwd.x + fwd.z * fwd.z;                    // cos^2 of the nose angle
-          this.fHead.applyAxisAngle(THREE.Object3D.DEFAULT_UP, turn * level * level).normalize();
-          this.fPrevL.copy(_l);
-          const whip = Math.min(1, Math.max(0, (lay - 0.2) / 0.3));       // a whip: keep looking where you are flying
-          this.whipS = (this.whipS || 0) + (whip - (this.whipS || 0)) * Math.min(1, dt * 6); // eased, so it can't flicker
-          const ws = this.whipS;
-          _h.lerp(this.fHead, 1 - ws * ws * (3 - 2 * ws)).normalize();
+        if (this.followFlips && _w.lengthSq() > 0.04) {
+          _l.crossVectors(_w.normalize(), THREE.Object3D.DEFAULT_UP).normalize(); // the bike's own heading
+          if (this.fPrevL) {
+            // only while the nose is near level (a 360) and the bike is not laid over (a whip)
+            const turn = Math.atan2(this.fPrevL.z * _l.x - this.fPrevL.x * _l.z, this.fPrevL.dot(_l));
+            const level = fwd.x * fwd.x + fwd.z * fwd.z, whip = Math.min(1, Math.max(0, (lay - 0.15) / 0.25));
+            this.fSpin += turn * level * level * (1 - whip);
+          }
+          (this.fPrevL || (this.fPrevL = new THREE.Vector3())).copy(_l);
         }
-        // nose angle round the flip (+ = up), all the way round. Measured against the nose's whole
-        // level length (with the sign from the heading), not just the part along the heading: in a
-        // whip the nose swings sideways, and that read as "nose down" and tipped the view down
-        const th = Math.atan2(fwd.y, Math.hypot(fwd.x, fwd.z) * (fwd.dot(_h) < 0 ? -1 : 1));
-        // kept continuous all the way round (and past one turn), so blending it never jumps
+        _h.copy(this.fpPath).applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.followFlips ? this.fSpin : 0);
+        // nose angle round the flip (+ = up), in the upright plane along the heading. When the nose
+        // points sideways (a whip) that plane says nothing, so the angle is held instead of jumping
+        let th = 0;
+        if (this.followFlips) {
+          const along = fwd.dot(_h);
+          th = Math.hypot(fwd.y, along) > 0.55 ? Math.atan2(fwd.y, along) : (this.fPitch ?? 0);
+        }
         if (this.fPitch == null) this.fPitch = th;
         else { const d = th - this.fPitch; this.fPitch += d - Math.round(d / (Math.PI * 2)) * Math.PI * 2; }
         (this.fH || (this.fH = new THREE.Vector3())).copy(_h);            // kept while fading out after landing
       } else {
-        this.fHead = null; this.whipS = 0;
+        this.fSpinOn = false;
         if (this.fPitch != null) this.fPitch -= Math.round(this.fPitch / (Math.PI * 2)) * Math.PI * 2; // landed: the nearest way back to level
       }
       this.flipLock = (this.flipLock || 0) + (followW - (this.flipLock || 0)) * Math.min(1, dt * 3.5);
@@ -269,6 +272,10 @@ export class CameraRig {
       this.helmQ.slerp(_q, Math.min(1, dt * (this.flipLock > 0.3 ? 12 : target.grounded ? 9 : 5)));
       cam.quaternion.copy(this.helmQ);
       if (this.orbitPitch) cam.rotateX(-this.orbitPitch * 0.8);
+      // the eye: a little behind and above the head so the bars and your arms come into view (in a car:
+      // the wheel and your hands). Placed from the VIEW, not the bike's frame, so the eye and the view
+      // always agree - pinned to the bike, it swung round the head in flips and whips while the view didn't
+      cam.position.copy(headW).add(_v2.set(0, car ? 0.05 : 0.2, car ? 0.14 : 0.55).applyQuaternion(this.helmQ));
       fovTarget = this.baseFov + 28 + Math.min(8, spd * 0.2);
       this.pos.copy(cam.position);
       this.look.copy(cam.position).addScaledVector(_f, 10);
