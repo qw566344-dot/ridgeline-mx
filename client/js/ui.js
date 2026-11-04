@@ -269,7 +269,7 @@ export class UI {
   renderHome() {
     // the party panel lives in Friends; it stays current on every screen
     const net = this.net, S = this.settings;
-    const P = net && net.party && !net.party.match; // a ranked / matchmade race is not a party
+    const P = net && net.party && !net.party.match ? net.party : null; // a ranked / matchmade race is not a party (P must be the party itself, not `true`)
     $('party-solo').hidden = !!P;
     $('party-in').hidden = !P;
     $('party-leave').hidden = !P; // the small Leave party button under the party panel
