@@ -29,14 +29,14 @@ const PREMIUM_LIST_OLD = [
   { slot: 'color', id: 'p-solarflare' }, { slot: 'gear', id: 'kit-p-solarflare' }, { slot: 'color', id: 'p-royalty' }, { slot: 'gear', id: 'kit-p-prismelite' }, { slot: 'color', id: 'p-prismelite' },
 ];
 
-// 30 tiers (level = tier + 1): 2 vehicles (Venom X at level 18, Supermoto Factory at 30), 9 skins, 4 rider kits, 3 rim styles,
+// 30 tiers (level = tier + 1): the Supermoto Factory at level 30, 9 skins, 8 rim colours, 4 rider kits, 3 rim styles,
 // 2 backfire flame colours, 2 exhaust sounds, 1 trail and coins in between
 const PREMIUM_LIST = [
   { slot: 'color', id: 'p-trailblazer' }, { coins: 500 }, { slot: 'gear', id: 'kit-p-trailblazer' }, { slot: 'rims', id: 'carbon' }, { slot: 'color', id: 'p-dustdevil' },
   { slot: 'flame', id: 'blue' }, { slot: 'color', id: 'p-voltage' }, { slot: 'color', id: 'p-nightrider' }, { coins: 800 }, { slot: 'gear', id: 'kit-p-nightrider' },
-  { slot: 'sound', id: 'deep' }, { slot: 'color', id: 'p-venomstrike' }, { slot: 'rims', id: 'gold' }, { coins: 1000 }, { coins: 1100 },
-  { slot: 'gear', id: 'kit-p-glacier' }, { slot: 'vehicle', id: 'venomx' }, { slot: 'color', id: 'p-glacier' }, { slot: 'flame', id: 'green' }, { coins: 1200 },
-  { slot: 'trail', id: 'embers' }, { slot: 'color', id: 'p-solarflare' }, { slot: 'sound', id: 'race' }, { slot: 'gear', id: 'kit-p-solarflare' }, { coins: 1500 },
+  { slot: 'sound', id: 'deep' }, { slot: 'color', id: 'p-venomstrike' }, { slot: 'rims', id: 'gold' }, { slot: 'rims', id: 'red' }, { slot: 'rims', id: 'blue' },
+  { slot: 'gear', id: 'kit-p-glacier' }, { slot: 'rims', id: 'bronze' }, { slot: 'color', id: 'p-glacier' }, { slot: 'flame', id: 'green' }, { slot: 'rims', id: 'white' },
+  { slot: 'trail', id: 'embers' }, { slot: 'color', id: 'p-solarflare' }, { slot: 'sound', id: 'race' }, { slot: 'gear', id: 'kit-p-solarflare' }, { slot: 'rims', id: 'violet' },
   { slot: 'rims', id: 'neon' }, { slot: 'color', id: 'p-royalty' }, { coins: 2000 }, { slot: 'vehicle', id: 'smfactory' }, { slot: 'color', id: 'p-prismelite' },
 ];
 void PREMIUM_LIST_OLD;

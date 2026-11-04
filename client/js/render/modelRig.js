@@ -657,7 +657,27 @@ function paintMaterial(base, scheme, which, key) {
   if (!paintCache.has(k)) {
     const m = base.clone();
     m.color = new THREE.Color(color);
-    if (pat === 'chrome') { m.metalness = 1; m.roughness = 0.12; m.envMapIntensity = 1.4; }
+    if (pat === 'chrome') {
+      // the scenes reflect almost nothing, so real metal reads flat: paint the chrome look in -
+      // a bright sky above a hard horizon line, the accent colour as the dark "ground" below it,
+      // and a hot highlight streak, all following the view angle so it slides as the bike turns
+      m.metalness = 0.35; m.roughness = 0.18; m.envMapIntensity = 1.4;
+      const u = { uA: { value: new THREE.Color(scheme.body) }, uB: { value: new THREE.Color(scheme.accent || 0x222222) } };
+      m.onBeforeCompile = (sh) => {
+        Object.assign(sh.uniforms, u);
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uA; uniform vec3 uB;').replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+{
+  vec3 rv = reflect(-normalize(vViewPosition), normal); // what the surface mirrors
+  float y = rv.y + 0.05 * sin(rv.x * 9.0) + 0.1;
+  float sky = smoothstep(-0.03, 0.03, y);
+  vec3 up = uA * mix(1.3, 0.85, clamp(y * 1.4, 0.0, 1.0));
+  vec3 down = mix(uB, uA * 0.6, smoothstep(0.0, -0.7, y));
+  vec3 k = mix(down, up, sky) + vec3(0.8) * smoothstep(0.32, 0.38, y) * smoothstep(0.52, 0.46, y);
+  diffuseColor.rgb = k;
+}`);
+      };
+      m.customProgramCacheKey = () => 'skin-chrome';
+    }
     if (pat === 'carbon') { m.roughness = 0.3; }
     if (pat === 'holo') { m.metalness = 0.7; m.roughness = 0.2; }
     if (patterned(pat)) {
@@ -677,7 +697,9 @@ function paintMaterial(base, scheme, which, key) {
 
 // rim styles (shop.js EXTRAS.rims): a copy of the wheel's rim material in the style's colour
 const rimMats = new Map();
-const RIM_LOOK = { carbon: { color: 0x26262b, metalness: 0.15, roughness: 0.3 }, gold: { color: 0xf0b92a, metalness: 0.35, roughness: 0.3, emissive: 0x2a1c00 }, neon: { color: 0x22d3ee, metalness: 0.1, roughness: 0.3, emissive: 0x0e8fa8 } }; // low metalness: the scenes have no reflections, so full metal reads as black
+const RIM_LOOK = { carbon: { color: 0x26262b, metalness: 0.15, roughness: 0.3 }, gold: { color: 0xf0b92a, metalness: 0.35, roughness: 0.3, emissive: 0x2a1c00 }, neon: { color: 0x22d3ee, metalness: 0.1, roughness: 0.3, emissive: 0x0e8fa8 },
+  red: { color: 0xd7262e, metalness: 0.2, roughness: 0.3 }, blue: { color: 0x2f6fe0, metalness: 0.2, roughness: 0.3 }, white: { color: 0xeef2f6, metalness: 0.1, roughness: 0.35 },
+  bronze: { color: 0xc07a30, metalness: 0.35, roughness: 0.3, emissive: 0x1a0d00 }, violet: { color: 0x8b5cf6, metalness: 0.2, roughness: 0.3, emissive: 0x150a30 } }; // low metalness: the scenes have no reflections, so full metal reads as black
 function rimMaterial(base, style) {
   const L = RIM_LOOK[style];
   if (!L) return base;

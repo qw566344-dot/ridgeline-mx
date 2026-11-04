@@ -307,7 +307,9 @@ for (const v of PASS_VEHICLES) SHOP.push({ id: v.id, slot: 'vehicle', price: 1e9
 // EXTRAS: rims, the backfire flame colour, an exhaust sound and a trail. The first of each is what
 // everyone has; the rest come from the Premium Pass.
 export const EXTRAS = {
-  rims: [{ id: 'stock', name: 'Factory Rims' }, { id: 'carbon', name: 'Carbon Rims', color: 0x1c1c20, rarity: 'Rare' }, { id: 'gold', name: 'Gold Rims', color: 0xd4a017, rarity: 'Epic' }, { id: 'neon', name: 'Neon Rims', color: 0x22d3ee, glow: true, rarity: 'Legendary' }],
+  rims: [{ id: 'stock', name: 'Factory Rims' }, { id: 'carbon', name: 'Carbon Rims', color: 0x1c1c20, rarity: 'Rare' }, { id: 'gold', name: 'Gold Rims', color: 0xd4a017, rarity: 'Epic' }, { id: 'neon', name: 'Neon Rims', color: 0x22d3ee, glow: true, rarity: 'Legendary' },
+    { id: 'red', name: 'Race Red Rims', color: 0xd7262e, rarity: 'Rare' }, { id: 'blue', name: 'Cobalt Rims', color: 0x2f6fe0, rarity: 'Rare' }, { id: 'white', name: 'Arctic White Rims', color: 0xeef2f6, rarity: 'Rare' },
+    { id: 'bronze', name: 'Bronze Rims', color: 0xb8742c, rarity: 'Epic' }, { id: 'violet', name: 'Violet Rims', color: 0x8b5cf6, rarity: 'Epic' }],
   flame: [{ id: 'orange', name: 'Classic Flame', color: 0xff9a3c }, { id: 'blue', name: 'Blue Flame', color: 0x4aa8ff, rarity: 'Epic' }, { id: 'green', name: 'Venom Flame', color: 0x5dff6a, rarity: 'Legendary' }],
   sound: [{ id: 'stock', name: 'Stock Exhaust' }, { id: 'deep', name: 'Deep Thunder', rarity: 'Epic' }, { id: 'race', name: 'Race Pipe', rarity: 'Legendary' }],
   trail: [{ id: 'none', name: 'No Trail' }, { id: 'embers', name: 'Ember Trail', rarity: 'Legendary' }],

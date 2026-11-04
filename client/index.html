@@ -260,6 +260,7 @@
     <section id="leaderboard" class="screen overlay" hidden>
       <div class="sheet wide">
         <div class="sheet-head"><h2>Leaderboard</h2></div>
+        <div class="seg lb-tabs"><button data-lb="tricks" class="sel">Tricks</button><button data-lb="ranked">Ranked 1v1</button><button data-lb="ranked2">Ranked 2v2</button></div>
         <p id="lb-note" class="hint">Trick points - land tricks in any mode to climb</p>
         <div id="lb-podium" class="lb-podium"></div>
         <ol id="lb-tricks" class="lb-list"></ol>
@@ -322,14 +323,14 @@
       </div>
 
       <aside class="card rk-top">
-        <div class="card-head"><h3>Top ranked</h3></div>
+        <div class="card-head"><h3 id="rk-top-h">Top ranked</h3></div>
         <ol id="rk-list" class="lb-list"></ol>
       </aside>
 
       <div class="play-dock rk-dock">
         <div class="dock-sel rk-sel">
           <small>MODE</small><b>Ranked Race</b>
-          <small>FORMAT</small><b>1v1</b>
+          <small>FORMAT</small><div class="seg rk-fmt"><button data-fmt="ranked" class="sel">1v1</button><button data-fmt="ranked2">2v2</button></div>
         </div>
         <button id="rk-find" class="play-btn rk-find">FIND MATCH</button>
         <div id="rk-status" class="dock-note"></div>

@@ -181,7 +181,7 @@ function tierFrac(rating) {
   return nx ? Math.max(0, Math.min(1, (rating - from) / (nx[1] - from))) : 1;
 }
 export function rankResult(m) {
-  const before = m.rating - m.delta, won = m.pos === 1, up = m.delta >= 0;
+  const before = m.rating - m.delta, won = m.mode === 'ranked2' ? !!m.won : m.pos === 1, up = m.delta >= 0;
   const el = document.createElement('div');
   el.className = 'rr ' + (won ? 'win' : 'lose');
   el.innerHTML = `<div class="rr-glow"></div><div class="rr-box">
@@ -195,6 +195,7 @@ export function rankResult(m) {
       <div class="rr-hint">click to continue</div></div>`;
   document.getElementById('ui').appendChild(el);
   const $q = (s) => el.querySelector(s);
+  if (m.mode === 'ranked2') $q('.rr-kind').textContent = 'RANKED 2v2' + (m.mate ? ' - WITH ' + String(m.mate).toUpperCase() : '');
   const badge = $q('.rr-badge'), tierEl = $q('.rr-tier'), num = $q('.rr-num b'), fill = $q('.rr-bar i'), next = $q('.rr-next'), delta = $q('.rr-delta');
   const showTier = (t) => { badge.innerHTML = rankBadge(t, 170); tierEl.textContent = t.toUpperCase(); tierEl.className = 'rr-tier tier-name ' + t; };
   const showNext = (r) => { const nx = nextTier(rankTier(r)); next.textContent = nx ? `${nx[1] - r} to ${nx[0]}` : 'Top rank'; };

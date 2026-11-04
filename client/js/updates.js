@@ -6,9 +6,21 @@
 // =====================================================================
 export const UPDATES = [
   {
+    id: '2026-11-03-b', date: 'Nov 3, 2026', title: 'Ranked 2v2, the Supermoto Factory and better skins',
+    items: [
+      'Ranked 2v2: teams of two race on total finishing places - queue alone for a teammate of your rank, or make a party of two and queue together. Pick 1v1 or 2v2 on the Ranked screen',
+      'Your 2v2 rating is kept apart from 1v1, with its own list on the leaderboard (new Tricks / Ranked 1v1 / Ranked 2v2 tabs)',
+      'The Supermoto Factory is the level 30 Premium Pass reward',
+      'More rim colours on the pass: red, blue, bronze, white and violet join carbon, gold and neon',
+      'Chrome skins have real-looking reflections, and the dull skins were redone with stronger colours (hazard, marble, pinstripe, ghost flame and more)',
+      'Quads rotate faster in the air, so backflips come round in time',
+      'Leaning in with E and letting go no longer bunny-hops the bike on flat ground',
+    ],
+  },
+  {
     id: '2026-11-03-a', date: 'Nov 3, 2026', title: 'The Pass, a tutorial and lobby music',
     items: [
-      'The Season 1 Pass: free rewards every few levels, or unlock the Premium Pass (60,000 coins) for a reward at every level: 3 pass-only vehicles, skins, rider kits, rims, backfire flame colours, exhaust sounds and a trail',
+      'The Season 1 Pass: free rewards every few levels, or unlock the Premium Pass (60,000 coins) for a reward at every level: the Supermoto Factory, pass-only skins, rider kits, rims, backfire flame colours, exhaust sounds and a trail',
       'New Extras tab in the garage: rims, backfire flame, exhaust sound and trail',
       '68 new skins in the shop with 8 new designs (tribal, plaid, nebula, hazard, kaleidoscope, speed, crystal, prism)',
       'When the game is updated while you have it open, a banner lets you refresh to the new version',

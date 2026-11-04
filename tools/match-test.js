@@ -6,6 +6,7 @@ import fs from 'fs';
 import { PROTOCOL_VERSION } from '../shared/protocol.js';
 fs.rmSync('tools/out/mm-data', { recursive: true, force: true });
 const srv = spawn(process.execPath, ['server/server.js'], { env: { ...process.env, PORT: '5398', DATA_DIR: 'tools/out/mm-data', AFK_MS: '3000' } });
+srv.stderr.on('data', (d) => process.stderr.write(d));
 await new Promise((r) => setTimeout(r, 1500));
 const B = 'http://localhost:5398';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -69,8 +70,47 @@ inRace[0].cl.send({ t: 'leave' });
 const left = await until(inRace[0].cl, (m) => m.t === 'left', 5000);
 check('leaving after a ranked race puts you back on your own', !!left);
 
+// ranked 2v2: four solo riders -> one race, two teams of two; the result moves each team the opposite way
+const Q4 = [];
+for (const n of ['DuoA1', 'DuoA2', 'DuoA3', 'DuoA4']) { const acc = await post('register', { name: n, password: 'duopw' + n }); const cl = client(n); await cl.open; Q4.push({ acc, cl }); }
+await wait(300);
+for (const { acc, cl } of Q4) cl.send({ t: 'queue', mode: 'ranked2', auth: acc.token });
+const s4 = await Promise.all(Q4.map(({ cl }) => until(cl, (m) => m.t === 'session', 20000)));
+check('2v2: four solo riders are matched into one 4-rider race', s4.every((s) => s && s.players.length === 4 && s.id === s4[0].id));
+const p4 = await until(Q4[0].cl, (m) => m.t === 'party' && m.teams);
+const tc = p4 && Object.values(p4.teams);
+check('2v2: the match has two teams of two', p4 && p4.match === 'ranked2' && tc.length === 4 && tc.filter((t) => t === 0).length === 2 && tc.filter((t) => t === 1).length === 2);
+const L4 = Q4.find(({ cl }) => cl.msgs.some((m) => m.t === 'welcome' && m.id === p4.leader));
+L4.cl.send({ t: 'end' });
+const k4 = await Promise.all(Q4.map(({ cl }) => until(cl, (m) => m.t === 'rank' && m.mode === 'ranked2')));
+check('2v2: winners go up, losers go down by the same amount', k4.every(Boolean) && k4.filter((k) => k.won).length === 2 && k4.every((k) => (k.won ? k.delta > 0 : k.delta < 0)) && k4.reduce((s, k) => s + k.delta, 0) === 0);
+const me4 = await (await fetch(B + '/api/me', { headers: { Authorization: 'Bearer ' + Q4[0].acc.token } })).json();
+check('2v2: the rating is saved on the account, apart from the 1v1 one', me4.profile.rating2 === k4[0].rating && me4.profile.ranked2.races === 1 && me4.profile.ranked.races === 0);
+await wait(31000); // the leaderboard is cached for 30 s
+const lb4 = await get('leaderboard');
+check('2v2: the leaderboard has a 2v2 list', lb4.ranked2 && lb4.ranked2.length === 4 && lb4.ranked2[0].v >= lb4.ranked2[3].v);
+// a duo: a party of two queues together and stays on one team
+const D = [];
+for (const n of ['PairL', 'PairM']) { const acc = await post('register', { name: n, password: 'pairpw' + n }); const cl = client(n); await cl.open; D.push({ acc, cl }); }
+await wait(300);
+const [dl, dm] = D;
+dm.cl.send({ t: 'profile', auth: dm.acc.token });
+dl.cl.send({ t: 'create' });
+const pc = await until(dl.cl, (m) => m.t === 'party' && m.code);
+dm.cl.send({ t: 'join', code: pc.code });
+await until(dl.cl, (m) => m.t === 'party' && m.members.length === 2);
+dl.cl.send({ t: 'queue', mode: 'ranked2', auth: dl.acc.token, duo: true });
+const dq = await until(dm.cl, (m) => m.t === 'queue' && m.state === 'waiting' && m.duo === 'PairL');
+check('2v2 duo: the teammate is in the queue with the leader', !!dq);
+D.push(Q4[0], Q4[1]); // two solos (sign-ups are rate limited per address)
+for (const { acc, cl } of D.slice(2)) { cl.send({ t: 'leave' }); cl.send({ t: 'queue', mode: 'ranked2', auth: acc.token }); }
+const fd = await until(dl.cl, (m) => m.t === 'queue' && m.state === 'found', 20000);
+const pd = await until(dl.cl, (m) => m.t === 'party' && m.teams);
+const idOf = (c) => c.msgs.find((m) => m.t === 'welcome').id;
+check('2v2 duo: the party of two races on the same team', fd && fd.mate === 'PairM' && pd && pd.teams[idOf(dl.cl)] === pd.teams[idOf(dm.cl)] && pd.teams[idOf(D[2].cl)] === pd.teams[idOf(D[3].cl)]);
+
 srv.kill();
-for (const x of [a, b, c, r1, r2, ...T.map((t) => t.cl)]) x.ws.close();
+for (const x of [a, b, c, r1, r2, ...T.map((t) => t.cl), ...Q4.map((t) => t.cl), dl.cl, dm.cl]) x.ws.close();
 const bad = results.filter((x) => !x).length;
 console.log(bad ? bad + ' FAILED' : 'all passed');
 process.exit(bad ? 1 : 0);

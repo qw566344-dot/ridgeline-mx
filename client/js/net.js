@@ -87,19 +87,24 @@ export class Net {
   queue(mode) {
     const A = this.ui.account;
     if (this.ui.mmState && this.ui.mmState.mode === mode) { this.send({ t: 'unqueue' }); this.ui.mmState = null; this.ui.renderMatchmaking(); this.ui.renderHome(); return; }
-    if (mode === 'ranked' && !(A && A.mode === 'online' && A.token)) { this.ui.popup('Ranked needs an online account - log in first.', 'bad'); return; }
-    if (this.code) this.leave();
+    const rk = mode === 'ranked' || mode === 'ranked2';
+    if (rk && !(A && A.mode === 'online' && A.token)) { this.ui.popup('Ranked needs an online account - log in first.', 'bad'); return; }
     const home = regionList()[0];
-    if (mode === 'ranked' && home && this.region.id !== home.id) { this.useRegion(home.id, true); this.ui.popup(`Ranked is played on the <b>${escapeHtml(home.name)}</b> server`); }
+    // 2v2 from a party of two: the leader queues both as a duo (the party is on the home server)
+    const duo = mode === 'ranked2' && this.party && !this.party.match && this.party.members.length === 2;
+    if (duo && !this.isLeader()) { this.ui.popup('Your party leader starts the 2v2 search for you both.', 'bad'); return; }
+    if (duo && home && this.region.id !== home.id) { this.ui.popup(`Ranked is played on the <b>${escapeHtml(home.name)}</b> server - make your party there.`, 'bad'); return; }
+    if (this.code && !duo) this.leave();
+    if (rk && home && this.region.id !== home.id) { this.useRegion(home.id, true); this.ui.popup(`Ranked is played on the <b>${escapeHtml(home.name)}</b> server`); }
     this.ui.mmState = { mode, n: 1, waited: 0 };
     this.ui.renderMatchmaking();
-    this.whenOnline(() => { this.sendProfile(); this.send({ t: 'queue', mode, auth: A && A.token }); });
+    this.whenOnline(() => { this.sendProfile(); this.send({ t: 'queue', mode, auth: A && A.token, duo: duo || undefined }); });
   }
   onQueue(m) {
     const ui = this.ui;
     if (m.state === 'off') ui.mmState = null;
-    else if (m.state === 'waiting') ui.mmState = { mode: m.mode, n: m.n, waited: m.waited };
-    else if (m.state === 'found') ui.mmState = { mode: m.mode, n: m.n, found: true };
+    else if (m.state === 'waiting') ui.mmState = { mode: m.mode, n: m.n, waited: m.waited, duo: m.duo };
+    else if (m.state === 'found') ui.mmState = { mode: m.mode, n: m.n, found: true, mate: m.mate };
     else if (m.state === 'solo') {
       ui.mmState = null;
       ui.popup('Nobody else is searching right now - racing the AI instead', '', null, 5);
@@ -107,6 +112,7 @@ export class Net {
       if (ui.screen === 'home') setTimeout(() => ui.onPlay(), 300);
     }
     if (ui.screen === 'home') { ui.renderMatchmaking(); if (!ui.mmState) ui.renderHome(); }
+    if (ui.screen === 'ranked') ui.renderRanked();
   }
   onRank(m) {
     // the full-screen ranked result (rating counting, the bar filling, promotion / demotion)
@@ -124,7 +130,7 @@ export class Net {
     ws.onopen = () => {
       this.retry = 0;
       this.connected = true;
-      ws.send(JSON.stringify({ t: 'hello', v: PROTOCOL_VERSION, token: this.token, name: this.name(), vehicle: this.settings.get('vehicle'), color: this.settings.get('color'), gear: this.settings.get('gear') }));
+      ws.send(JSON.stringify({ t: 'hello', v: PROTOCOL_VERSION, token: this.token, name: this.name(), vehicle: this.settings.get('vehicle'), color: this.settings.get('color'), gear: this.settings.get('gear'), auth: (this.ui.account && this.ui.account.mode === 'online' && this.ui.account.token) || undefined }));
       this.pingTimer = setInterval(() => this.sendPing(), 2000);
       this.refresh();
     };
@@ -149,7 +155,7 @@ export class Net {
   send(o) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(o)); }
   sendPing() { this.send({ t: 'ping', c: Date.now(), rtt: this.ping }); }
   name() { const A = this.ui.account; return cleanName((A && A.profile && A.profile.name) || this.settings.get('playerName') || 'Rider'); }
-  sendProfile() { if (this.connected) this.send({ t: 'profile', name: this.name(), vehicle: this.settings.get('vehicle'), color: this.settings.get('color'), gear: this.settings.get('gear'), cos: { rims: this.settings.get('rims'), flame: this.settings.get('flame'), sound: this.settings.get('sound'), trail: this.settings.get('trail') } }); }
+  sendProfile() { if (this.connected) this.send({ t: 'profile', name: this.name(), vehicle: this.settings.get('vehicle'), color: this.settings.get('color'), gear: this.settings.get('gear'), auth: (this.ui.account && this.ui.account.mode === 'online' && this.ui.account.token) || undefined, cos: { rims: this.settings.get('rims'), flame: this.settings.get('flame'), sound: this.settings.get('sound'), trail: this.settings.get('trail') } }); }
 
   // page reloaded while in a party: reconnect and pick up where we left off
   autoRejoin() { if (this.token && ssGet('mx.code')) { this.wantOnline = true; this.connect(); } }

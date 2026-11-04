@@ -107,7 +107,9 @@ export class UI {
     $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
     $('updates-btn').addEventListener('click', () => this.showUpdates());
     $('tutorial-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('tutorial'); });
-    $('rk-find').addEventListener('click', () => this.emit('queue', 'ranked'));
+    $('rk-find').addEventListener('click', () => this.emit('queue', this.rkMode || 'ranked'));
+    for (const b of document.querySelectorAll('.rk-fmt button')) b.addEventListener('click', () => { this.rkMode = b.dataset.fmt; this.rkLoaded = 0; this.renderRanked(); });
+    for (const b of document.querySelectorAll('.lb-tabs button')) b.addEventListener('click', () => { this.lbTab = b.dataset.lb; this.renderLeaderboard(); });
     $('dock-setup').addEventListener('click', () => this.show('play'));
     $('play-btn').addEventListener('click', () => this.onPlay());
 
@@ -321,7 +323,9 @@ export class UI {
   async renderRanked() {
     const A = this.account, P = A && A.profile;
     const online = A && A.mode === 'online';
-    const rating = (P && P.rating) || RANK_START, tier = rankTier(rating), R = (P && P.ranked) || { races: 0, wins: 0 };
+    const two = this.rkMode === 'ranked2', mode = two ? 'ranked2' : 'ranked';
+    for (const b of document.querySelectorAll('.rk-fmt button')) b.classList.toggle('sel', b.dataset.fmt === mode);
+    const rating = (P && (two ? P.rating2 : P.rating)) || RANK_START, tier = rankTier(rating), R = (P && (two ? P.ranked2 : P.ranked)) || { races: 0, wins: 0 };
     $('rk-badge').innerHTML = rankBadge(tier, 150);
     $('rk-tier').textContent = tier; $('rk-tier').className = 'tier-name ' + tier;
     $('rk-rating').textContent = rating;
@@ -331,16 +335,22 @@ export class UI {
     $('rk-next').textContent = nx ? `${nx[1] - rating} rating to ${nx[0]}` : 'Top rank - stay there!';
     if ($('rk-ladder')) $('rk-ladder').innerHTML = RANK_TIERS.map(([n, min], i) => { const hi = RANK_TIERS[i + 1] ? RANK_TIERS[i + 1][1] - 1 : null; return `<div class="rung${n === tier ? ' me' : ''}">${rankBadge(n, 44)}<div><b class="tier-name ${n}">${n}</b><small>${hi ? min + ' - ' + hi : min + '+'}</small></div></div>`; }).join('');
     const q = this.mmState;
-    $('rk-find').textContent = q && q.mode === 'ranked' ? (q.found ? 'FOUND!' : 'CANCEL') : 'FIND MATCH';
-    $('rk-find').classList.toggle('searching', !!(q && q.mode === 'ranked'));
+    const net = this.net, duo = two && net && net.party && !net.party.match && net.party.members.length === 2;
+    const mine = q && q.mode === mode;
+    $('rk-find').textContent = mine ? (q.found ? 'FOUND!' : 'CANCEL') : duo ? 'FIND MATCH (DUO)' : 'FIND MATCH';
+    $('rk-find').classList.toggle('searching', !!mine);
     $('rk-find').disabled = !online;
-    $('rk-status').textContent = !online ? 'Ranked needs an online account - log in to play.' : q && q.mode === 'ranked' ? (q.found ? 'Loading the track...' : `Searching for riders of your rank... ${q.n > 1 ? q.n + ' searching' : ''} (${Math.round((q.waited || 0) / 1000)} s)`) : '1v1 against a rider of your rank. Win to climb, lose and you drop.';
+    $('rk-status').textContent = !online ? 'Ranked needs an online account - log in to play.'
+      : mine ? (q.found ? (q.mate ? `Teamed with ${q.mate} - loading the track...` : 'Loading the track...') : `Searching for riders of your rank${q.duo ? ' with ' + q.duo : ''}... ${q.n > 1 ? q.n + ' searching' : ''} (${Math.round((q.waited || 0) / 1000)} s)`)
+        : two ? (duo ? 'You and your party mate against another team of two. Lowest total finishing places wins.' : 'Teams of two: get a teammate of your rank, or make a party of two to queue together.')
+          : '1v1 against a rider of your rank. Win to climb, lose and you drop.';
+    $('rk-top-h').textContent = two ? 'Top 2v2' : 'Top ranked';
     if (!this.rkLoaded || Date.now() - this.rkLoaded > 30000) {
       this.rkLoaded = Date.now();
       let d = null;
       try { d = await (await fetch(serverBase() + '/api/leaderboard')).json(); } catch { /* offline */ }
-      const rows = (d && d.ranked) || [], me = P ? P.name.toLowerCase() : '';
-      $('rk-list').innerHTML = rows.length ? rows.slice(0, 10).map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 1}</span><b>${rankBadge(r.tier, 22)} ${escapeHtml(r.name)}</b><span class="v">${r.v}</span></li>`).join('') : '<li class="hint">Nobody has played ranked yet - be the first!</li>';
+      const rows = (d && d[mode]) || [], me = P ? P.name.toLowerCase() : '';
+      $('rk-list').innerHTML = rows.length ? rows.slice(0, 10).map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 1}</span><b>${rankBadge(r.tier, 22)} ${escapeHtml(r.name)}</b><span class="v">${r.v}</span></li>`).join('') : `<li class="hint">Nobody has played ${two ? '2v2' : 'ranked'} yet - be the first!</li>`;
     }
   }
 
@@ -354,7 +364,7 @@ export class UI {
     $('mm-ranked').firstChild.textContent = q && q.mode === 'ranked' ? 'Cancel search ' : 'Ranked match ';
     $('mm-casual').classList.toggle('searching', !!q && q.mode === 'casual');
     $('mm-ranked').classList.toggle('searching', !!q && q.mode === 'ranked');
-    if (q) $('dock-note').textContent = q.found ? 'Match found - loading the track...' : `Searching for a ${q.mode} match... ${q.n > 1 ? q.n + ' riders searching' : 'waiting for riders'} (${Math.round((q.waited || 0) / 1000)} s)`;
+    if (q) $('dock-note').textContent = q.found ? 'Match found - loading the track...' : `Searching for a ${q.mode === 'ranked2' ? 'ranked 2v2' : q.mode} match... ${q.n > 1 ? q.n + ' riders searching' : 'waiting for riders'} (${Math.round((q.waited || 0) / 1000)} s)`;
   }
 
   onPlay() {
@@ -763,16 +773,17 @@ export class UI {
   // ------------------------------------------------------------- leaderboard
   async renderLeaderboard() {
     $('lb-podium').innerHTML = ''; $('lb-tricks').innerHTML = '<li class="hint">Loading...</li>'; $('lb-mine').hidden = true;
-    const tab = 'tricks'; // the ranked list waits for Ranked to open (see renderRanked)
-    $('lb-note').textContent = tab === 'ranked' ? 'Ranked rating - win ranked matches to climb from Bronze to Pro' : 'Trick points - land tricks in any mode to climb';
+    const tab = this.lbTab || 'tricks';
+    for (const b of document.querySelectorAll('.lb-tabs button')) b.classList.toggle('sel', b.dataset.lb === tab);
+    $('lb-note').textContent = tab === 'ranked' ? 'Ranked 1v1 rating - win ranked matches to climb from Bronze to Pro' : tab === 'ranked2' ? 'Ranked 2v2 rating - win team races to climb' : 'Trick points - land tricks in any mode to climb';
     let d = null;
     try { d = await (await fetch(serverBase() + '/api/leaderboard')).json(); } catch { /* offline */ }
     const P = this.account && this.account.profile, me = P ? P.name.toLowerCase() : '';
-    if (tab === 'ranked') {
-      const rows = d && d.ranked;
+    if (tab === 'ranked' || tab === 'ranked2') {
+      const two = tab === 'ranked2', rows = d && d[tab];
       if (!rows) { $('lb-tricks').innerHTML = '<li class="hint">Can\'t reach the server</li>'; return; }
       $('lb-tricks').innerHTML = rows.length ? rows.map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 1}</span><b>${escapeHtml(r.name)} <em class="tier ${r.tier}">${r.tier}</em></b><span class="v">${r.v} <small>${r.wins}/${r.races} wins</small></span></li>`).join('') : '<li class="hint">Nobody has played ranked yet - be the first!</li>';
-      if (P && this.account.mode === 'online' && !rows.some((r) => r.name.toLowerCase() === me)) { $('lb-mine').hidden = false; $('lb-mine').innerHTML = P.ranked && P.ranked.races ? `You: <b>${P.tier} ${P.rating}</b>` : 'Play a ranked match to get a rank'; }
+      if (P && this.account.mode === 'online' && !rows.some((r) => r.name.toLowerCase() === me)) { $('lb-mine').hidden = false; $('lb-mine').innerHTML = two ? (P.ranked2 && P.ranked2.races ? `You: <b>${P.tier2} ${P.rating2}</b>` : 'Play a 2v2 match to get a rank') : P.ranked && P.ranked.races ? `You: <b>${P.tier} ${P.rating}</b>` : 'Play a ranked match to get a rank'; }
       return;
     }
     const rows = d && d.tricks;
@@ -1467,7 +1478,8 @@ export class UI {
       const me = st.indexOf(p) + 1;
       setHtml($('hud-pos'), `P${me}<small>/${st.length}</small>`);
       const score = (r) => (mode === 'freestyle' && game.net ? ' ' + ((game.net.standings || []).find((x) => x.id === r.id) || {}).score || '' : '');
-      setHtml($('hud-standings'), st.slice(0, 8).map((r, i) => `<li class="${r === p ? 'me' : ''}">${i + 1}. ${escapeHtml(r.name)}${r.finished ? ' &#127937;' : ''}${score(r)}</li>`).join(''));
+      const tmOf = (r) => { const row = game.net && (game.net.standings || []).find((x) => x.id === r.id); return row && row.team != null ? `<i class="tm t${row.team}"></i>` : ''; }; // 2v2: a team colour dot
+      setHtml($('hud-standings'), st.slice(0, 8).map((r, i) => `<li class="${r === p ? 'me' : ''}">${i + 1}. ${tmOf(r)}${escapeHtml(r.name)}${r.finished ? ' &#127937;' : ''}${score(r)}</li>`).join(''));
     }
     const net = $('hud-net');
     if (game.net && game.net.connected !== undefined) {

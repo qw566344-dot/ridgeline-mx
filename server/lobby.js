@@ -59,7 +59,7 @@ export class Lobby {
     setInterval(() => this.heartbeat(), 10_000);
     this.live = new Set();
     this.pending = new Map(); // rider account key -> admin waiting to join them
-    this.mm = { casual: [], ranked: [] }; // matchmaking queues (see matchmake)
+    this.mm = { casual: [], ranked: [], ranked2: [] }; // matchmaking queues (see matchmake)
     setInterval(() => this.matchmake(), 1000);
   }
 
@@ -172,6 +172,7 @@ export class Lobby {
 
   profile(p, m, quiet) {
     if (m.name !== undefined) p.name = cleanName(m.name);
+    if (m.auth && this.accounts) { const u = this.accounts.user(String(m.auth)); if (u) p.acct = u.key; } // lets a party mate queue a 2v2 duo for both
     if (VEHICLES.some((v) => v.id === m.vehicle) || isSpecial(m.vehicle) || isPassVehicle(m.vehicle)) p.vehicle = m.vehicle;
     // rims / flame / exhaust sound / trail, so the others see (and hear) them in a race
     if (m.cos && typeof m.cos === 'object') { p.cos = {}; for (const k of EXTRA_SLOTS) if (extraOf(k, m.cos[k])) p.cos[k] = m.cos[k]; }
@@ -185,30 +186,71 @@ export class Lobby {
   // after 40 s: the rider is told to race the AI instead. Ranked: needs an online account
   // (only the home server has accounts), 1v1 against a rider of a similar rating - the window widens
   // the longer they wait - and the result moves everyone's rating (see rate).
+  // Ranked 2v2 ('ranked2'): two teams of two. Queue alone (you get a teammate of your rank) or
+  // as a duo - the leader of a party of exactly two queues for both (both logged in). Teams race
+  // on placings (lowest sum of finishing places wins) and the result moves each rider's own 2v2
+  // rating (rating2), kept apart from the 1v1 one.
   queue(p, m) {
-    const mode = m.mode === 'ranked' ? 'ranked' : 'casual';
+    const mode = m.mode === 'ranked' ? 'ranked' : m.mode === 'ranked2' ? 'ranked2' : 'casual';
     this.unqueue(p, true);
     if (p.party && p.party.session && !p.party.session.over) return this.err(p, 'IN_RACE', 'Finish your race first.');
     let rating = RANK_START, key = null;
-    if (mode === 'ranked') {
+    if (mode !== 'casual') {
       const u = this.accounts && this.accounts.user(String(m.auth || ''));
       if (!u) return this.err(p, 'RANKED_LOGIN', 'Ranked needs an online account - log in first.');
-      key = u.key; rating = u.rating || RANK_START;
+      key = u.key; p.acct = u.key; rating = (mode === 'ranked2' ? u.rating2 : u.rating) || RANK_START;
+    }
+    if (mode === 'ranked2' && m.duo) {
+      const P = p.party;
+      if (!P || P.match || P.members.size !== 2 || P.leader !== p.id) return this.err(p, 'DUO', 'A duo needs a party of exactly two: you (the leader) and your teammate.');
+      const mate = [...P.members.values()].find((x) => x !== p);
+      const mu = mate.acct && this.accounts.db.users[mate.acct];
+      if (!mu || !mate.connected) return this.err(p, 'DUO_LOGIN', `${mate.name} needs to be logged in to an online account.`);
+      this.unqueue(mate, true);
+      this.leave(p, true); this.leave(mate, true);
+      this.mm.ranked2.push({ p, mate, since: Date.now(), rating: Math.round((rating + (mu.rating2 || RANK_START)) / 2), key, mkey: mu.key });
+      return this.queueStatus(mode);
     }
     if (p.party) this.leave(p, false);
     this.mm[mode].push({ p, since: Date.now(), rating, key });
     this.queueStatus(mode);
   }
   unqueue(p, quiet) {
-    for (const mode of ['casual', 'ranked']) {
-      const n = this.mm[mode].length;
-      this.mm[mode] = this.mm[mode].filter((e) => e.p !== p);
-      if (n !== this.mm[mode].length) { if (!quiet && p.conn) p.conn.send({ t: 'queue', state: 'off', mode }); this.queueStatus(mode); }
+    for (const mode of ['casual', 'ranked', 'ranked2']) {
+      const n = this.mm[mode].length, gone = this.mm[mode].filter((e) => e.p === p || e.mate === p);
+      this.mm[mode] = this.mm[mode].filter((e) => !gone.includes(e));
+      for (const e of gone) for (const x of [e.p, e.mate]) if (x && x.conn && (!quiet || x !== p)) x.conn.send({ t: 'queue', state: 'off', mode });
+      if (n !== this.mm[mode].length) this.queueStatus(mode);
     }
   }
   queueStatus(mode) {
-    const n = this.mm[mode].length, now = Date.now();
-    for (const e of this.mm[mode]) if (e.p.conn) e.p.conn.send({ t: 'queue', state: 'waiting', mode, n, waited: now - e.since });
+    const Q = this.mm[mode], now = Date.now(), n = Q.reduce((k, e) => k + (e.mate ? 2 : 1), 0);
+    for (const e of Q) for (const x of [e.p, e.mate]) if (x && x.conn) x.conn.send({ t: 'queue', state: 'waiting', mode, n, waited: now - e.since, duo: e.mate ? (x === e.p ? e.mate.name : e.p.name) : null });
+  }
+  // 2v2: the oldest entry in the queue picks the closest-rated entries that fit its window
+  // (a duo counts as two) until there are four riders; duos stay together, four solos are split
+  // best + worst against the middle two
+  matchmake2(now) {
+    const ok = (x) => x && x.connected && !x.party;
+    const Q = this.mm.ranked2 = this.mm.ranked2.filter((e) => ok(e.p) && (!e.mate || ok(e.mate)));
+    const win = (e) => 200 + ((now - e.since) / 1000) * 10;
+    const size = (e) => (e.mate ? 2 : 1);
+    Q.sort((a, b) => a.since - b.since);
+    for (let i = 0; i < Q.length; i++) {
+      const A = Q[i], pick = [A];
+      let n = size(A);
+      const near = Q.filter((e) => e !== A && Math.abs(e.rating - A.rating) <= Math.min(win(A), win(e))).sort((a, b) => Math.abs(a.rating - A.rating) - Math.abs(b.rating - A.rating));
+      for (const e of near) if (n + size(e) <= 4) { pick.push(e); n += size(e); if (n === 4) break; }
+      if (n < 4) continue;
+      for (const e of pick) Q.splice(Q.indexOf(e), 1);
+      i = -1; // start over with what is left
+      const duos = pick.filter((e) => e.mate), solos = pick.filter((e) => !e.mate).sort((a, b) => b.rating - a.rating);
+      const flat = (e) => (e.mate ? [{ p: e.p, key: e.key }, { p: e.mate, key: e.mkey }] : [{ p: e.p, key: e.key }]);
+      const teams = duos.length === 2 ? [flat(duos[0]), flat(duos[1])]
+        : duos.length === 1 ? [flat(duos[0]), solos.flatMap(flat)]
+          : [[...flat(solos[0]), ...flat(solos[3])], [...flat(solos[1]), ...flat(solos[2])]];
+      this.makeMatch('ranked2', [...teams[0], ...teams[1]], teams);
+    }
   }
   matchmake() {
     const now = Date.now();
@@ -234,18 +276,21 @@ export class Lobby {
         }
       }
     }
-    if (now - (this.mmStatusAt || 0) > 3000) { this.mmStatusAt = now; this.queueStatus('casual'); this.queueStatus('ranked'); }
+    this.matchmake2(now);
+    if (now - (this.mmStatusAt || 0) > 3000) { this.mmStatusAt = now; this.queueStatus('casual'); this.queueStatus('ranked'); this.queueStatus('ranked2'); }
   }
-  makeMatch(mode, entries) {
+  makeMatch(mode, entries, teams) {
     const lead = entries[0].p;
     this.create(lead);
     const party = lead.party;
     party.match = { mode, keys: new Map(entries.map((e) => [e.p.id, e.key])) };
+    if (teams) party.match.team = new Map(teams.flatMap((t, i) => t.map((e) => [e.p.id, i])));
     for (const e of entries.slice(1)) this.addMember(party, e.p);
     const pool = TRACKS.filter((t) => !t.freestyle && !t.open && t.difficulty !== 'Freestyle' && t.id !== 'practice');
     party.settings = { track: pool[Math.floor(Math.random() * pool.length)].id, mode: 'race', laps: 2 };
     this.log(`[${party.code}] ${mode} match: ${entries.map((e) => e.p.name).join(', ')} on ${party.settings.track}`);
-    for (const e of entries) if (e.p.conn) e.p.conn.send({ t: 'queue', state: 'found', mode, n: entries.length, track: party.settings.track });
+    const T = party.match.team;
+    for (const e of entries) if (e.p.conn) e.p.conn.send({ t: 'queue', state: 'found', mode, n: entries.length, track: party.settings.track, mate: T ? (entries.find((x) => x !== e && T.get(x.p.id) === T.get(e.p.id)) || {}).p?.name || null : null });
     this.start(lead);
   }
   // ranked result: every pair of riders is a head-to-head (Elo), split over the field
@@ -266,6 +311,29 @@ export class Lobby {
       const p = this.players.get(x.r.id);
       if (p && p.conn) p.conn.send({ t: 'rank', rating: u.rating, delta: u.rating - before, tier: rankTier(u.rating), was: rankTier(before), pos: x.r.pos });
     });
+    A.save();
+  }
+  // 2v2 result: a team's score is the sum of its riders' places (a rider who left counts as last),
+  // lowest wins, a tie goes to the team with the race winner. Team Elo on the two teams' average
+  // ratings; both riders of a team move by the same amount.
+  rate2(party, rows) {
+    const A = this.accounts, M = party.match;
+    const riders = [...M.team.entries()].map(([id, t]) => ({ id, t, u: A.db.users[M.keys.get(id)], r: rows.find((x) => x.id === id) })).filter((x) => x.u);
+    const teams = [0, 1].map((t) => riders.filter((x) => x.t === t));
+    if (!teams[0].length || !teams[1].length) return;
+    const score = teams.map((T) => T.reduce((k, x) => k + (x.r && !x.r.out ? x.r.pos : 5), 0) + (2 - T.length) * 5);
+    const first = rows.find((r) => r.pos === 1), firstTeam = first ? M.team.get(first.id) : 0;
+    const winT = score[0] !== score[1] ? (score[0] < score[1] ? 0 : 1) : firstTeam;
+    const avg = teams.map((T) => T.reduce((k, x) => k + (x.u.rating2 || RANK_START), 0) / T.length);
+    const e0 = 1 / (1 + 10 ** ((avg[1] - avg[0]) / 400));
+    const d0 = Math.round(32 * ((winT === 0 ? 1 : 0) - e0)) || (winT === 0 ? 1 : -1);
+    for (const x of riders) {
+      const u = x.u, before = u.rating2 || RANK_START, won = x.t === winT;
+      u.rating2 = Math.max(100, before + (x.t === 0 ? d0 : -d0));
+      u.ranked2 = { races: ((u.ranked2 && u.ranked2.races) || 0) + 1, wins: ((u.ranked2 && u.ranked2.wins) || 0) + (won ? 1 : 0) };
+      const p = this.players.get(x.id), mate = teams[x.t].find((y) => y !== x);
+      if (p && p.conn) p.conn.send({ t: 'rank', mode: 'ranked2', won, rating: u.rating2, delta: u.rating2 - before, tier: rankTier(u.rating2), was: rankTier(before), pos: x.r ? x.r.pos : null, score, team: x.t, mate: mate ? mate.u.name : null });
+    }
     A.save();
   }
 
@@ -575,7 +643,8 @@ export class Lobby {
   sendRace(party) {
     const S = party.session;
     if (!S || S.mode === 'freeride') return;
-    const rows = this.standings(party).map((p, i) => ({ id: p.id, name: p.name, pos: i + 1, laps: p.lap.laps, best: p.lap.bestLap, last: p.lap.lastLap, finished: !!p.finished, time: p.finishTime, score: p.score || 0, connected: p.connected, out: p.out || null }));
+    const T = party.match && party.match.team;
+    const rows = this.standings(party).map((p, i) => ({ id: p.id, team: T ? T.get(p.id) : undefined, name: p.name, pos: i + 1, laps: p.lap.laps, best: p.lap.bestLap, last: p.lap.lastLap, finished: !!p.finished, time: p.finishTime, score: p.score || 0, connected: p.connected, out: p.out || null }));
     const msg = JSON.stringify({ t: 'race', mode: S.mode, laps: S.laps, rows, over: !!S.over });
     for (const m of party.members.values()) if (m.conn) m.conn.send(msg);
     return rows;
@@ -589,6 +658,7 @@ export class Lobby {
     const rows = this.sendRace(party);
     S.results = rows;
     if (party.match && party.match.mode === 'ranked' && S.mode === 'race' && this.accounts && !party.match.rated) { party.match.rated = true; this.rate(party, rows); }
+    if (party.match && party.match.mode === 'ranked2' && S.mode === 'race' && this.accounts && !party.match.rated) { party.match.rated = true; this.rate2(party, rows); }
     for (const m of party.members.values()) if (m.conn) m.conn.send({ t: 'results', mode: S.mode, rows });
     this.log(`[${party.code}] session over`);
   }
@@ -663,7 +733,7 @@ export class Lobby {
 
   partyMsg(party) {
     return {
-      t: 'party', code: party.code, leader: party.leader, settings: party.settings, match: party.match ? party.match.mode : null,
+      t: 'party', code: party.code, leader: party.leader, settings: party.settings, match: party.match ? party.match.mode : null, teams: party.match && party.match.team ? Object.fromEntries(party.match.team) : null,
       session: party.session && !party.session.over ? { id: party.session.id, mode: party.session.mode } : null,
       members: [...party.members.values()].map((m) => ({ id: m.id, name: m.name, vehicle: m.vehicle, color: m.color, ready: m.ready, connected: m.connected, ping: m.ping, number: m.number })),
     };
