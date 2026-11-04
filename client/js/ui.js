@@ -339,10 +339,8 @@ export class UI {
     const mine = q && q.mode === mode;
     $('rk-find').textContent = mine ? (q.found ? 'FOUND!' : 'CANCEL') : duo ? 'FIND MATCH (DUO)' : 'FIND MATCH';
     $('rk-find').classList.toggle('searching', !!mine);
-    const psize = net && net.party && !net.party.match ? net.party.members.length : 1, tooMany = psize > (two ? 2 : 1);
-    $('rk-find').disabled = !online || (tooMany && !mine);
+    $('rk-find').disabled = !online;
     $('rk-status').textContent = !online ? 'Ranked needs an online account - log in to play.'
-      : tooMany && !mine ? (two ? `2v2 is for a party of two at most - you have ${psize}. Casual works with any party.` : 'Ranked 1v1 is solo only - leave your party, or switch to 2v2 with a party of two.')
       : mine ? (q.found ? (q.mate ? `Teamed with ${q.mate} - loading the track...` : 'Loading the track...') : `Searching for riders of your rank${q.duo ? ' with ' + q.duo : ''}... ${q.n > 1 ? q.n + ' searching' : ''} (${Math.round((q.waited || 0) / 1000)} s)`)
         : two ? (duo ? 'You and your party mate against another team of two. Lowest total finishing places wins.' : 'Teams of two: get a teammate of your rank, or make a party of two to queue together.')
           : '1v1 against a rider of your rank. Win to climb, lose and you drop.';

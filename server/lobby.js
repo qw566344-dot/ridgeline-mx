@@ -200,21 +200,28 @@ export class Lobby {
       if (!u) return this.err(p, 'RANKED_LOGIN', 'Ranked needs an online account - log in first.');
       key = u.key; p.acct = u.key; rating = (mode === 'ranked2' ? u.rating2 : u.rating) || RANK_START;
     }
-    const size = p.party && !p.party.match ? p.party.members.size : 1;
-    if (mode === 'ranked' && size > 1) return this.err(p, 'PARTY_SIZE', 'Ranked 1v1 is solo only - leave your party to play it.');
-    if (mode === 'ranked2' && (size > 2 || (size === 2 && !m.duo))) return this.err(p, 'PARTY_SIZE', 'Ranked 2v2 is for a party of two at most.');
+    const P = p.party && !p.party.match ? p.party : null, size = P ? P.members.size : 1;
+    if (mode !== 'casual' && size > 1 && !(mode === 'ranked2' && m.duo && size === 2 && P.leader === p.id)) {
+      // 1v1 from a party, or a 2v2 party that is not exactly a duo: every rider queues on their own
+      for (const x of [...P.members.values()]) {
+        this.unqueue(x, true);
+        const xu = x.acct && this.accounts && this.accounts.db.users[x.acct];
+        if (!xu) continue;
+        this.leave(x, false);
+        this.mm[mode].push({ p: x, since: Date.now(), rating: (mode === 'ranked2' ? xu.rating2 : xu.rating) || RANK_START, key: xu.key });
+        x.conn && x.conn.send({ t: 'notice', msg: 'Your party split up for ranked - each rider queues on their own.' });
+      }
+      return this.queueStatus(mode);
+    }
     if (mode === 'ranked2' && m.duo) {
-      const P = p.party;
-      if (!P || P.match || P.members.size !== 2 || P.leader !== p.id) return this.err(p, 'DUO', 'A duo needs a party of exactly two: you (the leader) and your teammate.');
+      if (!P || size !== 2 || P.leader !== p.id) return this.err(p, 'DUO', 'A duo needs a party of exactly two: you (the leader) and your teammate.');
       const mate = [...P.members.values()].find((x) => x !== p);
       const mu = mate.acct && this.accounts.db.users[mate.acct];
       if (!mu || !mate.connected) return this.err(p, 'DUO_LOGIN', `${mate.name} needs to be logged in to an online account.`);
       this.unqueue(mate, true);
-      this.leave(p, true); this.leave(mate, true);
       this.mm.ranked2.push({ p, mate, since: Date.now(), rating: Math.round((rating + (mu.rating2 || RANK_START)) / 2), key, mkey: mu.key });
       return this.queueStatus(mode);
     }
-    if (p.party) this.leave(p, false);
     this.mm[mode].push({ p, since: Date.now(), rating, key });
     this.queueStatus(mode);
   }
@@ -235,7 +242,8 @@ export class Lobby {
   // best + worst against the middle two
   matchmake2(now) {
     const ok = (x) => x && x.connected && !x.party;
-    const Q = this.mm.ranked2 = this.mm.ranked2.filter((e) => ok(e.p) && (!e.mate || ok(e.mate)));
+    const duoOk = (e) => e.p.connected && e.mate.connected && e.p.party && e.p.party === e.mate.party && !e.p.party.match;
+    const Q = this.mm.ranked2 = this.mm.ranked2.filter((e) => (e.mate ? duoOk(e) : ok(e.p)));
     const win = (e) => 200 + ((now - e.since) / 1000) * 10;
     const size = (e) => (e.mate ? 2 : 1);
     Q.sort((a, b) => a.since - b.since);
@@ -283,6 +291,7 @@ export class Lobby {
     if (now - (this.mmStatusAt || 0) > 3000) { this.mmStatusAt = now; this.queueStatus('casual'); this.queueStatus('ranked'); this.queueStatus('ranked2'); }
   }
   makeMatch(mode, entries, teams) {
+    for (const e of entries) if (e.p.party) this.leave(e.p, false);
     const lead = entries[0].p;
     this.create(lead);
     const party = lead.party;
@@ -295,6 +304,10 @@ export class Lobby {
     const T = party.match.team;
     for (const e of entries) if (e.p.conn) e.p.conn.send({ t: 'queue', state: 'found', mode, n: entries.length, track: party.settings.track, mate: T ? (entries.find((x) => x !== e && T.get(x.p.id) === T.get(e.p.id)) || {}).p?.name || null : null });
     this.start(lead);
+  }
+  // a ranked party ends with its race: everyone is sent back to solo, so nobody lands in a new race
+  dissolve(party) {
+    for (const m of [...party.members.values()]) { this.leave(m, false); if (m.conn) m.conn.send({ t: 'left' }); }
   }
   // ranked result: every pair of riders is a head-to-head (Elo), split over the field
   rate(party, rows) {
@@ -663,6 +676,7 @@ export class Lobby {
     if (party.match && party.match.mode === 'ranked' && S.mode === 'race' && this.accounts && !party.match.rated) { party.match.rated = true; this.rate(party, rows); }
     if (party.match && party.match.mode === 'ranked2' && S.mode === 'race' && this.accounts && !party.match.rated) { party.match.rated = true; this.rate2(party, rows); }
     for (const m of party.members.values()) if (m.conn) m.conn.send({ t: 'results', mode: S.mode, rows });
+    if (party.match && party.match.mode.startsWith('ranked')) this.dissolve(party);
     this.log(`[${party.code}] session over`);
   }
 
