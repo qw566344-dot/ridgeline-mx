@@ -1183,7 +1183,7 @@ button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 #level-chip .xpbar { width: 44px; }
 @media (max-width: 1440px) { #nav button { padding: 0 7px; font-size: 13px; gap: 5px; } #nav button svg { width: 14px; height: 14px; } #nav .new-pill { font-size: 8.5px; padding: 1px 4px; } #topbar { gap: 8px; padding: 0 12px; } }
 @media (max-width: 1180px) { #nav button span { display: none; } #nav button { padding: 0 10px; } #nav .new-pill { position: absolute; top: 9px; right: 0; } }
-@media (max-width: 900px) { #region-chip, #level-chip { display: none; } }
+@media (max-width: 900px) { #region-chip { display: none; } }
 @media (max-width: 1440px) { #level-chip .xpbar { display: none; } #profile-mode { display: none; } .top-right { gap: 5px; } }
 #profile-name { display: inline-block; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 
