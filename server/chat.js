@@ -5,12 +5,13 @@
 //  The last 100 messages are kept in memory (and in the accounts save,
 //  so a cloud save keeps them too). Admins can delete or clear.
 // =====================================================================
-const KEEP = 100;
+const KEEP = 60;
+const MAX_AGE = 6 * 3600 * 1000; // messages older than this are dropped so the save stays small
 const MAX_LEN = 200;
 const GAP_MS = 100; // spam away - this only stops a stuck key flooding the server
 
 export class Chat {
-  constructor(accounts) { this.A = accounts; this.last = new Map(); }
+  constructor(accounts) { this.A = accounts; this.last = new Map(); this.timer = setInterval(() => { if (this.prune()) this.A.save(); }, 30 * 60 * 1000); this.timer.unref && this.timer.unref(); }
 
   get list() { return this.A.db.chat || (this.A.db.chat = []); }
 
@@ -32,8 +33,17 @@ export class Chat {
     const id = (list.length ? list[list.length - 1].id : 0) + 1;
     list.push({ id, at: now, name: u.name, text });
     if (list.length > KEEP) list.splice(0, list.length - KEEP);
+    this.prune(now);
     this.A.save();
     return { ok: true, id };
+  }
+
+  // periodic cleanup: drop old messages (the newest is always kept so ids keep counting)
+  prune(now = Date.now()) {
+    const list = this.list;
+    let n = 0;
+    while (list.length > 1 && now - list[0].at > MAX_AGE) { list.shift(); n++; }
+    return n;
   }
 
   remove(id) { const list = this.list; const i = list.findIndex((m) => m.id === Number(id)); if (i < 0) return { error: 'No such message' }; list.splice(i, 1); this.A.save(); return { ok: 'Message deleted' }; }

@@ -11,6 +11,8 @@ export const UPDATES = [
       'New ranked riders play 4 placement matches first - bigger rating swings and no rank shown until you are placed',
       'Change your name from the menu: the first change is free, the next two cost 50,000 coins each',
       'Lap, timer and trick feedback moved small to the top-middle of the screen',
+      'Everyone now needs an account to play (guest mode is gone) - one account per player',
+      'Old chat messages are cleared automatically so less is stored',
     ],
   },
   {

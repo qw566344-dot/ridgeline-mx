@@ -169,7 +169,7 @@ export class AtvController {
       const car = c.type === 'car';
       // cars can't flip: Q / E only nudge the nose, and they always level out for the landing
       const lean = car ? clamp(inp.lean, -0.35, 0.35) : inp.lean;
-      let ap = (lean * A.flipRate - pitchW) * (Math.abs(lean) > 0.1 ? A.flipAccel : A.spinDamp);
+      let ap = (lean * A.flipRate * (globalThis.__flipMul || 1) - pitchW) * (Math.abs(lean) > 0.1 ? A.flipAccel : A.spinDamp);
       ap += -inp.throttle * A.gyro * 0.4 + inp.rearBrake * A.gyro;
       if ((car || Math.abs(inp.lean) < 0.1) && v.airTime > 0.08) {
         const desired = this.landingDirection();

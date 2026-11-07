@@ -53,7 +53,8 @@ function freshProfile(name) {
 // restart; logging in then quietly re-creates the account from this copy.
 export class Account {
   constructor() {
-    const saved = LS.get('mx.account', null);
+    const saved0 = LS.get('mx.account', null);
+    const saved = saved0 && saved0.mode !== 'guest' ? saved0 : null; // guest play was removed: everyone logs in
     this.mode = saved ? saved.mode : null;   // 'online' | 'offline' | 'guest' | null
     this.token = saved ? saved.token : null;
     this.name = saved ? saved.name : null;

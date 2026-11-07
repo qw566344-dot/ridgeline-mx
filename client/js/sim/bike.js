@@ -233,7 +233,7 @@ export class BikeController {
       if (inp.lean < 0.1) tr.scrubLock = false;
       const lean = tr.scrubLock ? 0 : inp.lean;
       // flips: Q / E set a spin rate, the rider gets there quickly
-      const spinTarget = lean * A.flipRate;
+      const spinTarget = lean * A.flipRate * (globalThis.__flipMul || 1);
       let ap = (spinTarget - pitchW) * (Math.abs(lean) > 0.1 ? A.flipAccel : A.spinDamp);
       ap += -inp.throttle * A.gyro * 0.4 + inp.rearBrake * A.gyro;   // throttle lifts the nose, rear brake drops it
       const spinning = Math.abs(tr.pitch) > 1.2;
@@ -248,7 +248,7 @@ export class BikeController {
         const e = Math.atan2(_c.dot(lvl), fwd.dot(desiredDir));
         const pitchW = v.angVel.dot(lvl);
         // mid-flip and still far from wheels-down: let it keep rotating
-        if (spinning && Math.abs(e) > 1.1) ap = (lean * A.flipRate - pitchW) * 0.35;
+        if (spinning && Math.abs(e) > 1.1) ap = (lean * A.flipRate * (globalThis.__flipMul || 1) - pitchW) * 0.35;
         else if (v.assist.landing > 0) ap += (e * 14 - pitchW * 3) * v.assist.landing;
       }
       addAccel(v, lvl, ap);
