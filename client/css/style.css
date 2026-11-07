@@ -1397,3 +1397,16 @@ button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 
 .qn { margin-left: 6px; min-width: 15px; padding: 1px 5px; border-radius: 9px; background: #3ddc84; color: #06220f; font: 800 10px/13px var(--body, sans-serif); vertical-align: top; letter-spacing: 0; font-style: normal; }
 .qn[hidden] { display: none; }
+
+/* HUD: lap, timer and trick feedback sit small at the top-middle of the screen */
+.hud-tl { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); min-width: 0; display: flex; align-items: baseline; gap: 10px; padding: 3px 12px 4px; border-left: 0; border-radius: 999px; pointer-events: none; z-index: 5; }
+.hud-tl .hud-lap { font-size: 12px; }
+.hud-tl .hud-time { font-size: 15px; }
+.hud-tl .hud-sub { font-size: 10px; }
+.hud-trick { top: 46px; font-size: 15px; letter-spacing: 0.05em; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); }
+.trick-pop { top: 68px; }
+.trick-pop .tp-name { font-size: 22px; }
+.trick-pop .tp-pts { font-size: 16px; }
+.trick-pop .tp-land { font-size: 11px; }
+.trick-pop .combo { font-size: 13px; }
+@media (max-width: 700px) { .hud-tl { top: 4px; gap: 7px; padding: 2px 9px 3px; } .hud-trick { top: 38px; font-size: 13px; } .trick-pop { top: 58px; } .trick-pop .tp-name { font-size: 18px; } }

@@ -18,7 +18,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel, RANK_START, rankTier, TP_PER_COIN, COIN_CAP } from '../shared/shop.js';
+import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel, RANK_START, PLACEMENTS, RENAME_FREE, RENAME_MAX, RENAME_COST, rankTier, TP_PER_COIN, COIN_CAP } from '../shared/shop.js';
 import { VEHICLES, BIKE_COLORS, ownsSpecials } from '../shared/vehicles.js';
 import { Friends } from './friends.js';
 import { Chat } from './chat.js';
@@ -142,7 +142,7 @@ export class Accounts {
   hash(password, salt) { return crypto.scryptSync(String(password), salt, 32).toString('hex'); }
 
   profile(u) {
-    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, rating2: u.rating2 || RANK_START, tier2: rankTier(u.rating2 || RANK_START), ranked2: u.ranked2 || { races: 0, wins: 0 }, pass: u.pass || [], passP: u.passP || [], passPremium: !!u.passPremium, admin: this.admin.isAdmin(u) };
+    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, rating2: u.rating2 || RANK_START, tier2: rankTier(u.rating2 || RANK_START), ranked2: u.ranked2 || { races: 0, wins: 0 }, placed: ((u.ranked && u.ranked.races) || 0) >= PLACEMENTS, renames: u.renames || 0, pass: u.pass || [], passP: u.passP || [], passPremium: !!u.passPremium, admin: this.admin.isAdmin(u) };
   }
 
   issue(u) {
@@ -295,6 +295,31 @@ export class Accounts {
     if (this.deviceBan(dev, u)) return { error: 'This device is banned', banned: true };
     this.grant(u);
     return { token: this.issue(u), profile: this.profile(u), seal: this.seal(u) };
+  }
+
+  // change your name: the first change is free, the next two cost coins. The account keeps
+  // everything - friends, coins, items, rating - only the name (and its lookup key) moves.
+  rename(u, raw) {
+    const name = String(raw || '').trim(), key = name.toLowerCase(), used = u.renames || 0;
+    if (used >= RENAME_MAX) return { error: 'You have used all your name changes' };
+    if (!NAME_RE.test(name)) return { error: 'Names are 3-16 letters, numbers, spaces, _ . or -' };
+    if (hasBadWords(name) || hasBadWords(name.replace(/[_.-]+/g, ' '))) return { error: 'That name is not allowed - pick another' };
+    if (name === u.name) return { error: 'That is already your name' };
+    if (key !== u.key && this.db.users[key]) return { error: 'That name is taken - pick another' };
+    const cost = used < RENAME_FREE ? 0 : RENAME_COST;
+    if (u.coins < cost) return { error: 'A name change costs ' + cost.toLocaleString('en-US') + ' coins' };
+    u.coins -= cost; u.renames = used + 1;
+    if (key !== u.key) {
+      const old = u.key;
+      delete this.db.users[old];
+      u.key = key; this.db.users[key] = u;
+      for (const t of u.tokens || []) this.tokens.set(t, key);
+      for (const x of Object.values(this.db.users)) for (const f of ['friends', 'incoming', 'outgoing']) if (x[f]) x[f] = x[f].map((k) => (k === old ? key : k));
+      if (this.db.devs) this.db.devs = this.db.devs.map((k) => (k === old ? key : k));
+    }
+    u.name = name;
+    this.save();
+    return { profile: this.profile(u), cost };
   }
 
   user(token) { const k = this.tokens.get(token); return k ? this.db.users[k] : null; }
@@ -456,7 +481,7 @@ export class Accounts {
     const users = Object.values(this.db.users).filter((u) => !u.banned);
     const data = { tricks: users.map((u) => ({ name: u.name, v: (u.stats && u.stats.tp) || 0, level: levelInfo(u.xp || 0).level })).filter((r) => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 25),
       // ranked: riders who have played at least one ranked race, by rating
-      ranked: users.filter((u) => u.ranked && u.ranked.races).map((u) => ({ name: u.name, v: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), races: u.ranked.races, wins: u.ranked.wins })).sort((a, b) => b.v - a.v).slice(0, 25),
+      ranked: users.filter((u) => u.ranked && u.ranked.races >= PLACEMENTS).map((u) => ({ name: u.name, v: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), races: u.ranked.races, wins: u.ranked.wins })).sort((a, b) => b.v - a.v).slice(0, 25),
       // ranked 2v2: its own rating
       ranked2: users.filter((u) => u.ranked2 && u.ranked2.races).map((u) => ({ name: u.name, v: u.rating2 || RANK_START, tier: rankTier(u.rating2 || RANK_START), races: u.ranked2.races, wins: u.ranked2.wins })).sort((a, b) => b.v - a.v).slice(0, 25) };
     this.lbCache = { at: now, data };
@@ -516,6 +541,7 @@ export class Accounts {
         const rev = u.rev || 0, seen = Number(url.searchParams.get('rev'));
         return send(200, { admin: this.admin.takeInbox(u.key), rev, ...(seen !== rev ? { profile: this.profile(u) } : {}) });
       }
+      if (r === 'rename') return send(200, this.rename(u, m.name));
       if (r === 'buy') return send(200, this.buy(u, m.slot, m.id));
       if (r === 'equip') return send(200, this.equip(u, m.slot, m.id));
       if (r === 'reward') return send(200, this.reward(u, m.kind, m.amount));

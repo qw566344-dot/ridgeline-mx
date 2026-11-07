@@ -13,7 +13,7 @@ import { getTrack, TRACKS } from '../shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, isSpecial, isPassVehicle } from '../shared/vehicles.js';
 import { buildTrack, buildFields, locatePrecise } from '../shared/trackgen.js';
 import { LapTracker, GAME } from '../shared/rules.js';
-import { GEAR_SETS, RANK_START, rankTier, EXTRA_SLOTS, extraOf } from '../shared/shop.js';
+import { GEAR_SETS, RANK_START, PLACEMENTS, rankTier, EXTRA_SLOTS, extraOf } from '../shared/shop.js';
 import { CODE_CHARS, CODE_LENGTH, validCode, cleanName, STATE_LEN, MODES, SNAPSHOT_RATE, PROTOCOL_VERSION } from '../shared/protocol.js';
 
 const LOAD_WAIT_MS = 15000; // longest wait for a slow rider to load the track
@@ -327,10 +327,11 @@ export class Lobby {
     }
     field.forEach((x, i) => {
       const u = x.u, before = R[i];
-      u.rating = Math.max(100, Math.round(before + d[i]));
+      const placing = ((u.ranked && u.ranked.races) || 0) < PLACEMENTS; // placement matches swing the rating 2.5x
+      u.rating = Math.max(100, Math.round(before + d[i] * (placing ? 2.5 : 1)));
       u.ranked = { races: ((u.ranked && u.ranked.races) || 0) + 1, wins: ((u.ranked && u.ranked.wins) || 0) + (i === 0 ? 1 : 0) };
       const p = this.players.get(x.r.id);
-      if (p && p.conn) p.conn.send({ t: 'rank', rating: u.rating, delta: u.rating - before, tier: rankTier(u.rating), was: rankTier(before), pos: x.r.pos });
+      if (p && p.conn) p.conn.send({ t: 'rank', placing, left: Math.max(0, PLACEMENTS - u.ranked.races), rating: u.rating, delta: u.rating - before, tier: rankTier(u.rating), was: rankTier(before), pos: x.r.pos });
     });
     A.save();
   }

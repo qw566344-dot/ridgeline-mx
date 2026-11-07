@@ -48,7 +48,7 @@ check('the result moves both ratings, one up and one down', k1 && k2 && k1.delta
 const me = await (await fetch(B + '/api/me', { headers: { Authorization: 'Bearer ' + A1.token } })).json();
 check('the rating is saved on the account', me.profile.rating === k1.rating && me.profile.ranked.races === 1);
 const lb = await get('leaderboard');
-check('the leaderboard lists ranked riders', lb.ranked && lb.ranked.length === 2 && lb.ranked[0].v >= lb.ranked[1].v && lb.ranked[0].tier);
+check('riders still in their placement matches are not on the ranked leaderboard yet', lb.ranked && lb.ranked.length === 0);
 
 // ranked is 1v1: three riders queue, two race each other and the third keeps waiting
 const T = [];

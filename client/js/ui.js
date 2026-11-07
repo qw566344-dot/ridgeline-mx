@@ -23,7 +23,7 @@ import { ReplayStore } from './replay.js';
 import { KEYS, DEFAULT_KEYS, applyBindings, keyName } from './input.js';
 import { UPDATES } from './updates.js';
 import { rankBadge, nextTier, tierStart } from './ranks.js';
-import { RANK_TIERS, RANK_START, rankTier } from '/shared/shop.js';
+import { RANK_TIERS, RANK_START, PLACEMENTS, rankTier } from '/shared/shop.js';
 import { regionList, customServer, setServerBase, serverBase } from './config.js';
 
 export { escapeHtml };
@@ -106,6 +106,18 @@ export class UI {
     });
     $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
     $('updates-btn').addEventListener('click', () => this.showUpdates());
+    $('rename-btn').addEventListener('click', async () => {
+      $('profile-menu').hidden = true;
+      const A = this.account, P = A && A.profile;
+      if (!P || A.mode !== 'online') return alert('Log in to an online account to change your name.');
+      const used = P.renames || 0;
+      if (used >= 3) return alert('You have used all 3 name changes.');
+      const nn = prompt(used < 1 ? 'New name (your first change is free):' : 'New name (costs 50,000 coins - ' + (3 - used) + ' change' + (3 - used === 1 ? '' : 's') + ' left):', P.name);
+      if (!nn || nn.trim() === P.name) return;
+      const err = await A.rename(nn.trim());
+      if (err) return alert(err);
+      location.reload();
+    });
     $('tutorial-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('tutorial'); });
     $('rk-find').addEventListener('click', () => this.emit('queue', 'ranked'));
     this.pollQueues(); setInterval(() => this.pollQueues(), 12000);
@@ -326,9 +338,10 @@ export class UI {
     const two = false, mode = 'ranked';
     const rating = (P && (two ? P.rating2 : P.rating)) || RANK_START, tier = rankTier(rating), R = (P && (two ? P.ranked2 : P.ranked)) || { races: 0, wins: 0 };
     $('rk-badge').innerHTML = rankBadge(tier, 150);
-    $('rk-tier').textContent = tier; $('rk-tier').className = 'tier-name ' + tier;
+    const placed = !P || P.placed || (R.races || 0) >= PLACEMENTS;
+    $('rk-tier').textContent = placed ? tier : 'Placement ' + (R.races || 0) + '/' + PLACEMENTS; $('rk-tier').className = 'tier-name ' + (placed ? tier : '');
     $('rk-rating').textContent = rating;
-    $('rk-record').textContent = R.races ? `${R.wins}W / ${R.races}` : 'Unranked';
+    $('rk-record').textContent = !placed ? (PLACEMENTS - (R.races || 0)) + ' placement match' + (PLACEMENTS - (R.races || 0) === 1 ? '' : 'es') + ' left' : R.races ? `${R.wins}W / ${R.races}` : 'Unranked';
     const nx = nextTier(tier), from = tierStart(tier);
     $('rk-fill').style.width = (nx ? Math.max(3, Math.min(100, ((rating - from) / (nx[1] - from)) * 100)) : 100) + '%';
     $('rk-next').textContent = nx ? `${nx[1] - rating} rating to ${nx[0]}` : 'Top rank - stay there!';

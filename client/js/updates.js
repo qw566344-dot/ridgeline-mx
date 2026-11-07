@@ -6,6 +6,14 @@
 // =====================================================================
 export const UPDATES = [
   {
+    id: '2026-11-07-b', date: 'Nov 7, 2026', title: 'Placement matches, name changes and a tidier HUD',
+    items: [
+      'New ranked riders play 4 placement matches first - bigger rating swings and no rank shown until you are placed',
+      'Change your name from the menu: the first change is free, the next two cost 50,000 coins each',
+      'Lap, timer and trick feedback moved small to the top-middle of the screen',
+    ],
+  },
+  {
     id: '2026-11-07', date: 'Nov 7, 2026', title: 'One account each, a stronger chat filter and a queue count',
     items: [
       'Accounts are limited to one per player - a device that already has an account can not make another, so log in to yours',

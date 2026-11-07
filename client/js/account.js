@@ -340,6 +340,12 @@ export class Account {
   }
 
   // a bike skin + its matching rider kit (both get equipped)
+  async rename(name) {
+    if (this.mode !== 'online') return 'Log in to change your name';
+    try { const r = await this.api('rename', { name }); if (r.error) return r.error; this.set('online', this.token, r.profile); return null; }
+    catch { return 'Could not reach the server'; }
+  }
+
   async buyBundle(id) {
     const b = getBundle(id);
     if (!b) return 'No such bundle';
