@@ -637,6 +637,9 @@ export class Rider {
     if (vis.seated) return this.updateSeated(dt, veh, vis);
     const s = this.s, A = vis.attach, isBike = vis.isBike;
     const inp = veh.input || {};
+    // right wrist rolls on with the throttle (follows acceleration: eases in, snaps off when braking)
+    const thrT = (inp.throttle || 0) * (veh.grounded ? 1 : 0.6) * (1 - 0.8 * (inp.brake || 0));
+    this.thr = (this.thr || 0) + (thrT - (this.thr || 0)) * Math.min(1, dt * 9);
     const spd = veh.speed || 0;
     const air = !veh.grounded && (veh.airTime || 0) > 0.08;
     const steer = veh.controller ? veh.controller.steer || 0 : inp.steer || 0;
@@ -720,7 +723,7 @@ export class Rider {
     J.shR.copy(J.neck).addScaledVector(t.left, -0.19).addScaledVector(t.up, -0.07);
     J.head.copy(J.neck).addScaledVector(t.up, 0.04);
     // arms to the grips, elbows up and out
-    this.gripOn = true;
+    this.gripOn = true; this.rollsThrottle = true;
     for (const [sh, el, ha, grip, sx, G] of [[J.shL, J.elL, J.haL, A.gripL, 1, this.grip[0]], [J.shR, J.elR, J.haR, A.gripR, -1, this.grip[1]]]) {
       // holding the grip like a rider: the wrist bends so the hand lies forward over the bar
       // (not hanging straight off the forearm) and the bar sits in the curl of the fingers, on the
@@ -775,6 +778,7 @@ export class Rider {
     if (this.gripOn && G.off < 0.999) {
       _y.lerp(G.dir, 1 - G.off).normalize();
       t.c.set(0, 1, -0.3).lerp(fwd, G.off);
+      if (G === this.grip[1] && this.thr > 0.01 && this.rollsThrottle) t.c.applyAxisAngle(_y, -this.thr * 0.7 * (1 - G.off)); // throttle hand
       setBone(bone, ha, t.a.copy(ha).addScaledVector(_y, 0.1), t.c);
     } else setBone(bone, ha, t.a.copy(ha).addScaledVector(_y, 0.1), fwd);
   }

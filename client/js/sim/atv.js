@@ -17,6 +17,7 @@ import { newTrick, scoreTricks, trackPose, wheelieAssist, trackWheelie } from '.
 
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
+const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const g0 = { h: 0, nx: 0, ny: 1, nz: 0 };
 const _f = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _n = new THREE.Vector3();
 
@@ -168,24 +169,32 @@ export class AtvController {
       tr.pitch += pitchW * dt; tr.yaw += yawW * dt;
       const car = c.type === 'car';
       // cars can't flip: Q / E only nudge the nose, and they always level out for the landing
-      const lean = car ? clamp(inp.lean, -0.35, 0.35) : inp.lean;
+      const lean = car ? clamp(inp.lean, -0.6, 0.6) : inp.lean;
       let ap = (lean * A.flipRate * (globalThis.__flipMul || 1) - pitchW) * (Math.abs(lean) > 0.1 ? A.flipAccel : A.spinDamp);
       ap += -inp.throttle * A.gyro * 0.4 + inp.rearBrake * A.gyro;
       if ((car || Math.abs(inp.lean) < 0.1) && v.airTime > 0.08) {
         const desired = this.landingDirection();
         _c.crossVectors(fwd, desired);
         const e = Math.atan2(_c.dot(left), fwd.dot(desired));
-        if (car) ap += e * 10 - pitchW * 3;
-        else if (Math.abs(tr.pitch) > 1.2 && Math.abs(e) > 1.1) ap = -pitchW * 0.35;
-        else if (v.assist.landing > 0) ap += (e * 12 - pitchW * 3) * v.assist.landing;
+        if (car) {
+          // a buggy keeps its momentum in the air: the levelling only fades in after the jump has left the
+          // ground and is a soft, well-damped spring (the old stiff one rang and snapped the nose around)
+          const k = sstep(0.12, 0.7, v.airTime);
+          ap += (e * 4.5 - pitchW * 4.0) * k - pitchW * 0.35 * (1 - k);
+        } else {
+          const keepAp = -pitchW * 0.35;
+          const assistAp = v.assist.landing > 0 ? ap + (e * 12 - pitchW * 3) * v.assist.landing : ap;
+          const wKeep = sstep(1.0, 1.4, Math.abs(tr.pitch)) * sstep(0.9, 1.3, Math.abs(e));
+          ap = assistAp + (keepAp - assistAp) * wKeep;
+        }
       }
       v.torque.addScaledVector(left, ap * I[0]);
       const roll = Math.asin(clamp(left.y, -1, 1));
       tr.whip = Math.max(tr.whip, Math.abs(roll));
-      v.torque.addScaledVector(fwd, ((-this.steer * A.whip * DEG - roll) * 10 - rollW * 4) * I[2]);
+      v.torque.addScaledVector(fwd, ((-this.steer * A.whip * DEG - roll) * (car ? 13 : 10) - rollW * (car ? 7 : 4)) * I[2]);
       // Shift + A / D: flat spin; otherwise a little yaw to line up the landing
       if (inp.clutch && !car) v.torque.addScaledVector(up, ((-this.steer * A.spinRate - yawW) * 5) * I[1]);
-      else if (car) v.torque.addScaledVector(fwd, (-roll * 8 - rollW * 3) * I[2]); // and stay upright
+      else if (car) v.torque.addScaledVector(up, (this.steer * 0.9 - yawW * 0.9) * I[1]); // a little steering yaw, and the spin dies down slowly
       else v.torque.addScaledVector(up, (this.steer * c.steer.airYaw - yawW * 1.2) * I[1]);
     }
   }

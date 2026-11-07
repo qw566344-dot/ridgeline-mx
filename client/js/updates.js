@@ -13,6 +13,10 @@ export const UPDATES = [
       'Lap, timer and trick feedback moved small to the top-middle of the screen',
       'Everyone now needs an account to play (guest mode is gone) - one account per player',
       'Old chat messages are cleared automatically so less is stored',
+      'Fixed the mid-flip stutter on bikes and quads, and smoother air control everywhere',
+      'Buggies and side-by-sides now keep their momentum in the air with a soft, realistic nose levelling and steering yaw',
+      'Quad handlebars turn visibly with your steering, and the rider keeps their hands on them',
+      'The rider rolls their throttle hand as you accelerate',
     ],
   },
   {

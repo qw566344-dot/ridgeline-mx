@@ -753,6 +753,8 @@ const _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _a = new THREE.Vect
 // how far a steering wheel is turned (radians): from the driver's input when we have it (the road
 // wheels barely turn at speed, so following them left the wheel almost still), else from the road wheels
 export const wheelTurn = (state) => (state.hand != null ? state.hand * 2.3 : Math.max(-2.3, Math.min(2.3, (state.steer || 0) * 10)));
+// quad handlebars: follow the rider's hands (the road wheels barely turn at speed, so the bars would look frozen)
+export const barTurn = (state) => (state.hand != null ? Math.max(-0.75, Math.min(0.75, state.hand * 0.75)) : Math.max(-0.75, Math.min(0.75, (state.steer || 0) * 3)));
 // state: { steer, hand, wheels: [{comp, spin, steer}] }  cfg: prepared vehicle config
 export function updateModelInstance(inst, state, cfg, camDist = 0) {
   const G = inst.groups, R = inst.rest, meta = inst.meta;
@@ -796,7 +798,7 @@ export function updateModelInstance(inst, state, cfg, camDist = 0) {
   // bars / steering wheel
   if (G.rig_steer) {
     const up = _a.fromArray(meta.axisDown).negate();
-    G.rig_steer.quaternion.copy(R.rig_steer.q).premultiply(_q.setFromAxisAngle(up, state.steer * 0.9));
+    G.rig_steer.quaternion.copy(R.rig_steer.q).premultiply(_q.setFromAxisAngle(up, barTurn(state)));
   }
   if (G.rig_wheel) {
     const ax = _a.fromArray(meta.wheelAxis);

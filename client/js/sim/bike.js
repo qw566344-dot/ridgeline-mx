@@ -21,6 +21,7 @@ import { newTrick, scoreTricks, trackPose, wheelieAssist, trackWheelie } from '.
 
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
+const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const g0 = { h: 0, nx: 0, ny: 1, nz: 0 };
 const _n = new THREE.Vector3(), _d = new THREE.Vector3(), _c = new THREE.Vector3(), _p = new THREE.Vector3(), _lv = new THREE.Vector3();
 const _ax = new THREE.Vector3(), _qi = new THREE.Quaternion();
@@ -242,14 +243,26 @@ export class BikeController {
       // bike is level): with the bike laid over in a whip, the tilted side axis turned yaw into
       // pitch, and long whips nose-dived
       const lvl = _lv.set(fwd.z, 0, -fwd.x);
-      if (lvl.lengthSq() > 0.05 && Math.abs(tr.pitch) < 2.0) lvl.normalize(); else lvl.copy(left);
+      // (it used to flip sign as the nose passed vertical and the spin torque fought itself: that was
+      // the mid-flip stutter. Now the axis keeps its sign and fades smoothly to the bike's own side axis)
+      if (v.airTime < 0.03) this._lvl = null;
+      const ls = lvl.lengthSq();
+      if (ls > 1e-4) {
+        lvl.multiplyScalar(1 / Math.sqrt(ls));
+        if (this._lvl && lvl.dot(this._lvl) < 0) lvl.negate();
+        const sb = 1 - sstep(0.03, 0.15, ls);
+        if (sb > 0) lvl.lerp(left, sb).normalize();
+      } else lvl.copy(left);
+      (this._lvl || (this._lvl = new THREE.Vector3())).copy(lvl);
       if (Math.abs(lean) < 0.1 && v.airTime > 0.08) {
         _c.crossVectors(fwd, desiredDir);
         const e = Math.atan2(_c.dot(lvl), fwd.dot(desiredDir));
         const pitchW = v.angVel.dot(lvl);
-        // mid-flip and still far from wheels-down: let it keep rotating
-        if (spinning && Math.abs(e) > 1.1) ap = (lean * A.flipRate * (globalThis.__flipMul || 1) - pitchW) * 0.35;
-        else if (v.assist.landing > 0) ap += (e * 14 - pitchW * 3) * v.assist.landing;
+        // mid-flip and still far from wheels-down: let it keep rotating; blended, never switched
+        const keepAp = (lean * A.flipRate * (globalThis.__flipMul || 1) - pitchW) * 0.35;
+        const assistAp = v.assist.landing > 0 ? ap + (e * 14 - pitchW * 3) * v.assist.landing : ap;
+        const wKeep = sstep(1.0, 1.4, Math.abs(tr.pitch)) * sstep(0.9, 1.3, Math.abs(e));
+        ap = assistAp + (keepAp - assistAp) * wKeep;
       }
       addAccel(v, lvl, ap);
       const roll = Math.asin(clamp(left.y, -1, 1)); // + = leaning right (stays 0 during a flip)
@@ -269,8 +282,9 @@ export class BikeController {
         this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 4.2) : Math.max(0, (this.whipAmt || 0) - dt * 9);
         // the swing spring keeps the bike lined up for the landing - but never in the middle of a flip
         // (a normal jump tips the nose down ~50 degrees - that is not a flip; pointing near vertical it is)
-        const flipping = Math.abs(tr.pitch) > 2.0 || Math.abs(lean) > 0.1 || Math.abs(pitchW) > 2.2;
-        const swingK = flipping ? 0 : clamp((0.985 - Math.abs(fwd.y)) / 0.12, 0, 1);
+        const flipT = Math.max(sstep(1.6, 2.2, Math.abs(tr.pitch)), Math.abs(lean) > 0.1 ? 1 : 0, sstep(1.8, 2.6, Math.abs(pitchW)));
+        this.flipBlend = (this.flipBlend || 0) + (flipT - (this.flipBlend || 0)) * Math.min(1, dt * 14);
+        const swingK = (1 - this.flipBlend) * clamp((0.985 - Math.abs(fwd.y)) / 0.12, 0, 1);
         if (holding) this.whipSide = Math.sign(inp.steer);
         const amt = this.whipAmt * late;
         const side = this.whipSide || 0;

@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../../vendor/addons/loaders/GLTFLoader.js';
 import { box, cyl, tube, sphere, torus, pipe, plate, merge, colorize, clean, place, roundBox } from './geo.js';
 import { prepareVehicle, MODELS } from '/shared/vehicles.js';
-import { createModelInstance, updateModelInstance, wheelTurn } from './modelRig.js';
+import { createModelInstance, updateModelInstance, wheelTurn, barTurn } from './modelRig.js';
 
 const DEG = Math.PI / 180;
 const loader = new GLTFLoader();
@@ -778,9 +778,9 @@ export class VehicleVisual {
       turn(at.gripR, M.wheelCentre, meta.wheelAxis, -wheelTurn(state), A.gripR);
     } else {
       const up = [-meta.axisDown[0], -meta.axisDown[1], -meta.axisDown[2]];
-      const k = this.isBike ? 1 : 0.9;
-      turn(at.gripL, M.steerPivot, up, state.steer * k, A.gripL);
-      turn(at.gripR, M.steerPivot, up, state.steer * k, A.gripR);
+      const ang = this.isBike ? state.steer : barTurn(state); // quad hands stay on the bars as they turn
+      turn(at.gripL, M.steerPivot, up, ang, A.gripL);
+      turn(at.gripR, M.steerPivot, up, ang, A.gripR);
     }
   }
 
