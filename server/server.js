@@ -50,6 +50,11 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ port: PORT, addresses: lanAddresses() }));
     return;
   }
+  if (req.url.startsWith('/api/queues')) {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify(lobby.counts()));
+    return;
+  }
   if (req.url.startsWith('/api/party')) {
     const code = new URL(req.url, 'http://x').searchParams.get('code');
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });

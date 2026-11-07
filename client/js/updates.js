@@ -6,6 +6,15 @@
 // =====================================================================
 export const UPDATES = [
   {
+    id: '2026-11-07', date: 'Nov 7, 2026', title: 'One account each, a stronger chat filter and a queue count',
+    items: [
+      'Accounts are limited to one per player - a device that already has an account can not make another, so log in to yours',
+      'The chat filter now catches fancy fonts, look-alike letters, accents, hidden characters and letters split by symbols',
+      'A small green number next to Ranked shows how many riders are searching right now',
+      'Ranked 2v2 and Replays are gone - ranked is 1v1 only',
+    ],
+  },
+  {
     id: '2026-11-03-b', date: 'Nov 3, 2026', title: 'Ranked 2v2, the Supermoto Factory and better skins',
     items: [
       'Ranked 2v2: teams of two race on total finishing places - queue alone for a teammate of your rank, or make a party of two and queue together. Pick 1v1 or 2v2 on the Ranked screen',

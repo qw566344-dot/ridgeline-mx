@@ -191,7 +191,7 @@ export class Lobby {
   // on placings (lowest sum of finishing places wins) and the result moves each rider's own 2v2
   // rating (rating2), kept apart from the 1v1 one.
   queue(p, m) {
-    const mode = m.mode === 'ranked' ? 'ranked' : m.mode === 'ranked2' ? 'ranked2' : 'casual';
+    const mode = m.mode === 'ranked' || m.mode === 'ranked2' ? 'ranked' : 'casual'; // 2v2 ranked was removed
     this.unqueue(p, true);
     if (p.party && p.party.session && !p.party.session.over) return this.err(p, 'IN_RACE', 'Finish your race first.');
     let rating = RANK_START, key = null;
@@ -232,6 +232,11 @@ export class Lobby {
       for (const e of gone) for (const x of [e.p, e.mate]) if (x && x.conn && (!quiet || x !== p)) x.conn.send({ t: 'queue', state: 'off', mode });
       if (n !== this.mm[mode].length) this.queueStatus(mode);
     }
+  }
+  // how many riders are searching right now (the number next to the Ranked button)
+  counts() {
+    const n = (Q) => Q.reduce((k, e) => k + (e.mate ? 2 : 1), 0);
+    return { casual: n(this.mm.casual), ranked: n(this.mm.ranked) };
   }
   queueStatus(mode) {
     const Q = this.mm[mode], now = Date.now(), n = Q.reduce((k, e) => k + (e.mate ? 2 : 1), 0);

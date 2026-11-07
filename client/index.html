@@ -52,11 +52,10 @@
       <div class="brand"><img src="img/logo.png" alt="Ridgeline MX" class="brand-logo"></div>
       <nav id="nav">
         <button data-go="home" title="Lobby"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V4"/><path d="M4 4h13l-2.5 4L17 12H4"/></svg><span>Lobby</span></button>
-        <button data-go="ranked" title="Ranked"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M8.5 12.5l3.5-3 3.5 3"/></svg><span>Ranked</span></button>
+        <button data-go="ranked" title="Ranked"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M8.5 12.5l3.5-3 3.5 3"/></svg><span>Ranked</span><sup class="qn" id="nav-qn" hidden></sup></button>
         <button data-go="garage" title="Garage"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span>Garage</span></button>
         <button data-go="shop" title="Shop"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span>Shop</span></button>
-        <button data-go="leaderboard" title="Leaderboard"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21V11"/><path d="M12 21V5"/><path d="M16 21v-7"/><path d="M4 21h16"/></svg><span>Leaderboard</span></button>
-        <button data-go="replays" title="Replays"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4"/></svg><span>Replays</span></button>
+        <button data-go="leaderboard" title="Leaderboard"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21V11"/><path d="M12 21V5"/><path d="M16 21v-7"/><path d="M4 21h16"/></svg><span>Leaderboard</span></button>
         <button data-go="pass" title="Pass"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12" stroke-dasharray="2 2"/></svg><span>Pass</span><b id="pass-dot" class="badge" hidden>!</b></button>
         <button data-go="challenges" title="Challenges"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.6"/></svg><span>Challenges</span><b id="chal-dot" class="badge" hidden>!</b></button>
         <button data-go="casino" title="Casino"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="9" cy="15" r="1"/></svg><span>Casino</span></button>
@@ -261,7 +260,7 @@
     <section id="leaderboard" class="screen overlay" hidden>
       <div class="sheet wide">
         <div class="sheet-head"><h2>Leaderboard</h2></div>
-        <div class="seg lb-tabs"><button data-lb="tricks" class="sel">Tricks</button><button data-lb="ranked">Ranked 1v1</button><button data-lb="ranked2">Ranked 2v2</button></div>
+        <div class="seg lb-tabs"><button data-lb="tricks" class="sel">Tricks</button><button data-lb="ranked">Ranked</button></div>
         <p id="lb-note" class="hint">Trick points - land tricks in any mode to climb</p>
         <div id="lb-podium" class="lb-podium"></div>
         <ol id="lb-tricks" class="lb-list"></ol>
@@ -331,9 +330,9 @@
       <div class="play-dock rk-dock">
         <div class="dock-sel rk-sel">
           <small>MODE</small><b>Ranked Race</b>
-          <small>FORMAT</small><div class="seg rk-fmt"><button data-fmt="ranked" class="sel">1v1</button><button data-fmt="ranked2">2v2</button></div>
+          <small>FORMAT</small><b>1v1</b>
         </div>
-        <button id="rk-find" class="play-btn rk-find">FIND MATCH</button>
+        <button id="rk-find" class="play-btn rk-find"><span id="rk-find-t">FIND MATCH</span><sup class="qn" id="rk-qn" hidden></sup></button>
         <div id="rk-status" class="dock-note"></div>
       </div>
     </section>

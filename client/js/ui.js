@@ -107,8 +107,8 @@ export class UI {
     $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
     $('updates-btn').addEventListener('click', () => this.showUpdates());
     $('tutorial-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('tutorial'); });
-    $('rk-find').addEventListener('click', () => this.emit('queue', this.rkMode || 'ranked'));
-    for (const b of document.querySelectorAll('.rk-fmt button')) b.addEventListener('click', () => { this.rkMode = b.dataset.fmt; this.rkLoaded = 0; this.renderRanked(); });
+    $('rk-find').addEventListener('click', () => this.emit('queue', 'ranked'));
+    this.pollQueues(); setInterval(() => this.pollQueues(), 12000);
     for (const b of document.querySelectorAll('.lb-tabs button')) b.addEventListener('click', () => { this.lbTab = b.dataset.lb; this.renderLeaderboard(); });
     $('dock-setup').addEventListener('click', () => this.show('play'));
     $('play-btn').addEventListener('click', () => this.onPlay());
@@ -323,8 +323,7 @@ export class UI {
   async renderRanked() {
     const A = this.account, P = A && A.profile;
     const online = A && A.mode === 'online';
-    const two = this.rkMode === 'ranked2', mode = two ? 'ranked2' : 'ranked';
-    for (const b of document.querySelectorAll('.rk-fmt button')) b.classList.toggle('sel', b.dataset.fmt === mode);
+    const two = false, mode = 'ranked';
     const rating = (P && (two ? P.rating2 : P.rating)) || RANK_START, tier = rankTier(rating), R = (P && (two ? P.ranked2 : P.ranked)) || { races: 0, wins: 0 };
     $('rk-badge').innerHTML = rankBadge(tier, 150);
     $('rk-tier').textContent = tier; $('rk-tier').className = 'tier-name ' + tier;
@@ -337,7 +336,7 @@ export class UI {
     const q = this.mmState;
     const net = this.net, duo = two && net && net.party && !net.party.match && net.party.members.length === 2;
     const mine = q && q.mode === mode;
-    $('rk-find').textContent = mine ? (q.found ? 'FOUND!' : 'CANCEL') : duo ? 'FIND MATCH (DUO)' : 'FIND MATCH';
+    $('rk-find-t').textContent = mine ? (q.found ? 'FOUND!' : 'CANCEL') : duo ? 'FIND MATCH (DUO)' : 'FIND MATCH';
     $('rk-find').classList.toggle('searching', !!mine);
     $('rk-find').disabled = !online;
     $('rk-status').textContent = !online ? 'Ranked needs an online account - log in to play.'
@@ -352,6 +351,16 @@ export class UI {
       const rows = (d && d[mode]) || [], me = P ? P.name.toLowerCase() : '';
       $('rk-list').innerHTML = rows.length ? rows.slice(0, 10).map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 1}</span><b>${rankBadge(r.tier, 22)} ${escapeHtml(r.name)}</b><span class="v">${r.v}</span></li>`).join('') : `<li class="hint">Nobody has played ${two ? '2v2' : 'ranked'} yet - be the first!</li>`;
     }
+  }
+
+  // the little number next to Ranked: how many riders are searching right now
+  async pollQueues() {
+    if (document.hidden) return;
+    try {
+      const d = await (await fetch(serverBase() + '/api/queues')).json();
+      const n = (d && d.ranked) | 0;
+      for (const id of ['nav-qn', 'rk-qn']) { const e = $(id); if (e) { e.hidden = !n; e.textContent = n; e.title = n + ' searching for a ranked match'; } }
+    } catch { /* offline */ }
   }
 
   // matchmaking: the two buttons under PLAY, and what they show while searching

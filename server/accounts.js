@@ -243,8 +243,13 @@ export class Accounts {
     if (this.deviceBan(dev)) return { error: 'This device is banned - it can not make new accounts', banned: true };
     const key = name.toLowerCase();
     if (this.db.users[key]) return { error: 'That name is taken - pick another or log in' };
+    // one account per player: a device that already made an account can not make another
+    if (dev && dev.id) {
+      const had = Object.values(this.db.users).find((x) => x.key !== key && (x.dev0 || (x.devices && x.devices[0])) === dev.id);
+      if (had) return { error: 'This device already has an account (' + had.name + '). Accounts are limited to one per player - please log in to it.', oneAccount: true };
+    }
     const salt = crypto.randomBytes(16).toString('hex');
-    const u = { key, name, salt, hash: this.hash(password, salt), created: Date.now(), coins: STARTER.coins, owned: [...STARTER.owned], equipped: { ...STARTER.equipped }, stats: { laps: 0, wins: 0, tricks: 0 }, rewardLog: [] };
+    const u = { key, name, salt, hash: this.hash(password, salt), created: Date.now(), coins: STARTER.coins, owned: [...STARTER.owned], equipped: { ...STARTER.equipped }, stats: { laps: 0, wins: 0, tricks: 0 }, rewardLog: [], dev0: (dev && dev.id) || undefined };
     if (restore) this.restoreInto(u, restore);
     this.db.users[key] = u;
     this.grant(u);
