@@ -333,12 +333,12 @@ const ATV_BASE = {
   ],
   damping: { bump: 0.5, rebound: 0.78 },
   progressive: 5,
-  steer: { maxLow: 35, maxHigh: 12, highSpeed: 22, rate: 4.4, airYaw: 0.9, latAcc: 11.5 }, // more bite at speed: quads used to plough straight on
+  steer: { maxLow: 35, maxHigh: 10, highSpeed: 22, rate: 4.0, airYaw: 0.9, latAcc: 10.5 }, // more bite at speed: quads used to plough straight on
   antiRoll: 16000,                 // N per metre of left/right compression difference
   rollCentre: 0.68,                // 0 = tyre forces at the ground (tippy), 1 = at the CoM (can't tip)
-  riderLean: 1100,                 // N m of body-English torque when steering
+  riderLean: 900,                  // N m of body-English torque when steering
   riderBalance: 5200,              // N m per radian: the rider throws weight to the high side
-  axleScrub: 0.10,                 // solid rear axle resists turning (understeer)
+  axleScrub: 0.14,                 // solid rear axle resists turning (understeer)
   air: { flipRate: 4.3, flipAccel: 7.4, spinDamp: 1.0, gyro: 1.5, whip: 35, spinRate: 3.9 },
   brakes: { front: 2100, rear: 1500 },
   crash: { landPitch: 66, impact: 19, roll: 88, loop: 90 },
@@ -675,6 +675,12 @@ export const VEHICLES = [
   },
 ];
 
+
+// quads and side-by-sides: a little more top speed and pull (taller gearing, a bit more torque)
+for (const v of VEHICLES) {
+  if (v.type !== 'atv' && v.type !== 'car') continue;
+  v.engine = { ...v.engine, gearSpeeds: v.engine.gearSpeeds.map((g) => +(g * 1.08).toFixed(2)), torque: v.engine.torque.map(([r, t]) => [r, +(t * 1.07).toFixed(2)]) };
+}
 export const CATEGORIES = ['Dirt Bikes', 'Quads', 'Side-by-Sides'];
 
 // ---------------------------------------------------------------------

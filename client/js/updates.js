@@ -25,6 +25,8 @@ export const UPDATES = [
       'New quad models for the Pro 450R, Pro 450R Works, Pro 700 Brute, Sport 250 and Mud Pro 1000 (black seats, fuel cap stays put when you steer, Mud Pro rails take your paint colour). The Pit Quad 90 was removed',
       'Wheels sit on the ground properly: tyres feel the ground under both edges and match the size you see',
       'Ranked screen: the rank card fits, and a small count shows how many riders are searching above Find Match',
+      'One account per player is enforced: log into your main account and any extra accounts you made on the same device are deleted',
+      'Quads and side-by-sides are a little faster',
       'The game now loads with far less data: files are compressed and only re-downloaded when they change',
     ],
   },

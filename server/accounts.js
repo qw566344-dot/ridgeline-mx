@@ -207,6 +207,28 @@ export class Accounts {
     const add = (list, v) => (v ? [...(list || []).filter((x) => x !== v), v].slice(-8) : list || []);
     u.devices = add(u.devices, dev.id); u.ips = add(u.ips, dev.ip);
   }
+  // One account per player: when someone logs in, their extra accounts made on this same device are deleted - the one
+  // they log into is their main account. Never touched: admins, devs, banned accounts (their ban record stays), and any
+  // account that has also been used from a different device (that is a different person's account). Deleted accounts
+  // are kept out of sight in db.trash for 14 days, so a mistake can be put back by hand.
+  purgeDuplicates(main, dev) {
+    if (!main || !dev || !dev.id) return;
+    const A = this.admin, trash = this.db.trash || (this.db.trash = []);
+    let n = 0;
+    for (const u of Object.values(this.db.users)) {
+      if (u === main || u.banned || A.isAdmin(u) || A.isOwner(u) || A.isDev(u)) continue;
+      const seen = u.devices || [];
+      if (!seen.includes(dev.id) || seen.some((d) => d !== dev.id)) continue;
+      for (const t of u.tokens || []) this.tokens.delete(t);
+      delete this.db.users[u.key];
+      for (const o of Object.values(this.db.users)) for (const f of ['friends', 'incoming', 'outgoing']) if (o[f]) o[f] = o[f].filter((k) => k !== u.key);
+      trash.push({ at: Date.now(), by: main.key, user: u });
+      n++;
+    }
+    const keep = trash.filter((t) => Date.now() - t.at < 14 * 86400_000);
+    if (keep.length !== trash.length) this.db.trash = keep;
+    if (n) { console.log(`[accounts] ${n} extra account(s) of ${main.name} deleted (one account per player)`); this.save(); }
+  }
   // the ban that blocks this browser / address (admins are never blocked), or null
   deviceBan(dev, u) {
     if (!dev || (u && this.admin.isAdmin(u))) return null;
@@ -524,7 +546,7 @@ export class Accounts {
       const dev = { id: /^[0-9a-f]{32}$/.test(String(req.headers['x-device'] || '')) ? req.headers['x-device'] : '', flagged: req.headers['x-banned'] === '1', ip };
       if (['register', 'login', 'revive'].includes(r)) {
         const out = r === 'register' ? this.register(m.name, m.password, ip, m.restore, dev) : r === 'login' ? this.login(m.name, m.password, ip, dev) : this.revive(m, ip, dev);
-        if (out.token) this.track(this.user(out.token), dev);
+        if (out.token) { const main = this.user(out.token); this.track(main, dev); if (r !== 'register') this.purgeDuplicates(main, dev); }
         if (out.token && dev.flagged) out.clearBan = true; // unbanned: the browser can drop its "banned" note
         return send(200, out);
       }
