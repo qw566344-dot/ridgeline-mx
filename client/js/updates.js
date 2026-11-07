@@ -21,6 +21,7 @@ export const UPDATES = [
       'New trick map: Rampage Trick Park - kicker lines from a small hop to a big gap, quarter pipes, a spine and a funbox pyramid',
       'Ranked tracks get harder as your rank goes up: easy/medium for Bronze and Silver, medium/hard for Gold and Platinum, hard/expert for Diamond and Pro',
       'Quads turn in better at speed',
+      'Removed the weakest maps (Sand Harbor, Dust Bowl, Sunset Dunes Ranch, Crossover 8, Freestyle Compound) and retired 42 samey skins from the shop - skins you already own are kept',
       'The game now loads with far less data: files are compressed and only re-downloaded when they change',
     ],
   },

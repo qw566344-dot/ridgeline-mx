@@ -72,7 +72,7 @@ console.log('results after', ((Date.now() - t0) / 1000).toFixed(1), 's:', res.ro
 const snaps = B.msgs.filter((m) => m.t === 'snap').length;
 console.log('Bob received', snaps, 'snapshots; Alice received', A.msgs.filter((m) => m.t === 'snap').length);
 // freestyle jam: trick points from each rider land on the party leaderboard
-A.send({ t: 'settings', track: 'freestyle', mode: 'freestyle', laps: 1 });
+A.send({ t: 'settings', track: 'megapark', mode: 'freestyle', laps: 1 });
 await A.wait((m) => m.t === 'party' && m.settings.mode === 'freestyle');
 A.send({ t: 'start' });
 const fsS = await B.wait((m) => m.t === 'session' && m.mode === 'freestyle');

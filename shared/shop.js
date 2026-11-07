@@ -363,10 +363,13 @@ export const RARITIES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
 export const ROTATION_MS = 3600_000;
 function rotRng(seed) { let x = (seed * 2654435761) >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
 function shuffled(list, r) { const a = [...list]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// Retired skins: the weakest / most samey ones are no longer sold. Riders who already own one keep it
+// (they stay defined so equipping and saves keep working) - they just never come back into the shop.
+export const RETIRED_SKINS = new Set(['arcticcamo', 'sandcamo', 'pinkcamo', 'urbancamo', 'desertcamo', 'woodland', 'icetribe', 'jadetribe', 'lumberjack', 'highland', 'grungeplaid', 'emeraldcut', 'icecrystal', 'polyice', 'polyfire', 'nebula2', 'factorygreen', 'worksred', 'worksblue', 'goldstreak', 'redbolt', 'icefractal', 'mandala', 'sunsetfade', 'mintfade', 'halfhalf', 'bubblepop', 'limehex', 'neonchecker', 'popart', 'gulfrace', 'martini', 'mudsplash', 'arcade', 'polka', 'royalargyle', 'candycane', 'cherrybomb', 'mintchip', 'patriot', 'zebra', 'redline']);
 export function shopRotation(now = Date.now()) {
   const slot = Math.floor(now / ROTATION_MS);
   const r = rotRng(slot + 7);
-  const paid = SHOP.filter((i) => (i.slot === 'color' || i.slot === 'gear') && i.price > 0 && !i.bundleOnly && !i.pass && !i.special);
+  const paid = SHOP.filter((i) => (i.slot === 'color' || i.slot === 'gear') && i.price > 0 && !i.bundleOnly && !i.pass && !i.special && !(i.slot === 'color' && RETIRED_SKINS.has(i.id)));
   const big = paid.filter((i) => i.slot === 'color' && ['Epic', 'Legendary'].includes(rarityOf(i)));
   const featured = shuffled(big, r).slice(0, 3);
   const rest = paid.filter((i) => !featured.includes(i));

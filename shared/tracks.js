@@ -276,38 +276,6 @@ export const TRACKS = [
     gateAt: 14,
     finishAt: 110,
   },
-  {
-    id: 'freestyle', recommend: ['Dirt Bikes', 'Quads'],
-    name: 'Freestyle Compound', difficulty: 'Freestyle',
-    desc: 'A wide arena built for tricks: freestyle kickers with open gaps up to 20 m, a huge table and room to land anything.',
-    worldSize: 600,
-    seed: 2219,
-    start: { x: -120, z: 60, heading: 0 },
-    defaultWidth: 24,
-    look: { dirt: [1.1, 0.88, 0.7], grass: [1.05, 1.02, 0.78], trees: 0.4, pines: 0.4, rocks: 1.2 },
-    terrain: {
-      hills: 3, hillScale: 150,
-      rim: 34, rimStart: 230,
-      bumps: [],
-    },
-    segments: [
-      { len: 240, w: 24, free: true, name: 'Kicker Row', features: [
-        { at: 36, type: 'kicker', h: 2.4, face: 8.5, gap: 8, landH: 3.0, land: 12 },
-        { at: 100, type: 'kicker', h: 3.0, face: 10.5, gap: 12, landH: 3.5, land: 13 },
-        { at: 164, type: 'kicker', h: 3.5, face: 12, gap: 16, landH: 4.2, land: 14 },
-      ] },
-      { turn: 180, r: 34, berm: 0.5 },
-      { len: 240, w: 24, free: true, name: 'Big Air', features: [
-        { at: 26, type: 'table', h: 3.0, face: 12, top: 14, land: 16 },
-        { at: 105, type: 'kicker', h: 4.0, face: 13.5, gap: 20, landH: 4.5, land: 20 },
-        { at: 196, type: 'rollers', n: 2, len: 14, h: 1.2 },
-      ] },
-      { turn: 180, r: 34, berm: 0.5 },
-    ],
-    gateAt: 14,
-    finishAt: 60,
-    freestyle: true,
-  },
 ];
 
 // easiest first (used by the menus)

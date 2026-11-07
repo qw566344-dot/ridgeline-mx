@@ -41,11 +41,6 @@ const MAPS = [
     look: { sand: 0.45, dirt: [1.15, 1.0, 0.82], grass: [0.95, 1.12, 0.8], trees: 0.5, pines: 0.1, rocks: 1.2, fog: 0xcfe6f2, skyTop: 0x2f86d9, horizon: 0xdbeef7 },
     terrain: { hills: 7, hillScale: 190, rim: 36, bumps: [] },
     segments: [str(180, 'Start Straight', [], 22), turn(90, 28, 0.8), str(140, 'Cliff Rhythm', [D(14, 1.5, 6.5, 5, 1.3, 8), D(64, 1.6, 6.5, 5, 1.4, 8)]), turn(90, 26, 0.8), str(160, 'Surf Whoops', [WH(16, 12, 5, 0.5), T(104, 1.4, 7, 6, 8)]), turn(90, 26, 0.8), str(130, 'Lighthouse Triple', [TR(18, 1.5, 6.5, 5, 1.5, 8)]), turn(90, 28, 0.8)] },
-  { id: 'harbor', name: 'Sand Harbor', difficulty: 'Easy', recommend: ['Dirt Bikes', 'Quads', 'Side-by-Sides'], seed: 9044, defaultWidth: 16,
-    desc: 'A sunny beach track: soft sand, gentle tables and wide sweeping berms. Great for learning.',
-    look: { sand: 0.8, dirt: [1.25, 1.08, 0.85], grass: [1.1, 1.1, 0.85], trees: 0.2, pines: 0.05, rocks: 0.3, fog: 0xe8f2f8, skyTop: 0x3a8ee6, horizon: 0xd9eef8 },
-    terrain: { hills: 4, hillScale: 200, rim: 30, bumps: [] },
-    segments: [str(170, 'Start Straight', [], 22), turn(90, 30, 0.6), str(140, 'Beach Tables', [T(18, 1.2, 6, 5, 7), T(70, 1.4, 7, 6, 8)]), turn(90, 28, 0.7), str(130, 'Dune Rollers', [RO(14, 4, 12, 0.8)]), turn(90, 28, 0.7), str(150, 'Pier Double', [D(26, 1.5, 7, 5, 1.3, 8)]), turn(90, 30, 0.6)] },
   { id: 'ashfall', name: 'Ashfall Volcano', difficulty: 'Expert', recommend: ['Dirt Bikes'], seed: 9055, defaultWidth: 10,
     desc: 'Black volcanic ash under a burning sky. Tight, technical and full of big gaps.',
     look: { dirt: [0.45, 0.42, 0.42], grass: [0.55, 0.55, 0.5], trees: 0.1, pines: 0.05, rocks: 3, fog: 0x6b5552, skyTop: 0x3a1f2b, horizon: 0xc2553a },
@@ -88,14 +83,6 @@ const MAPS = [
     segments: [str(150, 'Start Straight', [], 18), turn(90, 20), str(110, 'Dusk Rhythm', [D(12, 1.5, 6.5, 5, 1.3, 8), D(56, 1.6, 6.5, 5, 1.4, 8)]), turn(90, 18), str(120, 'Moon Table', [T(20, 2.0, 9, 9, 10)]), turn(-90, 18), str(90, 'Shadow Whoops', [WH(12, 10, 4.6, 0.5)]), turn(90, 20), str(140, 'Starlight Triple', [TR(32, 2.0, 8.5, 8, 1.8, 10)]), turn(90, 20), str(90, 'Valley Bend', [RO(14, 3, 11, 0.8)]), turn(90, 20)] },
 
   // ---- figure 8: the start lane runs straight under the middle of a big gap jump on the other lane
-  { id: 'crossover', name: 'Crossover 8', difficulty: 'Medium', recommend: ['Dirt Bikes', 'Quads', 'Side-by-Sides'], seed: 9201, defaultWidth: 14,
-    desc: 'A giant figure 8. Where the lanes cross, one lane jumps clean over the other - look up as riders fly over your head.',
-    look: { dirt: [1.02, 0.84, 0.68], grass: [0.85, 1.05, 0.75], trees: 0.8, pines: 0.3, rocks: 0.4 },
-    terrain: { hills: 1.2, hillScale: 220, rim: 30, bumps: [] },
-    cross: { under: 0, over: 2, gap: 24, h: 3.0, h2: 2.8, face: 10, land: 11 },
-    segments: [str(150, 'Underpass Straight', [], 20), turn(270, 75, 0.7), str(150, 'Crossover Jump'), turn(-270, 75, 0.7)] },
-
-  // ---- big maps for quads and side-by-sides: wide, long, flowing
   { id: 'outback', name: 'Outback Station', difficulty: 'Medium', recommend: ['Side-by-Sides', 'Quads'], seed: 9211, defaultWidth: 20,
     desc: 'A huge red-dirt cattle station. Miles of wide trail, sweeping turns, big rollers and long tables - built for four wheels.',
     look: { dirt: [1.3, 0.8, 0.6], grass: [1.15, 1.0, 0.65], trees: 0.35, pines: 0.02, rocks: 1.6, fog: 0xebc9a6, skyTop: 0x3d84d6, horizon: 0xf2d6b8 },
@@ -111,13 +98,6 @@ const MAPS = [
     look: { snow: 0.7, dirt: [0.85, 0.85, 0.9], grass: [0.9, 0.95, 1.05], trees: 0.6, pines: 1.4, rocks: 2.4, fog: 0xdfe9f2, skyTop: 0x3566b0, horizon: 0xe6eef6 },
     terrain: { hills: 12, hillScale: 220, rim: 70, bumps: [{ x: 80, z: 80, r: 170, h: 16 }] },
     segments: [str(220, 'Basin Straight', [], 24), turn(100, 55, 0.5), str(220, 'Ice Rollers', [RO(24, 5, 16, 1.2), T(130, 2.2, 12, 12, 14)]), turn(80, 50, 0.5), str(200, 'Crevasse Gap', [D(30, 2.3, 12, 10, 2.1, 14)]), turn(-60, 60, 0.4), str(220, 'Moraine Whoops', [WH(24, 12, 6.5, 0.65), T(140, 2.0, 11, 11, 13)]), turn(130, 50, 0.5), str(200, 'Avalanche Table', [T(30, 2.4, 13, 14, 15)]), turn(60, 55, 0.5), str(160, 'Summit Bend', [RO(20, 3, 16, 1.1)]), turn(50, 50, 0.5)] },
-  { id: 'sunset', name: 'Sunset Dunes Ranch', difficulty: 'Easy', recommend: ['Side-by-Sides', 'Quads', 'Dirt Bikes'], seed: 9244, defaultWidth: 20,
-    desc: 'Open ranch land at golden hour. Wide, smooth and fast with big friendly tables - a cruising map for everyone.',
-    look: { sand: 0.4, dirt: [1.2, 0.95, 0.72], grass: [1.2, 1.0, 0.65], trees: 0.5, pines: 0.05, rocks: 0.6, fog: 0xf0c8a0, skyTop: 0x4a6fb0, horizon: 0xf6b98a },
-    terrain: { hills: 7, hillScale: 240, rim: 34, bumps: [] },
-    segments: [str(240, 'Ranch Straight', [], 26), turn(90, 60, 0.4), str(240, 'Golden Tables', [T(30, 1.6, 10, 10, 12), T(130, 1.8, 11, 11, 13)]), turn(90, 58, 0.4), str(220, 'Sage Rollers', [RO(24, 5, 18, 1.0)]), turn(-60, 70, 0.3), str(200, 'Corral Double', [D(30, 1.8, 10, 8, 1.6, 12)]), turn(150, 55, 0.5), str(220, 'Canyon Mouth', [T(40, 2.0, 11, 12, 13)]), turn(90, 60, 0.4)] },
-
-  // ---- race tracks: proper motocross circuits with lots of corners and rhythm
   { id: 'thunder', name: 'Thunder Raceway', difficulty: 'Medium', recommend: ['Dirt Bikes', 'Quads'], seed: 9255, defaultWidth: 14,
     desc: 'A pro motocross race circuit: holeshot straight, tight berms, rhythm sections and a big finish-line table.',
     look: { dirt: [0.95, 0.8, 0.66], grass: [0.82, 1.02, 0.74], trees: 0.7, pines: 0.3, rocks: 0.3 },
@@ -128,11 +108,6 @@ const MAPS = [
     look: { dirt: [0.88, 0.72, 0.58], grass: [0.78, 1.1, 0.72], trees: 1.8, pines: 0.2, rocks: 0.3, fog: 0xc7d8cc, skyTop: 0x4a85cc, horizon: 0xcfe1e6 },
     terrain: { hills: 5, hillScale: 180, rim: 30, bumps: [{ x: -60, z: 0, r: 80, h: -3 }] },
     segments: [str(150, 'Start Straight', [], 20), turn(90, 20), str(100, 'River Double', [D(16, 1.4, 6, 4.5, 1.2, 7)]), turn(90, 18), str(90, 'Bank Rollers', [RO(12, 4, 10, 0.8)]), turn(-45, 16), str(100, 'Willow Table', [T(18, 1.5, 7, 6, 8)]), turn(135, 18), str(80, 'Boat Ramp', [D(12, 1.5, 6.5, 5, 1.3, 7)]), turn(-45, 18), str(110, 'Meadow Whoops', [WH(12, 10, 4.4, 0.45)]), turn(135, 20)] },
-  { id: 'dustbowl', name: 'Dust Bowl Speedway', difficulty: 'Medium', recommend: ['Side-by-Sides', 'Quads'], seed: 9277, defaultWidth: 18,
-    desc: 'A side-by-side race track: wide banked corners, big rollers and long straights for drafting and passing.',
-    look: { dirt: [1.15, 0.95, 0.72], grass: [1.08, 1.0, 0.7], trees: 0.2, pines: 0.05, rocks: 0.8, fog: 0xe5cfae, skyTop: 0x4b88d0, horizon: 0xeedcc0 },
-    terrain: { hills: 3, hillScale: 220, rim: 30, bumps: [] },
-    segments: [str(220, 'Front Straight', [], 24), turn(90, 36, 1.1), str(110, 'Dust Table', [T(24, 2.0, 12, 12, 13)]), turn(90, 36, 1.1), str(220, 'Back Rollers', [RO(24, 5, 16, 1.1), T(140, 1.8, 11, 11, 12)]), turn(90, 36, 1.1), str(110, 'Short Chute', [D(24, 1.8, 10, 8, 1.6, 11)]), turn(90, 36, 1.1)] },
 ];
 
 // Figure 8: find where the 'over' straight crosses the 'under' straight and put a double there
