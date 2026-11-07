@@ -48,7 +48,7 @@ export class AdminPanel {
 
     // cheats only change your own vehicle, in this browser
     this.cheats = {};
-    const CHEATS = [['adm-god', 'god'], ['adm-moon', 'moon'], ['adm-turbo', 'turbo'], ['adm-hyper', 'hyper'], ['adm-jump', 'jump'], ['adm-ghost', 'ghost'], ['adm-freeze', 'freezeAi'], ['adm-slowmo', 'slowmo'], ['adm-giant', 'giant'], ['adm-tiny', 'tiny']];
+    const CHEATS = [['adm-god', 'god'], ['adm-moon', 'moon'], ['adm-turbo', 'turbo'], ['adm-hyper', 'hyper'], ['adm-jump', 'jump'], ['adm-ghost', 'ghost'], ['adm-freeze', 'freezeAi'], ['adm-slowmo', 'slowmo'], ['adm-giant', 'giant'], ['adm-tiny', 'tiny'], ['adm-flips', 'fastflips']];
     for (const [id, k] of CHEATS) {
       $(id).onchange = () => {
         this.cheats[k] = $(id).checked;
@@ -71,6 +71,7 @@ export class AdminPanel {
   applyCheats() {
     const g = this.ui.game;
     if (g) g.cheats = this.allowed() ? { ...this.cheats } : {};
+    globalThis.__flipMul = this.allowed() && this.cheats.fastflips ? 10000 : 1; // flips 10,000x faster (admin test cheat)
   }
 
   toggle(on) {

@@ -106,11 +106,6 @@ export class UI {
     });
     $('region-chip').addEventListener('click', () => { this.settingsTab = 'Online'; this.show('settings'); });
     $('updates-btn').addEventListener('click', () => this.showUpdates());
-    $('flipcheat-btn').addEventListener('click', () => { // admin-only test cheat: flips 10,000x faster (this browser only)
-      if (!(this.account.profile && this.account.profile.admin)) return;
-      globalThis.__flipMul = globalThis.__flipMul > 1 ? 1 : 10000;
-      $('flipcheat-btn').textContent = 'Fast flips: ' + (globalThis.__flipMul > 1 ? 'ON' : 'off');
-    });
     $('rename-btn').addEventListener('click', async () => {
       $('profile-menu').hidden = true;
       const A = this.account, P = A && A.profile;
@@ -236,7 +231,6 @@ export class UI {
     const A = this.account;
     if (!A || !A.profile) return;
     const s = A.profile.stats || {};
-    $('flipcheat-btn').hidden = !A.profile.admin;
     $('profile-stats').innerHTML = `<b>${escapeHtml(A.profile.name)}</b><br>${A.mode === 'online' ? 'Online account' : A.mode === 'guest' ? 'Guest - progress saved in this browser' : 'Offline account (this computer)'}<br>Level <b>${levelInfo(A.profile.xp || 0).level}</b> &bull; Laps <b>${s.laps || 0}</b> &bull; Wins <b>${s.wins || 0}</b> &bull; Tricks <b>${s.tricks || 0}</b>${A.profile.ranked && A.profile.ranked.races ? `<br>Ranked <b>${A.profile.tier} ${A.profile.rating}</b>` : ""}`;
     $('logout-btn').textContent = A.mode === 'guest' ? 'Log in / create account' : 'Log out';
   }
