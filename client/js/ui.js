@@ -339,12 +339,12 @@ export class UI {
     const rating = (P && (two ? P.rating2 : P.rating)) || RANK_START, tier = rankTier(rating), R = (P && (two ? P.ranked2 : P.ranked)) || { races: 0, wins: 0 };
     $('rk-badge').innerHTML = rankBadge(tier, 150);
     const placed = !P || P.placed || (R.races || 0) >= PLACEMENTS;
-    $('rk-tier').textContent = placed ? tier : 'Placement ' + (R.races || 0) + '/' + PLACEMENTS; $('rk-tier').className = 'tier-name ' + (placed ? tier : '');
+    $('rk-tier').textContent = placed ? tier : 'Unranked'; $('rk-tier').className = 'tier-name ' + (placed ? tier : '');
     $('rk-rating').textContent = rating;
-    $('rk-record').textContent = !placed ? (PLACEMENTS - (R.races || 0)) + ' placement match' + (PLACEMENTS - (R.races || 0) === 1 ? '' : 'es') + ' left' : R.races ? `${R.wins}W / ${R.races}` : 'Unranked';
+    $('rk-record').textContent = !placed ? 'Placement ' + (R.races || 0) + '/' + PLACEMENTS : R.races ? `${R.wins}W / ${R.races}` : 'Unranked';
     const nx = nextTier(tier), from = tierStart(tier);
     $('rk-fill').style.width = (nx ? Math.max(3, Math.min(100, ((rating - from) / (nx[1] - from)) * 100)) : 100) + '%';
-    $('rk-next').textContent = nx ? `${nx[1] - rating} rating to ${nx[0]}` : 'Top rank - stay there!';
+    $('rk-next').textContent = !placed ? 'Win or lose, play ' + (PLACEMENTS - (R.races || 0)) + ' more ranked match' + (PLACEMENTS - (R.races || 0) === 1 ? '' : 'es') + ' to get your rank' : nx ? `${nx[1] - rating} rating to ${nx[0]}` : 'Top rank - stay there!';
     if ($('rk-ladder')) $('rk-ladder').innerHTML = RANK_TIERS.map(([n, min], i) => { const hi = RANK_TIERS[i + 1] ? RANK_TIERS[i + 1][1] - 1 : null; return `<div class="rung${n === tier ? ' me' : ''}">${rankBadge(n, 44)}<div><b class="tier-name ${n}">${n}</b><small>${hi ? min + ' - ' + hi : min + '+'}</small></div></div>`; }).join('');
     const q = this.mmState;
     const net = this.net, duo = two && net && net.party && !net.party.match && net.party.members.length === 2;
@@ -372,7 +372,8 @@ export class UI {
     try {
       const d = await (await fetch(serverBase() + '/api/queues')).json();
       const n = (d && d.ranked) | 0;
-      for (const id of ['nav-qn', 'rk-qn']) { const e = $(id); if (e) { e.hidden = !n; e.textContent = n; e.title = n + ' searching for a ranked match'; } }
+      const nav = $('nav-qn'); if (nav) { nav.hidden = !n; nav.textContent = n; nav.title = n + ' searching for a ranked match'; }
+      const top = $('rk-qn'); if (top) { top.hidden = !n; top.textContent = n + (n === 1 ? ' rider searching' : ' riders searching'); }
     } catch { /* offline */ }
   }
 

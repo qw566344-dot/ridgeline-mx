@@ -631,17 +631,6 @@ export const VEHICLES = [
   },
   {
     ...ATV_BASE,
-    id: 'atv90', modelKey: 'q_atv90', ...quadShape('atv90'), name: 'Pit Quad 90', paint: 'pink', tier: 'Starter',
-    desc: 'A little pit quad. Slow but impossible to fall off - perfect for learning the jumps.',
-    stats: { speed: 4, accel: 5, handling: 9, stability: 9, suspension: 5 },
-    mass: 210, inertia: [64, 78, 35],
-    crash: { ...ATV_BASE.crash, impact: ATV_BASE.crash.impact * 1.35 }, // forgiving landings: it is the learner's quad
-    steer: { ...ATV_BASE.steer, rate: 3.6 },
-    air: { ...ATV_BASE.air, flipRate: 4.8, spinRate: 4.5 },
-    engine: engine({ idle: 1800, redline: 10000, torque: [[1000, 11], [3000, 17], [6000, 23], [8000, 24], [9500, 21], [10500, 17]], gearSpeeds: [8, 12, 16, 19.5, 23], reverseSpeed: 3 }),
-  },
-  {
-    ...ATV_BASE,
     id: 'atv450w', modelKey: 'q_atv450w', ...quadShape('atv450w', (w) => ({ ...w, freq: w.freq * 1.06, mu: w.mu * 1.04 })), name: 'Pro 450R Works', paint: 'purple', tier: 'Works',
     desc: 'The factory race quad: more power, race shocks and wider grip. The quickest quad around a track.',
     stats: { speed: 9, accel: 9, handling: 9, stability: 8, suspension: 9 },

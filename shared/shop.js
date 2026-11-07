@@ -73,7 +73,6 @@ export const SHOP = [
   { id: 'mx500', slot: 'vehicle', price: 11000 },
   { id: 'atv1000', slot: 'vehicle', price: 12000 },
   { id: 'mx85', slot: 'vehicle', price: 1200 },
-  { id: 'atv90', slot: 'vehicle', price: 1000 },
   { id: 'volt', slot: 'vehicle', price: 8000 },
   { id: 'atv450w', slot: 'vehicle', price: 9000 },
   { id: 'sm450', slot: 'vehicle', price: 13000 },

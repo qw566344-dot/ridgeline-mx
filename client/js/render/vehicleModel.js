@@ -408,7 +408,6 @@ function buildUnicycle(cfg, scheme) {
 // so a backfire flash comes out of the real pipe on every variant that shares the model.
 const EXHAUST = {
   bike: { p: [-0.72, 0.86, 0.08], d: [-1, 0.06, 0] },
-  q_atv90: { p: [-0.537, 0.49, -0.12], d: [-1, 0, 0] },
   q_atv250: { p: [-0.766, 0.64, -0.18], d: [-1, 0, 0] },
   q_atv450: { p: [-0.852, 0.72, -0.21], d: [-1, 0, 0] },
   q_atv450w: { p: [-0.758, 0.68, -0.2], d: [-1, 0, 0] },

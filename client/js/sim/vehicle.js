@@ -20,6 +20,7 @@ export const GRAVITY = 9.81;
 
 const V = () => new THREE.Vector3();
 const g0 = { h: 0, nx: 0, ny: 1, nz: 0 };
+const g1 = { h: 0, nx: 0, ny: 1, nz: 0 }; // second ground sample for the tyre edges
 const _t = [V(), V(), V(), V(), V(), V(), V(), V()];
 const _q = new THREE.Quaternion();
 const _m = new THREE.Matrix4();
@@ -174,7 +175,9 @@ export class Vehicle {
     tb.applyQuaternion(this.quat);
     this.angVel.addScaledVector(tb, dt);
     const wl = this.angVel.length();
-    if (wl > 25) this.angVel.multiplyScalar(25 / wl);
+    // (the admin Fast flips cheat lifts the spin-rate limit - 25 rad/s capped it at about four turns a second)
+    const wMax = globalThis.__flipMul > 1 ? 300 : 25;
+    if (wl > wMax) this.angVel.multiplyScalar(wMax / wl);
     this.pos.addScaledVector(this.vel, dt);
     const q = this.quat, w = this.angVel;
     const qx = q.x, qy = q.y, qz = q.z, qw = q.w, h = 0.5 * dt;
@@ -346,18 +349,33 @@ export class Vehicle {
     groundAt(W, mount.x, mount.z, g0);
     let dn = dX * g0.nx + dY * g0.ny + dZ * g0.nz;
     w.wasContact = w.contact;
-    let ext = c.travel + 1;
+    let ext = c.travel + 1, lastCx = mount.x, lastCz = mount.z;
     if (dn < -0.3) {
       ext = ((mount.y - g0.h) * g0.ny - c.r) / -dn;
       // refine: re-sample ground where the tyre actually touches
       for (let it = 0; it < 2; it++) {
         const cx = mount.x + dX * ext - g0.nx * c.r, cz = mount.z + dZ * ext - g0.nz * c.r;
         groundAt(W, cx, cz, g0);
+        lastCx = cx; lastCz = cz;
         dn = dX * g0.nx + dY * g0.ny + dZ * g0.nz;
         if (dn >= -0.3) { ext = c.travel + 1; break; }
         // signed distance of mount from the plane through (cx, h, cz)
         const dist = (mount.x - cx) * g0.nx + (mount.y - g0.h) * g0.ny + (mount.z - cz) * g0.nz;
         ext = (dist - c.r) / -dn;
+      }
+    }
+    // the tyre is not a point: it rests on the higher of its two edges (berm walls, ruts, kerbs), so it no longer
+    // sinks into the side of a bump that the centre line misses
+    if (ext <= c.travel) {
+      const hw = 0.36 * c.r, lx = this.left.x * hw, lz = this.left.z * hw;
+      for (let sg = -1; sg <= 1; sg += 2) {
+        const ex = lastCx + lx * sg, ez = lastCz + lz * sg;
+        groundAt(W, ex, ez, g1);
+        const dn2 = dX * g1.nx + dY * g1.ny + dZ * g1.nz;
+        if (dn2 < -0.3) {
+          const e2 = ((mount.x - ex) * g1.nx + (mount.y - g1.h) * g1.ny + (mount.z - ez) * g1.nz - c.r) / -dn2;
+          if (e2 < ext && e2 > ext - 0.15) ext = e2;
+        }
       }
     }
     if (ext > c.travel) {
