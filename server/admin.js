@@ -220,7 +220,17 @@ export class Admin {
   // "an admin wants to join you": handed to that rider's game with its next friends poll
   pull(key, from) { this.pulls.set(key, { from, at: Date.now() }); }
   takePull(key) { const x = this.pulls.get(key); this.pulls.delete(key); return x && Date.now() - x.at < 60_000 ? x : null; }
+  isDev(u) { return !!u && (this.A.db.devs || []).includes(u.key); }
   isAdmin(u) { return !!u && (ADMINS.includes(u.key) || (this.A.db.admins || []).includes(u.key)); }
+
+  devUsers(q) {
+    q = String(q || '').trim().toLowerCase();
+    const F = this.A.friends;
+    const users = Object.values(this.A.db.users).filter((u) => !q || u.key.includes(q))
+      .map((u) => ({ name: u.name, online: !!(F && F.online(u.key)), admin: this.isAdmin(u) || this.isDev(u), muted: !!this.muted(u) }))
+      .sort((a, b) => (b.online - a.online) || a.name.localeCompare(b.name)).slice(0, 30);
+    return { users };
+  }
 
   users(q) {
     q = String(q || '').trim().toLowerCase();
@@ -355,7 +365,14 @@ export class Admin {
 
   handle(route, u, m, url) {
     if (!route.startsWith('admin/')) return null;
-    if (!this.isAdmin(u)) return { error: 'Admins only' };
+    if (!this.isAdmin(u)) {
+      // devs get the mini panel: search riders and mute them, nothing else
+      if (!this.isDev(u) || !['admin/mute', 'admin/users'].includes(route)) return { error: 'Admins only' };
+      if (route === 'admin/users') return this.devUsers(url.searchParams.get('q'));
+      const t = this.find(m.name);
+      if (t && (this.isAdmin(t) || this.isDev(t))) return { error: 'Devs can not mute admins or other devs' };
+      return this.mute(u, m);
+    }
     const out = this.route(route, u, m, url);
     // everything that changes something goes in the log (the new tools log themselves)
     const logged = { 'admin/coins': 'coins', 'admin/unlock': 'unlock', 'admin/give': 'give', 'admin/xp': 'xp', 'admin/reset': 'reset', 'admin/ban': 'ban', 'admin/delete': 'delete', 'admin/giftall': 'giftall', 'admin/announce': 'announce', 'admin/chatclear': 'chatclear', 'admin/event': 'event' };

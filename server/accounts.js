@@ -142,7 +142,7 @@ export class Accounts {
   hash(password, salt) { return crypto.scryptSync(String(password), salt, 32).toString('hex'); }
 
   profile(u) {
-    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, rating2: u.rating2 || RANK_START, tier2: rankTier(u.rating2 || RANK_START), ranked2: u.ranked2 || { races: 0, wins: 0 }, placed: ((u.ranked && u.ranked.races) || 0) >= PLACEMENTS, renames: u.renames || 0, pass: u.pass || [], passP: u.passP || [], passPremium: !!u.passPremium, admin: this.admin.isAdmin(u) };
+    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, rating2: u.rating2 || RANK_START, tier2: rankTier(u.rating2 || RANK_START), ranked2: u.ranked2 || { races: 0, wins: 0 }, placed: ((u.ranked && u.ranked.races) || 0) >= PLACEMENTS, renames: u.renames || 0, pass: u.pass || [], passP: u.passP || [], passPremium: !!u.passPremium, admin: this.admin.isAdmin(u), dev: this.admin.isDev(u) };
   }
 
   issue(u) {
