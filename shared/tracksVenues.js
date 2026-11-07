@@ -215,3 +215,45 @@ export const VENUE_TRACKS = [
     finishAt: 200,
   },
 ];
+
+// =====================================================================
+//  RAMPAGE TRICK PARK - a dedicated trick map. Ride anywhere. Two kicker lines that grow
+//  from a small hop to a big gap (one each way), quarter pipes round both walls, a spine,
+//  a funbox pyramid and side hips, with a short loop that goes through the park.
+// =====================================================================
+function trickPark() {
+  const ramps = [];
+  for (const x of [-180, -120, -60, 0, 60, 120, 180]) ramps.push({ type: 'quarter', x, z: 190, dir: 3.14, w: 22, r: 7 }, { type: 'quarter', x, z: -190, dir: 0, w: 22, r: 7 });
+  // progression lines: small -> big, on both sides (A rides +x, B rides -x)
+  const K = [[-170, 1.2, 8, 9, 12], [-100, 2, 10, 13, 16], [-20, 3, 11, 18, 20], [70, 4.2, 13, 24, 24]];
+  for (const [x, h, len, gap, L] of K) {
+    ramps.push({ type: 'kicker', x, z: -130, dir: 1.57, w: 8, len, h, gap, landH: h * 1.07, landLen: L });
+    ramps.push({ type: 'kicker', x: -x, z: 130, dir: -1.57, w: 8, len, h, gap, landH: h * 1.07, landLen: L });
+  }
+  // funbox pyramid and hips on the far side of the loop
+  ramps.push({ type: 'box', x: 0, z: 0, dir: 1.57, w: 16, top: 14, s: 6, h: 3 }, { type: 'box', x: 0, z: 0, dir: 1.57, w: 8, top: 6, s: 3.5, h: 4.4 });
+  ramps.push({ type: 'box', x: -75, z: 0, dir: 1.57, w: 12, top: 10, s: 5, h: 2.2 }, { type: 'box', x: 75, z: 0, dir: 1.57, w: 12, top: 10, s: 5, h: 2.2 });
+  // spine: two quarters back to back
+  ramps.push({ type: 'quarter', x: 0, z: -80, dir: 0, w: 20, r: 5 }, { type: 'quarter', x: 0, z: -88, dir: 3.14, w: 20, r: 5 });
+  ramps.push({ type: 'quarter', x: 0, z: 80, dir: 3.14, w: 20, r: 5 }, { type: 'quarter', x: 0, z: 88, dir: 0, w: 20, r: 5 });
+  return {
+    id: 'trickpark', recommend: ['Dirt Bikes', 'Quads'], open: true, freestyle: true,
+    name: 'Rampage Trick Park', difficulty: 'Freestyle',
+    desc: 'The trick park: two kicker lines from a small hop up to a big gap, quarter pipes round both walls, a spine, a funbox pyramid and hips. Ride anywhere.',
+    worldSize: 560,
+    seed: 7707,
+    start: { x: -150, z: 34, heading: 0 },
+    defaultWidth: 24,
+    look: { venue: 'yard', dirt: [0.95, 0.8, 0.66], floor: [0.42, 0.4, 0.37], trees: 0, rocks: 0, fog: 0xd8d2c6, skyTop: 0x4f86c9, horizon: 0xe2dccf },
+    terrain: { hills: 0, hillScale: 100, rim: 26, rimStart: 235, rimSharp: true, bumps: [], ramps },
+    segments: [
+      { len: 300, w: 24, free: true, name: 'Park loop', features: [] },
+      { turn: 180, r: 30, berm: 0.6 },
+      { len: 300, w: 24, free: true, name: 'Park loop back', features: [] },
+      { turn: 180, r: 30, berm: 0.6 },
+    ],
+    gateAt: 14,
+    finishAt: 200,
+  };
+}
+VENUE_TRACKS.push(trickPark());

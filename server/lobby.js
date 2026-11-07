@@ -16,6 +16,8 @@ import { LapTracker, GAME } from '../shared/rules.js';
 import { GEAR_SETS, RANK_START, PLACEMENTS, rankTier, EXTRA_SLOTS, extraOf } from '../shared/shop.js';
 import { CODE_CHARS, CODE_LENGTH, validCode, cleanName, STATE_LEN, MODES, SNAPSHOT_RATE, PROTOCOL_VERSION } from '../shared/protocol.js';
 
+// rating where the harder track pools start (Gold / Diamond, see RANK_TIERS in shared/shop.js)
+const RANK_TIERS_MIN = { gold: 1250, diamond: 1550 };
 const LOAD_WAIT_MS = 15000; // longest wait for a slow rider to load the track
 const GO_DELAY_MS = 3000;   // then 3-2-1 (the gate drops 1 s after goAt on the riders' screens)
 
@@ -303,7 +305,18 @@ export class Lobby {
     party.match = { mode, keys: new Map(entries.map((e) => [e.p.id, e.key])) };
     if (teams) party.match.team = new Map(teams.flatMap((t, i) => t.map((e) => [e.p.id, i])));
     for (const e of entries.slice(1)) this.addMember(party, e.p);
-    const pool = TRACKS.filter((t) => !t.freestyle && !t.open && t.difficulty !== 'Freestyle' && t.id !== 'practice');
+    let pool = TRACKS.filter((t) => !t.freestyle && !t.open && t.difficulty !== 'Freestyle' && t.id !== 'practice');
+    // ranked: the higher the riders' rating, the harder the tracks (Bronze/Silver: easy-medium, Gold/Platinum: medium-hard,
+    // Diamond/Pro: hard-expert); casual stays a mix of everything but the expert tracks
+    if (mode === 'ranked') {
+      const avg = entries.reduce((k, e) => k + (e.rating || RANK_START), 0) / entries.length;
+      const want = avg >= RANK_TIERS_MIN.diamond ? ['Hard', 'Expert'] : avg >= RANK_TIERS_MIN.gold ? ['Medium', 'Hard'] : ['Easy', 'Medium'];
+      const sel = pool.filter((t) => want.includes(t.difficulty));
+      if (sel.length) pool = sel;
+    } else {
+      const sel = pool.filter((t) => t.difficulty !== 'Expert');
+      if (sel.length) pool = sel;
+    }
     party.settings = { track: pool[Math.floor(Math.random() * pool.length)].id, mode: 'race', laps: 2 };
     this.log(`[${party.code}] ${mode} match: ${entries.map((e) => e.p.name).join(', ')} on ${party.settings.track}`);
     const T = party.match.team;

@@ -469,6 +469,145 @@ export const MORE_TRACKS = [
   finishAt: 100
  },
  {
+  id: "coastline",
+  name: "Coastline Cup",
+  difficulty: "Medium",
+  recommend: [
+   "Dirt Bikes",
+   "Quads",
+   "Side-by-Sides"
+  ],
+  seed: 9066,
+  defaultWidth: 15,
+  desc: "A fast, flowing seaside track on the cliffs: wide berms, a double rhythm, surf whoops and a lighthouse triple. Built for casual races.",
+  look: {
+   sand: 0.45,
+   dirt: [
+    1.15,
+    1,
+    0.82
+   ],
+   grass: [
+    0.95,
+    1.12,
+    0.8
+   ],
+   trees: 0.5,
+   pines: 0.1,
+   rocks: 1.2,
+   fog: 13625074,
+   skyTop: 3114713,
+   horizon: 14413559
+  },
+  terrain: {
+   hills: 7,
+   hillScale: 190,
+   rim: 36,
+   bumps: [],
+   rimStart: 172
+  },
+  segments: [
+   {
+    len: 180,
+    name: "Start Straight",
+    features: [],
+    w: 22,
+    free: true
+   },
+   {
+    turn: 90,
+    r: 28,
+    berm: 0.8
+   },
+   {
+    len: 140,
+    name: "Cliff Rhythm",
+    features: [
+     {
+      at: 14,
+      type: "double",
+      h: 1.5,
+      face: 6.5,
+      gap: 5,
+      h2: 1.3,
+      land: 8
+     },
+     {
+      at: 64,
+      type: "double",
+      h: 1.6,
+      face: 6.5,
+      gap: 5,
+      h2: 1.4,
+      land: 8
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 26,
+    berm: 0.8
+   },
+   {
+    len: 160,
+    name: "Surf Whoops",
+    features: [
+     {
+      at: 16,
+      type: "whoops",
+      n: 12,
+      len: 5,
+      h: 0.5
+     },
+     {
+      at: 104,
+      type: "table",
+      h: 1.4,
+      face: 7,
+      top: 6,
+      land: 8
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 26,
+    berm: 0.8
+   },
+   {
+    len: 130,
+    name: "Lighthouse Triple",
+    features: [
+     {
+      at: 18,
+      type: "triple",
+      h: 1.5,
+      face: 6.5,
+      gap: 5,
+      h2: 1.5,
+      land: 8
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 28,
+    berm: 0.8
+   }
+  ],
+  worldSize: 524,
+  start: {
+   x: -84,
+   z: 95,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
   id: "harbor",
   name: "Sand Harbor",
   difficulty: "Easy",

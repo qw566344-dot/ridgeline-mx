@@ -333,12 +333,12 @@ const ATV_BASE = {
   ],
   damping: { bump: 0.5, rebound: 0.78 },
   progressive: 5,
-  steer: { maxLow: 35, maxHigh: 9, highSpeed: 22, rate: 3.8, airYaw: 0.9, latAcc: 10.0 }, // quicker, sharper than before
+  steer: { maxLow: 35, maxHigh: 12, highSpeed: 22, rate: 4.4, airYaw: 0.9, latAcc: 11.5 }, // more bite at speed: quads used to plough straight on
   antiRoll: 16000,                 // N per metre of left/right compression difference
   rollCentre: 0.68,                // 0 = tyre forces at the ground (tippy), 1 = at the CoM (can't tip)
-  riderLean: 900,                  // N m of body-English torque when steering
+  riderLean: 1100,                 // N m of body-English torque when steering
   riderBalance: 5200,              // N m per radian: the rider throws weight to the high side
-  axleScrub: 0.14,                 // solid rear axle resists turning (understeer)
+  axleScrub: 0.10,                 // solid rear axle resists turning (understeer)
   air: { flipRate: 4.3, flipAccel: 7.4, spinDamp: 1.0, gyro: 1.5, whip: 35, spinRate: 3.9 },
   brakes: { front: 2100, rear: 1500 },
   crash: { landPitch: 66, impact: 19, roll: 88, loop: 90 },

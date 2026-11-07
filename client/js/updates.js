@@ -17,6 +17,11 @@ export const UPDATES = [
       'Buggies and side-by-sides now keep their momentum in the air with a soft, realistic nose levelling and steering yaw',
       'Quad handlebars turn visibly with your steering, and the rider keeps their hands on them',
       'The rider rolls their throttle hand as you accelerate',
+      'New map: Coastline Cup, a flowing seaside track for casual races',
+      'New trick map: Rampage Trick Park - kicker lines from a small hop to a big gap, quarter pipes, a spine and a funbox pyramid',
+      'Ranked tracks get harder as your rank goes up: easy/medium for Bronze and Silver, medium/hard for Gold and Platinum, hard/expert for Diamond and Pro',
+      'Quads turn in better at speed',
+      'The game now loads with far less data: files are compressed and only re-downloaded when they change',
     ],
   },
   {
