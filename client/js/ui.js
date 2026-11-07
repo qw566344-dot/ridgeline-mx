@@ -372,8 +372,8 @@ export class UI {
     try {
       const d = await (await fetch(serverBase() + '/api/queues')).json();
       const n = (d && d.ranked) | 0;
-      const nav = $('nav-qn'); if (nav) { nav.hidden = !n; nav.textContent = n; nav.title = n + ' searching for a ranked match'; }
-      const top = $('rk-qn'); if (top) { top.hidden = !n; top.textContent = n + (n === 1 ? ' rider searching' : ' riders searching'); }
+      const nav = $('nav-qn'); if (nav) { nav.hidden = false; nav.textContent = n; nav.title = n + ' searching for a ranked match'; }
+      const top = $('rk-qn'); if (top) { top.hidden = false; top.textContent = n + (n === 1 ? ' rider searching' : ' riders searching'); }
     } catch { /* offline */ }
   }
 

@@ -42,3 +42,7 @@ export function cleanName(name) {
   const s = String(name || '').replace(/[^\w \-.]/g, '').trim().slice(0, 16);
   return s || 'Rider';
 }
+
+// Change this string and every rider has to log in again after the update: the server drops every login token and
+// each browser forgets its saved login (server/accounts.js applyEpochs, client/js/account.js).
+export const LOGIN_EPOCH = '2026-11-07-1';

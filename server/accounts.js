@@ -27,6 +27,10 @@ import { Casino } from './casino.js';
 import { hasBadWords } from '../shared/badwords.js';
 import { todaysChallenges, statsFor, dayNo, weekNo, dayEnds, weekEnds } from '../shared/challenges.js';
 import { Admin, ADMINS } from './admin.js';
+import { LOGIN_EPOCH } from '../shared/protocol.js';
+
+// One-off resets that run once per value (stored in the save): placement matches for everyone's ranked rating
+const RANK_EPOCH = 'placements-1';
 import { PASS, passTier, PASS_PRICE } from '../shared/pass.js';
 
 const splitKey = (k) => { const [s, ...rest] = String(k).split(':'); return [s, rest.join(':')]; };
@@ -45,6 +49,7 @@ export class Accounts {
     this.db = { users: {} };
     try { this.db = JSON.parse(fs.readFileSync(this.file, 'utf8')); } catch { /* first run */ }
     this.tokens = new Map();
+    this.fresh = new Set(); // logins issued since this server started (the update's forced logout spares them)
     for (const u of Object.values(this.db.users)) for (const t of u.tokens || []) this.tokens.set(t, u.key);
     this.attempts = new Map();
     this.bannedTokens = new Map(); // login tokens of riders banned since the server started -> reason (so their game hears "banned")
@@ -58,7 +63,33 @@ export class Accounts {
     // must not overwrite everyone's accounts (see loadCloud)
     this.cloudLoaded = !cloudEnabled;
     this.cloudBusy = false; this.cloudDirty = false; this.cloudRetry = null;
+    this.applyEpochs();
     this.ready = this.loadCloud();
+  }
+
+  // The update logs everyone out (LOGIN_EPOCH) and everyone's ranked rating starts over with placement matches
+  // (RANK_EPOCH). Each runs once: the save remembers which values it has applied. Runs on the local file at start
+  // and again on the cloud copy once it has loaded.
+  applyEpochs() {
+    const db = this.db;
+    if (!db.users) return;
+    let changed = false;
+    if (db.loginEpoch !== LOGIN_EPOCH) {
+      for (const u of Object.values(db.users)) u.tokens = (u.tokens || []).filter((t) => this.fresh.has(t));
+      this.tokens = new Map();
+      for (const u of Object.values(db.users)) for (const t of u.tokens) this.tokens.set(t, u.key);
+      db.loginEpoch = LOGIN_EPOCH; changed = true;
+      console.log('Accounts: everyone has been logged out (new update)');
+    }
+    if (db.rankEpoch !== RANK_EPOCH) {
+      for (const u of Object.values(db.users)) {
+        u.rating = RANK_START; u.ranked = { races: 0, wins: 0 };
+        delete u.rating2; delete u.ranked2;
+      }
+      db.rankEpoch = RANK_EPOCH; changed = true;
+      console.log('Accounts: all ranked ratings were reset for placement matches');
+    }
+    if (changed) this.save();
   }
 
   // with a cloud save set up, the accounts there win over the (wiped) local file.
@@ -90,6 +121,7 @@ export class Accounts {
     this.db = db;
     this.tokens = new Map();
     for (const u of Object.values(this.db.users)) for (const t of u.tokens || []) this.tokens.set(t, u.key);
+    this.applyEpochs();
   }
 
   // one cloud write at a time, always the latest data; a failed write is retried
@@ -148,7 +180,7 @@ export class Accounts {
   issue(u) {
     const t = crypto.randomBytes(24).toString('hex');
     u.tokens = [...(u.tokens || []).slice(-4), t];
-    this.tokens.set(t, u.key);
+    this.tokens.set(t, u.key); this.fresh.add(t);
     this.save();
     return t;
   }

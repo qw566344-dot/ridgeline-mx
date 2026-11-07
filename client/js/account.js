@@ -7,6 +7,7 @@
 //  browser instead, with the password hashed. Guests also save locally.
 // =====================================================================
 import { serverBase } from './config.js';
+import { LOGIN_EPOCH } from '/shared/protocol.js';
 import { hasBadWords } from '/shared/badwords.js';
 import { STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel, TP_PER_COIN } from '/shared/shop.js';
 
@@ -53,6 +54,8 @@ function freshProfile(name) {
 // restart; logging in then quietly re-creates the account from this copy.
 export class Account {
   constructor() {
+    // a new update asks everyone to log in again: this browser forgets its saved login once per LOGIN_EPOCH
+    if (LS.get('mx.epoch', null) !== LOGIN_EPOCH) { if (LS.get('mx.account', null)) LS.del('mx.account'); LS.set('mx.epoch', LOGIN_EPOCH); }
     const saved0 = LS.get('mx.account', null);
     const saved = saved0 && saved0.mode !== 'guest' ? saved0 : null; // guest play was removed: everyone logs in
     this.mode = saved ? saved.mode : null;   // 'online' | 'offline' | 'guest' | null
