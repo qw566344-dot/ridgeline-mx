@@ -1494,3 +1494,14 @@ body.crazy #nav [data-go="ranked"], body.crazy #nav [data-go="leaderboard"], bod
 body.crazy #nav [data-go="challenges"], body.crazy #nav [data-go="casino"], body.crazy #updates-btn, body.crazy #level-chip,
 body.crazy #friends-btn, body.crazy #rename-btn, body.crazy #logout-btn, body.crazy #region-chip, body.crazy #chat,
 body.crazy .card:has(#party-solo), body.crazy .card:has(#friends-mini), body.crazy #profile-stats { display: none !important; }
+
+/* privacy link in the menu, and the cookie notice */
+.menu-pop #privacy-link { display: block; padding: 8px 12px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 15px; }
+.menu-pop #privacy-link:hover { background: var(--card-3); }
+body.crazy #privacy-link { display: none !important; }
+.consent { position: fixed; left: 16px; bottom: 16px; z-index: 150; max-width: 420px; padding: 14px 16px; border-radius: 14px; background: rgba(20, 24, 34, 0.96); border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 12px 32px rgba(0,0,0,0.5); display: grid; gap: 10px; font-size: 13px; line-height: 1.45; }
+.consent[hidden] { display: none; }
+.consent p { margin: 0; color: #cbd2de; }
+.consent a { color: #7fb4ff; }
+.consent-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.consent-btns button { padding: 7px 14px; font-size: 13px; }

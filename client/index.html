@@ -75,6 +75,7 @@
             <button id="tutorial-btn">Tutorial</button>
             <button data-go="controls">Controls</button>
             <button data-go="credits">Credits</button>
+            <a id="privacy-link" href="/privacy.html" target="_blank" rel="noopener">Privacy policy</a>
             <button id="logout-btn">Log out</button>
           </div>
         </div>
@@ -523,6 +524,11 @@
 
     <!-- party invites + menu notices, shown over everything -->
     <div id="popups" class="popups"></div>
+    <!-- cookie / privacy notice (first visit only; js/consent.js) -->
+    <div id="consent" class="consent" hidden>
+      <p>We use local storage to keep you logged in and save your progress, and our ad partners may use cookies. <a href="/privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
+      <div class="consent-btns"><button id="consent-min">Essential only</button><button id="consent-all" class="primary">Accept</button></div>
+    </div>
     <!-- a box in the middle that waits for an answer (the ban popup, the admin's ban dialog) -->
     <div id="modal" class="modal-wrap" hidden><div class="sheet narrow modal-box" id="modal-box"></div></div>
   </div>

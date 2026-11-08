@@ -15,6 +15,7 @@ import { Thumbs } from './thumbs.js';
 import { CasinoUI } from './casino.js';
 import { AdminPanel } from './admin.js';
 import { CRAZY, crazyInit, crazyLoading, crazyAudio, gameplay, midgameAd } from './crazy.js';
+import { initConsent } from './consent.js';
 import { DevPanel } from './devpanel.js';
 import { ChatBox } from './chat.js';
 import { Net } from './net.js';
@@ -224,6 +225,7 @@ window.addEventListener('pointerdown', () => audio.unlock(), { once: false });
 window.addEventListener('keydown', () => audio.unlock());
 
 // ---- boot
+initConsent();
 (async () => {
   crazyLoading(true);
   ui.showLoading('Loading vehicles...');
