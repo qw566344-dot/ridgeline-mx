@@ -223,38 +223,95 @@
 
     <!-- ADMIN (press - , admin accounts only) -->
     <div id="admin" class="screen overlay" hidden>
-      <div class="sheet wide">
-        <div class="sheet-head"><h2>Admin panel</h2><span id="adm-total" class="hint"></span></div>
-        <div class="adm-tools">
-          <div id="adm-stats" class="adm-stats"></div>
-          <div class="adm-row"><span class="lbl">Announce</span><input id="adm-ann" placeholder="Message that pops up for everyone online" maxlength="140" style="flex:1"><button id="adm-ann-go" class="small">Send</button><button id="adm-ann-clear" class="small">Clear</button></div>
-          <div class="adm-row"><span class="lbl">Chat</span><button id="adm-chat-clear" class="small danger">Clear chat for everyone</button><span class="hint">(click a message in the chat to delete it)</span></div>
-          <div class="adm-row"><span class="lbl">Event</span><select id="adm-ev-kind">
-              <option value="double">Double Coins</option><option value="rain">Coin Rain (+500/min)</option><option value="moon">Moon Gravity</option><option value="turbo">Turbo Frenzy</option><option value="giant">Giant Riders</option></select>
-            <select id="adm-ev-min"><option value="5">5 min</option><option value="10" selected>10 min</option><option value="30">30 min</option><option value="60">1 hour</option></select>
-            <button id="adm-ev-go" class="small">Start for everyone</button><button id="adm-ev-stop" class="small">Stop event</button></div>
-          <div class="adm-row"><span class="lbl">Gift online</span><button class="small" data-gift="1000">+1K each</button><button class="small" data-gift="10000">+10K each</button><button class="small" data-gift="100000">+100K each</button></div>
-          <div class="adm-row"><span class="lbl">Give item</span><input id="adm-give-name" placeholder="Rider name" autocomplete="off" style="width:130px"><select id="adm-give-item"></select><button id="adm-give-go" class="small">Give</button></div>
-          <div class="adm-row"><span class="lbl">My cheats</span>
-            <label><input type="checkbox" id="adm-god"> No crashing</label>
-            <label><input type="checkbox" id="adm-moon"> Moon gravity</label>
-            <label><input type="checkbox" id="adm-turbo"> Turbo</label>
-            <label><input type="checkbox" id="adm-hyper"> Hyper speed</label>
-            <label><input type="checkbox" id="adm-jump"> Super jump (J)</label>
-            <label><input type="checkbox" id="adm-ghost"> Ghost (ride through riders)</label>
-            <label><input type="checkbox" id="adm-freeze"> Freeze AI</label>
-            <label><input type="checkbox" id="adm-slowmo"> Slow motion (solo)</label>
-            <label><input type="checkbox" id="adm-giant"> Giant</label>
-            <label><input type="checkbox" id="adm-tiny"> Tiny</label>
-            <label><input type="checkbox" id="adm-flips"> Fast flips (10,000x)</label></div>
-          <div class="adm-row" id="adm-race-row" hidden><span class="lbl">My race</span><span id="adm-race" class="adm-race"></span></div>
-          <div class="adm-row"><span class="lbl">Admin log</span><button id="adm-log-btn" class="small">Show recent admin actions</button><span class="hint">every change any admin makes</span></div>
-          <div id="adm-log" class="adm-log" hidden></div>
-          <div class="adm-row"><span class="lbl">Teleport</span><button class="small" data-skip="100">Skip 100 m ahead</button><button class="small" data-skip="400">Skip 400 m</button><button class="small" data-skip="-100">Back 100 m</button><button id="adm-cheats-off" class="small">All cheats off</button></div>
-        </div>
-        <div class="search-row"><input id="adm-search" placeholder="Find a rider" autocomplete="off"><button id="adm-close">Close (-)</button></div>
-        <div id="adm-msg" class="cmsg"></div>
-        <table class="results adm"><thead><tr><th>Rider</th><th>Coins</th><th>Items</th><th>Actions</th></tr></thead><tbody id="adm-list"></tbody></table>
+      <div class="sheet wide adm-sheet">
+        <aside class="adm-side">
+          <div class="adm-title"><h2>Admin</h2><span id="adm-total" class="hint"></span></div>
+          <nav class="adm-tabs">
+            <button class="adm-tab sel" data-t="riders"><i>1</i>Riders</button>
+            <button class="adm-tab" data-t="broadcast"><i>2</i>Broadcast</button>
+            <button class="adm-tab" data-t="cheats"><i>3</i>Cheats</button>
+            <button class="adm-tab" data-t="log"><i>4</i>Log</button>
+          </nav>
+          <button id="adm-close" class="adm-x" title="Close (-)">Close <kbd>-</kbd></button>
+        </aside>
+        <main class="adm-main">
+          <header class="adm-head">
+            <div id="adm-stats" class="adm-stats"></div>
+            <div id="adm-msg" class="cmsg"></div>
+          </header>
+
+          <section class="adm-pane" data-pane="riders">
+            <h3 class="adm-h">Riders</h3>
+            <div class="search-row"><input id="adm-search" placeholder="Search riders by name" autocomplete="off"></div>
+            <table class="results adm"><thead><tr><th>Rider</th><th>Coins</th><th>Items</th><th>Actions</th></tr></thead><tbody id="adm-list"></tbody></table>
+          </section>
+
+          <section class="adm-pane" data-pane="broadcast" hidden>
+            <h3 class="adm-h">Broadcast</h3>
+            <div class="adm-grid">
+              <div class="adm-card">
+                <h4>Announcement</h4>
+                <p class="adm-sub">Pops up on every screen for a few seconds.</p>
+                <div class="adm-row"><input id="adm-ann" placeholder="Message for everyone online" maxlength="140" style="flex:1"><button id="adm-ann-go" class="small">Send</button><button id="adm-ann-clear" class="small">Clear</button></div>
+              </div>
+              <div class="adm-card">
+                <h4>Chat</h4>
+                <p class="adm-sub">Click a message in the chat to delete just that one.</p>
+                <div class="adm-row"><button id="adm-chat-clear" class="small danger">Clear chat for everyone</button></div>
+              </div>
+              <div class="adm-card">
+                <h4>Live event</h4>
+                <p class="adm-sub">Runs for everyone online until the timer ends.</p>
+                <div class="adm-row"><select id="adm-ev-kind">
+                  <option value="double">Double Coins</option><option value="rain">Coin Rain (+500/min)</option><option value="moon">Moon Gravity</option><option value="turbo">Turbo Frenzy</option><option value="giant">Giant Riders</option></select>
+                  <select id="adm-ev-min"><option value="5">5 min</option><option value="10" selected>10 min</option><option value="30">30 min</option><option value="60">1 hour</option></select></div>
+                <div class="adm-row"><button id="adm-ev-go" class="small">Start event</button><button id="adm-ev-stop" class="small">Stop event</button></div>
+              </div>
+              <div class="adm-card">
+                <h4>Gifts</h4>
+                <p class="adm-sub">Coins to everyone online, or one item to one rider.</p>
+                <div class="adm-row"><button class="small" data-gift="1000">+1K</button><button class="small" data-gift="10000">+10K</button><button class="small" data-gift="100000">+100K</button></div>
+                <div class="adm-row"><input id="adm-give-name" placeholder="Rider name" autocomplete="off" style="width:130px"><select id="adm-give-item" style="flex:1;min-width:0"></select><button id="adm-give-go" class="small">Give</button></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="adm-pane" data-pane="cheats" hidden>
+            <h3 class="adm-h">Cheats <button id="adm-cheats-off" class="small">All off</button></h3>
+            <div class="adm-card">
+              <h4>Driving</h4>
+              <div class="adm-checks">
+                <label><input type="checkbox" id="adm-god"> No crashing</label>
+                <label><input type="checkbox" id="adm-turbo"> Turbo</label>
+                <label><input type="checkbox" id="adm-hyper"> Hyper speed</label>
+                <label><input type="checkbox" id="adm-jump"> Super jump (J)</label>
+                <label><input type="checkbox" id="adm-flips"> Fast flips (10,000x)</label>
+                <label><input type="checkbox" id="adm-moon"> Moon gravity</label>
+              </div>
+            </div>
+            <div class="adm-card">
+              <h4>World</h4>
+              <div class="adm-checks">
+                <label><input type="checkbox" id="adm-ghost"> Ghost (through riders)</label>
+                <label><input type="checkbox" id="adm-freeze"> Freeze AI</label>
+                <label><input type="checkbox" id="adm-slowmo"> Slow motion (solo)</label>
+                <label><input type="checkbox" id="adm-giant"> Giant</label>
+                <label><input type="checkbox" id="adm-tiny"> Tiny</label>
+              </div>
+            </div>
+            <div class="adm-card">
+              <h4>Teleport &amp; race</h4>
+              <div class="adm-row"><button class="small" data-skip="100">Skip 100 m</button><button class="small" data-skip="400">Skip 400 m</button><button class="small" data-skip="-100">Back 100 m</button></div>
+              <div class="adm-row" id="adm-race-row" hidden><span class="hint">My race</span><span id="adm-race" class="adm-race"></span></div>
+            </div>
+          </section>
+
+          <section class="adm-pane" data-pane="log" hidden>
+            <h3 class="adm-h">Admin log <button id="adm-log-btn" class="small">Refresh</button></h3>
+            <p class="adm-sub">Every change any admin makes.</p>
+            <div id="adm-log" class="adm-log"></div>
+          </section>
+        </main>
       </div>
     </div>
 

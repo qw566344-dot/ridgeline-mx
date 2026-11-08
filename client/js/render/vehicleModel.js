@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from '../../vendor/addons/loaders/GLTFLoader.js';
 import { box, cyl, tube, sphere, torus, pipe, plate, merge, colorize, clean, place, roundBox } from './geo.js';
 import { prepareVehicle, MODELS } from '/shared/vehicles.js';
+import { QUAD_MODELS } from '/shared/quadModels.js';
 import { createModelInstance, updateModelInstance, wheelTurn, barTurn } from './modelRig.js';
 
 const DEG = Math.PI / 180;
@@ -407,6 +408,7 @@ function buildUnicycle(cfg, scheme) {
 // ground, z across), and which way the pipe points. Found by eye on each model (the silencer tip),
 // so a backfire flash comes out of the real pipe on every variant that shares the model.
 const EXHAUST = {
+  ...Object.fromEntries(Object.entries(QUAD_MODELS).filter(([id, q]) => id.startsWith('sled') && q.exhaust).map(([id, q]) => ['q_' + id, q.exhaust])),
   bike: { p: [-0.72, 0.86, 0.08], d: [-1, 0.06, 0] },
   q_atv250: { p: [-0.766, 0.64, -0.18], d: [-1, 0, 0] },
   q_atv450: { p: [-0.852, 0.72, -0.21], d: [-1, 0, 0] },

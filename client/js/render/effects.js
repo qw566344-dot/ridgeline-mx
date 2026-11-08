@@ -59,6 +59,7 @@ export class Effects {
     const look = (world.def && world.def.look) || {};
     const d = look.dirt || [1, 1, 1], sn = look.snow || 0;
     this.tint = [d[0] * (1 - sn) + 1.45 * sn, d[1] * (1 - sn) + 1.6 * sn, d[2] * (1 - sn) + 1.85 * sn];
+    this.snowy = !!look.snowTrack;   // snowmobile maps: the spray is white powder and the tread marks are shallow
     const n = this.max;
     this.pos = new Float32Array(n * 3); this.vel = new Float32Array(n * 3);
     this.size = new Float32Array(n); this.alpha = new Float32Array(n); this.color = new Float32Array(n * 3);
@@ -164,7 +165,7 @@ export class Effects {
             0.08 + Math.random() * 0.07, 0, 0.55 + Math.random() * 0.4, 0.9, ...this.dust(0.42, 0.85), 9.8, 0.25);
         }
       }
-      if (dirt > 0.4 && spd > 1) this.marks.add(key, w, 0.18 + Math.min(0.5, slip * 0.5));
+      if (dirt > 0.4 && spd > 1) this.marks.add(key, w, (0.18 + Math.min(0.5, slip * 0.5)) * (this.snowy ? 0.35 : 1));
       else this.marks.break(key, w);
     }
     if (!veh.grounded) for (const w of veh.wheels) this.marks.break(key, w);
@@ -173,6 +174,7 @@ export class Effects {
 
   // r, g, b for dust of this brightness on this track (clods are darker and wetter)
   dust(shade, wet = 1) {
+    if (this.snowy) { const v = Math.min(1, 0.8 + shade * 0.25); return [v * 0.96, v, Math.min(1, v * 1.04)]; }   // snow: pale blue-white, never brown
     const t = this.tint;
     return [Math.min(1, shade * t[0] * wet), Math.min(1, shade * 0.86 * t[1] * wet), Math.min(1, shade * 0.7 * t[2] * wet)];
   }

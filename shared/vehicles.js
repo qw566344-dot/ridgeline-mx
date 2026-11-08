@@ -209,6 +209,20 @@ function viperModel(file, dy) {
   };
 }
 
+// snowmobiles (tools/bake-sleds.mjs): the skis steer but do not spin, the drive sprockets spin, and the whole track
+// assembly swings with the rear suspension
+function sledModel(q) {
+  const ski = (k) => ({ wheel: 'wheel_' + k, steer: true, noSpin: true });
+  return {
+    file: q.file, kind: 'atv', comX: q.comX,
+    paint: ['body_paint'], accent: ['spring_accent'],
+    steerGroup: 'handlebars', steerPivot: q.steerPivot, steerAxisTo: q.steerAxisTo,
+    corners: { fl: ski('FL'), fr: ski('FR') },
+    rearAxle: { group: 'swingarm', pivot: q.rearPivot, wheels: ['wheel_RL', 'wheel_RR'], belt: q.belt ? Array.from({ length: q.belt.k }, (_, k) => 'belt_p' + k) : null, beltPitch: q.belt ? q.belt.pitch : 0 },
+    attach: q.attach,
+  };
+}
+
 function quadModel(q) {
   const corner = (k) => ({ wheel: 'wheel_' + k, carry: ['knuckle_' + k], steer: true, arms: ['a_arm_lower_' + k, 'a_arm_upper_' + k], shocks: ['shock_' + k] });
   return {
@@ -270,7 +284,7 @@ export const MODELS = {
     attach: { seat: [-0.25, 1.0, 0], pegL: [-0.077, 0.40, -0.15], pegR: [-0.077, 0.40, 0.15], gripL: [0.255, 1.175, -0.31], gripR: [0.255, 1.175, 0.31] },
   },
   // the quads: the ATV Garage pack, one model per quad (tools/bake-quads.mjs -> quadModels.js)
-  ...Object.fromEntries(Object.entries(QUAD_MODELS).map(([id, q]) => ['q_' + id, quadModel(q)])),
+  ...Object.fromEntries(Object.entries(QUAD_MODELS).map(([id, q]) => ['q_' + id, id.startsWith('sled') ? sledModel(q) : quadModel(q)])),
 
   // the Vipers: the user's dune buggy, three versions (tools/bake-viper.mjs groups the
   // wheels and steering wheel). dy: how much higher the chassis sits than the Turbo's
@@ -339,7 +353,7 @@ const ATV_BASE = {
   riderLean: 900,                  // N m of body-English torque when steering
   riderBalance: 5200,              // N m per radian: the rider throws weight to the high side
   axleScrub: 0.14,                 // solid rear axle resists turning (understeer)
-  air: { flipRate: 4.3, flipAccel: 7.4, spinDamp: 1.0, gyro: 1.5, whip: 35, spinRate: 3.9 },
+  air: { flipRate: 4.3, flipAccel: 7.4, spinDamp: 1.0, gyro: 1.5, whip: 52, spinRate: 3.9 },
   brakes: { front: 2100, rear: 1500 },
   crash: { landPitch: 66, impact: 19, roll: 88, loop: 90 },
   probes: [
@@ -673,6 +687,49 @@ export const VEHICLES = [
     steer: { ...UTV_BASE.steer, rate: 5.4, latAcc: 13.4 },
     engine: engine({ idle: 1200, redline: 8800, torque: [[1000, 128], [3000, 196], [5500, 232], [7000, 224], [8800, 186]], gearSpeeds: [12.5, 21, 29.5, 38], engineBrake: 28, shiftTime: 0.07, reverseSpeed: 5 }),
   },
+  // --- SNOWMOBILES: the stock sled and three more. Same quad physics for now (skis steer, the drive is at the back).
+  // They are meant for the snow maps (Powder Valley, Frozen Lake Sprint, Summit Ridge Trail). ---
+  {
+    ...ATV_BASE,
+    id: 'sled400', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 0.3, modelKey: 'q_sled400', ...quadShape('sled400'), name: 'Snow Cruiser 400', paint: 'white', tier: 'Starter',
+    desc: 'The stock snowmobile. Steady, forgiving and easy to ride: good power, soft suspension and plenty of grip in the powder. The one to start on.',
+    stats: { speed: 6, accel: 6, handling: 7, stability: 8, suspension: 7 },
+    mass: 275, inertia: [90, 108, 48],
+    steer: { ...ATV_BASE.steer, rate: 3.6, maxHigh: 10 },
+    air: { ...ATV_BASE.air, flipRate: 3.6, spinRate: 3.4 },
+    engine: engine({ idle: 1500, redline: 8800, torque: [[1000, 20], [3000, 31], [5500, 38], [7500, 39], [8800, 33]], gearSpeeds: [9.5, 14.5, 19.5, 24.5, 28.5] }),
+  },
+  {
+    ...ATV_BASE,
+    id: 'sled600', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 0.3, modelKey: 'q_sled600', ...quadShape('sled600'), name: 'Trail Runner 600', paint: 'blue', tier: 'Pro',
+    desc: 'The trail sled: lighter, sharper and quicker to turn in than the stock one. Great on the twisty trails, with a higher top speed.',
+    stats: { speed: 7, accel: 7, handling: 9, stability: 7, suspension: 7 },
+    mass: 250, inertia: [82, 98, 44],
+    steer: { ...ATV_BASE.steer, rate: 4.2, maxHigh: 11, latAcc: 11 },
+    air: { ...ATV_BASE.air, flipRate: 4.0, spinRate: 3.8 },
+    engine: engine({ idle: 1500, redline: 9200, torque: [[1000, 22], [3000, 34], [5500, 43], [7500, 45], [9200, 38]], gearSpeeds: [10.5, 16, 21.5, 27, 31.5] }),
+  },
+  {
+    ...ATV_BASE,
+    id: 'sled800', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 0.3, modelKey: 'q_sled800', ...quadShape('sled800', (w) => ({ ...w, freq: w.freq * 0.92, travel: w.travel * 1.2 })), name: 'Mountain Climber 800', paint: 'orange', tier: 'Pro',
+    desc: 'The mountain sled: huge torque, long soft suspension and a heavy, planted feel. Pulls hard out of corners and eats big landings, but turns wide.',
+    stats: { speed: 7, accel: 9, handling: 6, stability: 9, suspension: 9 },
+    mass: 310, inertia: [102, 122, 55],
+    steer: { ...ATV_BASE.steer, rate: 3.3, maxHigh: 9, latAcc: 10 },
+    crash: { ...ATV_BASE.crash, impact: ATV_BASE.crash.impact * 1.25 },
+    air: { ...ATV_BASE.air, flipRate: 3.2, spinRate: 3.0 },
+    engine: engine({ idle: 1500, redline: 8500, torque: [[1000, 28], [3000, 44], [5000, 54], [7000, 55], [8500, 46]], gearSpeeds: [10, 15, 20, 25, 29.5] }),
+  },
+  {
+    ...ATV_BASE,
+    id: 'sled1000', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 0.3, modelKey: 'q_sled1000', ...quadShape('sled1000', (w) => ({ ...w, mu: w.mu * 1.05 })), name: 'Race Sled 1000', paint: 'red', tier: 'Works',
+    desc: 'The race sled: the fastest snowmobile. Very quick, very stiff and very sharp - it rewards a clean line on the frozen lake and punishes mistakes.',
+    stats: { speed: 10, accel: 9, handling: 8, stability: 6, suspension: 7 },
+    mass: 235, inertia: [76, 92, 41],
+    steer: { ...ATV_BASE.steer, rate: 4.6, maxHigh: 11, latAcc: 12 },
+    air: { ...ATV_BASE.air, flipRate: 4.4, spinRate: 4.0 },
+    engine: engine({ idle: 1600, redline: 9800, torque: [[1000, 26], [3000, 40], [6000, 54], [8000, 58], [9800, 48]], gearSpeeds: [12, 18, 24.5, 31, 37.5] }),
+  },
 ];
 
 
@@ -681,7 +738,7 @@ for (const v of VEHICLES) {
   if (v.type !== 'atv' && v.type !== 'car') continue;
   v.engine = { ...v.engine, gearSpeeds: v.engine.gearSpeeds.map((g) => +(g * 1.08).toFixed(2)), torque: v.engine.torque.map(([r, t]) => [r, +(t * 1.07).toFixed(2)]) };
 }
-export const CATEGORIES = ['Dirt Bikes', 'Quads', 'Side-by-Sides'];
+export const CATEGORIES = ['Dirt Bikes', 'Quads', 'Side-by-Sides', 'Snowmobiles'];
 
 // ---------------------------------------------------------------------
 //  SPECIAL VEHICLES - never sold, never in the shop or the AI pool. Only the

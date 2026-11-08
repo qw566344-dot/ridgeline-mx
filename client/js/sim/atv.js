@@ -104,7 +104,7 @@ export class AtvController {
     // rider lean for the visuals: into the turn
     const aLat = v.fwdSpeed * yawW;
     const leanTarget = v.grounded ? clamp(aLat / 9.81, -0.6, 0.6) * 0.6 + this.steer * 0.12 : this.steer * 0.2;
-    v.lean += (leanTarget - v.lean) * Math.min(1, dt * 6);
+    v.lean += (leanTarget - v.lean) * Math.min(1, dt * 5);
     this.bodyRoll = Math.atan2(left.y, up.y);
     if (v.crashed) return;
     const [fl, fr, rl, rr] = v.wheels;
@@ -143,12 +143,12 @@ export class AtvController {
       if (c.type !== 'atv') a = 0; // cars: Q / E only shift weight in the air
       else if (frontDown && rearDown) a = pull * (3 + 6 * inp.throttle) - push * 1.5;
       else if (rearDown && !frontDown && p > 0.03) {
-        if (v.assist.wheelie && (pull > 0.2 || this.wheelieUp)) a = wheelieAssist(this, p, pitchW, pull, push, inp, dt, 40);
+        if (v.assist.wheelie && (pull > 0.2 || this.wheelieUp)) a = wheelieAssist(this, p, pitchW, pull, push, inp, dt, c.wheelieDeg || 40);
         else {
           a = pull * 8 + inp.throttle * 2.5 - push * 7 - inp.rearBrake * 10 - 3.5 + 2 * pitchW;
           if (pull < 0.2 && v.assist.wheelie) a -= (p - 0.05) * 25;
         }
-        if (p > 1.0) a -= (p - 1.0) * 50;
+        { const pm = c.wheelieMax || 1.0; if (p > pm) a -= (p - pm) * (c.wheelieMax ? 90 : 50); }
       }
       if (c.type === 'atv') trackWheelie(this, v, frontDown, rearDown, pull, dt);
       this.pitchCentre = v.assist.wheelie && this.wheelieUp ? 1 : 0.25; // see bike.js
@@ -191,11 +191,29 @@ export class AtvController {
       v.torque.addScaledVector(left, ap * I[0]);
       const roll = Math.asin(clamp(left.y, -1, 1));
       tr.whip = Math.max(tr.whip, Math.abs(roll));
-      v.torque.addScaledVector(fwd, ((-this.steer * A.whip * DEG - roll) * (car ? 13 : 10) - rollW * (car ? 7 : 4)) * I[2]);
+      if (car) v.torque.addScaledVector(fwd, ((-this.steer * A.whip * DEG - roll) * 13 - rollW * 7) * I[2]);
+      else {
+        // WHIP, like the bikes' but a little less: hold A / D and the quad lies over while the tail swings out; let go and it
+        // straightens along its flight line. It fades out before the landing.
+        const holding = Math.abs(inp.steer) > 0.15;
+        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 6) : Math.max(0, (this.whipAmt || 0) - dt * 9);
+        if (holding) this.whipSide = Math.sign(inp.steer);
+        const side = this.whipSide || 0;
+        const late = v.assist.landing > 0 ? clamp(((this.timeToLand || 9) - 0.3) / 0.4, 0, 1) : 1;
+        const amt = this.whipAmt * late;
+        const rollT = -side * Math.min(100, A.whip * 1.32 * (c.whipScale || 0.7)) * DEG * amt;
+        const yawT = side * 76 * (c.whipScale || 0.7) * DEG * amt;
+        v.torque.addScaledVector(fwd, ((rollT - roll) * (holding ? 22 : 14) - rollW * (holding ? 6 : 7)) * I[2]);
+        const vx = v.vel.x, vz = v.vel.z, hx = fwd.x, hz = fwd.z;
+        if (vx * vx + vz * vz > 4 && hx * hx + hz * hz > 0.01 && Math.abs(fwd.y) < 0.95) {
+          const yawOff = Math.atan2(vz * hx - vx * hz, vx * hx + vz * hz);       // + = nose to the left of the flight line
+          if (!(inp.clutch)) v.torque.addScaledVector(up, ((yawT - yawOff) * 26 - yawW * 7) * I[1]);
+        }
+      }
       // Shift + A / D: flat spin; otherwise a little yaw to line up the landing
       if (inp.clutch && !car) v.torque.addScaledVector(up, ((-this.steer * A.spinRate - yawW) * 5) * I[1]);
       else if (car) v.torque.addScaledVector(up, (this.steer * 0.9 - yawW * 0.9) * I[1]); // a little steering yaw, and the spin dies down slowly
-      else v.torque.addScaledVector(up, (this.steer * c.steer.airYaw - yawW * 1.2) * I[1]);
+      else if (false) v.torque.addScaledVector(up, (this.steer * c.steer.airYaw - yawW * 1.2) * I[1]);
     }
   }
 
@@ -208,11 +226,14 @@ export class AtvController {
   landingDirection() {
     const v = this.v, W = v.world;
     _p.copy(v.pos); _d.copy(v.vel);
+    let steps = 0;
     for (let i = 0; i < 60; i++) {
+      steps = i;
       _p.addScaledVector(_d, 0.05); _d.y -= 9.81 * 0.05;
       groundAt(W, _p.x, _p.z, g0);
       if (_p.y - v.cfg.rideHeight * 0.8 <= g0.h) break;
     }
+    this.timeToLand = steps * 0.05;
     _n.set(g0.nx, g0.ny, g0.nz);
     _d.copy(v.vel); _d.y = 0;
     if (_d.lengthSq() < 1) _d.copy(v.fwd);

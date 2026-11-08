@@ -1422,3 +1422,75 @@ button:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 .rk-qn[hidden] { display: none; }
 .rk-card .rk-info h2 { font-size: 26px; white-space: nowrap; overflow-wrap: normal; }
 .rk-qn { font-size: 14px; top: -32px; padding: 4px 12px; }
+
+/* Admin panel: a side menu and one clean section at a time */
+.adm-sheet { padding: 0; overflow: hidden; display: grid; grid-template-columns: 190px minmax(0, 1fr); width: min(960px, 94vw); max-height: 86vh; border-radius: 16px; }
+.adm-side { display: flex; flex-direction: column; gap: 18px; padding: 20px 14px 16px; background: rgba(0,0,0,0.28); border-right: 1px solid var(--line, rgba(255,255,255,0.1)); }
+.adm-title h2 { margin: 0; font-size: 24px; }
+.adm-title .hint { display: block; margin-top: 2px; font-size: 12px; }
+.adm-tabs { display: grid; gap: 4px; }
+.adm-tab { display: flex; align-items: center; gap: 10px; background: none; border: 0; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 700; color: var(--muted); cursor: pointer; text-align: left; }
+.adm-tab i { font-style: normal; width: 20px; height: 20px; border-radius: 6px; background: rgba(255,255,255,0.08); display: grid; place-items: center; font-size: 11px; }
+.adm-tab:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.adm-tab.sel { background: rgba(240, 116, 62, 0.16); color: #fff; box-shadow: inset 3px 0 0 var(--accent); }
+.adm-tab.sel i { background: var(--accent); color: #1a0f08; }
+.adm-x { margin-top: auto; padding: 9px 12px; font-size: 13px; }
+.adm-x kbd { margin-left: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.12); font-size: 11px; }
+.adm-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.adm-head { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex-wrap: wrap; padding: 16px 22px 0; min-height: 28px; }
+.adm-head .adm-stats { margin: 0; padding: 0; }
+.adm-head .cmsg { margin: 0; min-height: 18px; }
+.adm-pane { padding: 10px 22px 22px; overflow: auto; display: grid; gap: 14px; align-content: start; min-height: 0; }
+.adm-pane[hidden] { display: none; }
+.adm-h { margin: 6px 0 0; font-size: 18px; letter-spacing: 0.02em; text-transform: none; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.adm-h .small { font-size: 12px; }
+.adm-sub { margin: -4px 0 0; font-size: 12px; color: var(--muted); }
+.adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+.adm-card { background: rgba(255,255,255,0.04); border: 1px solid var(--line, rgba(255,255,255,0.1)); border-radius: 14px; padding: 16px 18px 18px; display: grid; gap: 10px; align-content: start; }
+.adm-card h4 { margin: 0; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+.adm-card .adm-sub { margin: -4px 0 0; }
+.adm-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.adm-checks label { margin: 0; padding: 9px 12px; border-radius: 10px; background: rgba(255,255,255,0.045); border: 1px solid transparent; }
+.adm-checks label:hover { background: rgba(255,255,255,0.09); }
+.adm-checks label:has(input:checked) { border-color: var(--accent); background: rgba(240, 116, 62, 0.12); }
+.adm-pane .search-row { margin: 0; }
+.adm-pane .search-row input { width: 100%; padding: 11px 14px; border-radius: 10px; }
+.adm-pane table.adm { border-spacing: 0 6px; border-collapse: separate; }
+.adm-pane table.adm th { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 4px 10px; }
+.adm-pane table.adm td { background: rgba(255,255,255,0.04); padding: 9px 10px; }
+.adm-pane table.adm td:first-child { border-radius: 10px 0 0 10px; }
+.adm-pane table.adm td:last-child { border-radius: 0 10px 10px 0; }
+.adm-pane .adm-log { max-height: none; }
+@media (max-width: 700px) { .adm-sheet { grid-template-columns: 1fr; } .adm-side { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; border-right: 0; border-bottom: 1px solid var(--line, rgba(255,255,255,0.1)); } .adm-tabs { display: flex; flex-wrap: wrap; } .adm-x { margin-top: 0; margin-left: auto; } }
+
+/* shop cards: a picture that fits the box, and the name / price on a solid bar below it */
+.fcard img { left: 50%; top: 24px; width: calc(100% - 14px); height: calc(100% - 92px); object-fit: contain; transform: translateX(-50%); filter: drop-shadow(0 6px 8px rgba(0,0,0,0.4)); }
+.fcard.big img { width: calc(100% - 18px); height: calc(100% - 100px); top: 26px; }
+.fcard .fname { padding: 9px 11px 10px; background: rgba(8, 10, 16, 0.9); border-top: 1px solid rgba(255,255,255,0.1); }
+.fcard .fname b { font-size: 15px; }
+.fcard.big .fname b { font-size: 19px; }
+.fcard .rar { z-index: 2; background: rgba(0,0,0,0.38); padding: 2px 7px; border-radius: 6px; }
+.fcard .loading-img { top: 40%; }
+.fgrid { grid-auto-rows: 214px; }
+.fgrid.featured { grid-auto-rows: 290px; }
+/* the rewarded-ad button and the test ad */
+.ad-btn { padding: 9px 16px; border-radius: 10px; font-weight: 800; background: linear-gradient(135deg, #3ddc84, #1fa862); color: #04200f; border: 0; cursor: pointer; display: inline-flex; flex-direction: column; align-items: center; line-height: 1.15; }
+.ad-btn small { font-size: 11px; font-weight: 700; opacity: 0.8; }
+.ad-btn:disabled { background: rgba(255,255,255,0.1); color: var(--muted); cursor: default; }
+.ad-btn[hidden] { display: none; }
+.ad-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.85); display: grid; place-items: center; }
+.ad-box { width: min(420px, 90vw); padding: 28px; border-radius: 16px; background: #1b2130; text-align: center; display: grid; gap: 10px; }
+.ad-box small { letter-spacing: 0.2em; color: var(--muted); }
+.ad-box b { font-size: 54px; color: var(--gold, #f2c443); }
+/* shop cards, second pass: a bigger picture that fills the box (the card is taller, the tag stays clear of the head) */
+.fgrid { grid-auto-rows: 236px; }
+.fgrid.featured { grid-auto-rows: 306px; }
+.fcard img { top: 24px; width: calc(100% - 4px); height: calc(100% - 96px); transform: translateX(-50%) scale(1.1); transform-origin: 50% 50%; }
+.fcard.big img { top: 26px; height: calc(100% - 104px); transform: translateX(-50%) scale(1.06); }
+.fcard .rar { font-size: 9px; padding: 2px 6px; }
+
+/* CrazyGames build (body.crazy): single player and offline - no ranked, leaderboard, levels, friends, party, chat, casino, pass */
+body.crazy #nav [data-go="ranked"], body.crazy #nav [data-go="leaderboard"], body.crazy #nav [data-go="pass"],
+body.crazy #nav [data-go="challenges"], body.crazy #nav [data-go="casino"], body.crazy #updates-btn, body.crazy #level-chip,
+body.crazy #friends-btn, body.crazy #rename-btn, body.crazy #logout-btn, body.crazy #region-chip, body.crazy #chat,
+body.crazy .card:has(#party-solo), body.crazy .card:has(#friends-mini), body.crazy #profile-stats { display: none !important; }

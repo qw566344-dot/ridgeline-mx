@@ -279,7 +279,7 @@ export class BikeController {
         // The longer you hold, the further it goes; let go and a spring brings it
         // back upright and lined up with where you are flying, ready to land.
         const holding = Math.abs(inp.steer) > 0.15; // the key itself: the smoothed ground steering kept whipping after you let go
-        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 4.2) : Math.max(0, (this.whipAmt || 0) - dt * 9);
+        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 5.0) : Math.max(0, (this.whipAmt || 0) - dt * 9);
         // the swing spring keeps the bike lined up for the landing - but never in the middle of a flip
         // (a normal jump tips the nose down ~50 degrees - that is not a flip; pointing near vertical it is)
         const flipT = Math.max(sstep(1.6, 2.2, Math.abs(tr.pitch)), Math.abs(lean) > 0.1 ? 1 : 0, sstep(1.8, 2.6, Math.abs(pitchW)));
@@ -288,8 +288,8 @@ export class BikeController {
         if (holding) this.whipSide = Math.sign(inp.steer);
         const amt = this.whipAmt * late;
         const side = this.whipSide || 0;
-        const rollT = -side * Math.min(95, A.whip * (tr.scrubLock ? 1.5 : 1.25)) * DEG * amt; // lay it over (up to flat sideways; a scrub goes flatter)
-        const yawT = side * 72 * DEG * amt;                 // rear kicks well out, nose into the whip
+        const rollT = -side * Math.min(97, A.whip * (tr.scrubLock ? 1.55 : 1.32)) * DEG * amt; // lay it over (up to flat sideways; a scrub goes flatter)
+        const yawT = side * 76 * DEG * amt;                 // rear kicks well out, nose into the whip
         // how far the bike points away from the direction it is flying (+ = nose to the left)
         let yawOff = 0;
         const hx = fwd.x, hz = fwd.z, vx = v.vel.x, vz = v.vel.z;

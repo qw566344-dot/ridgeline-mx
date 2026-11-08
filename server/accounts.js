@@ -29,6 +29,13 @@ import { todaysChallenges, statsFor, dayNo, weekNo, dayEnds, weekEnds } from '..
 import { Admin, ADMINS } from './admin.js';
 import { LOGIN_EPOCH } from '../shared/protocol.js';
 
+// Rewarded ads: coins per ad, ads per day, the wait between ads, and how long an ad must have been on screen before it can
+// be claimed. (The env overrides are for the tests.) When a real ad network is connected, raise AD_MIN_WATCH to about its
+// shortest ad (15-20 s) - the network's own server-side confirmation is the only real proof an ad was watched.
+const AD_COINS = 5000, AD_DAILY = 20;
+const AD_COOLDOWN = Number(process.env.AD_COOLDOWN_MS) || 120_000;
+const AD_MIN_WATCH = Number(process.env.AD_MIN_WATCH_S) || 4;
+
 // One-off resets that run once per value (stored in the save): placement matches for everyone's ranked rating
 const RANK_EPOCH = 'placements-1';
 import { PASS, passTier, PASS_PRICE } from '../shared/pass.js';
@@ -65,6 +72,32 @@ export class Accounts {
     this.cloudBusy = false; this.cloudDirty = false; this.cloudRetry = null;
     this.applyEpochs();
     this.ready = this.loadCloud();
+  }
+
+  // ---- rewarded ads: ask to start one, watch it, claim the coins. The server keeps the count, the wait and the coins.
+  adState(u) { const d = dayNo(); if (!u.ads || u.ads.day !== d) u.ads = { day: d, n: 0, last: (u.ads && u.ads.last) || 0 }; return u.ads; }
+  adStatus(u) { const a = this.adState(u); return { left: Math.max(0, AD_DAILY - a.n), nextIn: Math.max(0, AD_COOLDOWN - (Date.now() - (a.last || 0))), coins: AD_COINS, daily: AD_DAILY }; }
+  adStart(u) {
+    if (process.env.ADS_ENABLED !== '1') return { error: 'Ads are not switched on yet' };
+    const st = this.adStatus(u);
+    if (st.left <= 0) return { error: 'You have watched all ' + AD_DAILY + ' ads for today - come back tomorrow' };
+    if (st.nextIn > 0) return { error: 'The next ad is ready in ' + Math.ceil(st.nextIn / 1000) + ' s' };
+    const nonce = crypto.randomBytes(12).toString('hex');
+    u.adPending = { nonce, at: Date.now() };
+    return { ok: true, nonce, minWatch: AD_MIN_WATCH };
+  }
+  adClaim(u, nonce) {
+    if (process.env.ADS_ENABLED !== '1') return { error: 'Ads are not switched on yet' };
+    const p = u.adPending, st = this.adStatus(u);
+    if (!p || p.nonce !== String(nonce || '')) return { error: 'Start an ad first' };
+    if (Date.now() - p.at < AD_MIN_WATCH * 1000) { u.adPending = null; return { error: 'The ad was not finished' }; }
+    if (st.left <= 0 || st.nextIn > 0) { u.adPending = null; return { error: 'Not ready for another ad yet' }; }
+    u.adPending = null;
+    const a = this.adState(u); a.n++; a.last = Date.now();
+    u.coins = Math.min(1e12, (u.coins || 0) + AD_COINS);
+    u.rev = (u.rev || 0) + 1;
+    this.save();
+    return { added: AD_COINS, profile: this.profile(u), ...this.adStatus(u) };
   }
 
   // The update logs everyone out (LOGIN_EPOCH) and everyone's ranked rating starts over with placement matches
@@ -595,6 +628,9 @@ export class Accounts {
         const rev = u.rev || 0, seen = Number(url.searchParams.get('rev'));
         return send(200, { admin: this.admin.takeInbox(u.key), rev, ...(seen !== rev ? { profile: this.profile(u) } : {}) });
       }
+      if (r === 'ad/status') return send(200, this.adStatus(u));
+      if (r === 'ad/start') return send(200, this.adStart(u));
+      if (r === 'ad/claim') return send(200, this.adClaim(u, m.nonce));
       if (r === 'rename') return send(200, this.rename(u, m.name));
       if (r === 'buy') return send(200, this.buy(u, m.slot, m.id));
       if (r === 'equip') return send(200, this.equip(u, m.slot, m.id));

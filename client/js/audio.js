@@ -45,7 +45,7 @@ export class Audio {
   applyVolumes() {
     if (!this.ctx) return;
     const s = this.settings;
-    this.master.gain.value = s.get('masterVolume');
+    this.master.gain.value = this.externalMute ? 0 : s.get('masterVolume');   // externalMute: CrazyGames (an ad is playing, or the player muted the game from their bar)
     this.engineBus.gain.value = s.get('engineVolume');
     this.fxBus.gain.value = s.get('effectsVolume');
     this.musicVol = s.get('musicVolume') ?? 0.5;

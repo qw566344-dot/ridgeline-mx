@@ -352,6 +352,7 @@ function buildTemplate(key, scene) {
   root.updateMatrixWorld(true);
   const find = (n) => root.getObjectByName(n); // parts move into rig groups as we go, so search everything
   const meta = { key };
+  const beltGroups = [];
   const groups = [root];
   const centre = (o) => boxOf(o).getCenter(new THREE.Vector3());
 
@@ -419,11 +420,17 @@ function buildTemplate(key, scene) {
         groups.push(pivot('rig_spin_' + id, w, sw, wc));
       });
       meta.axleLen = V(A.pivot).distanceTo(V(meta.wc_rl));
+      // a snowmobile's track: the lug phases are separate groups on the swinging track assembly, one shown at a time
+      if (A.belt) {
+        A.belt.forEach((n, k) => { const o = find(n); if (o) { const bg = pivot('rig_belt_' + k, o, sw, V(A.pivot)); beltGroups.push(bg); groups.push(bg); } });
+        meta.belt = { k: A.belt.length, pitch: A.beltPitch || 0.07 };
+      }
       if (A.shock && find(A.shock)) groups.push(shockPivot('rig_shock_rear', find(A.shock), root, meta));
     }
   }
   // merge everything that moves together, deepest groups first
   for (const g of groups.reverse()) mergeGroup(g);
+  beltGroups.forEach((g, k) => { g.visible = k === 0; });
   // drop now-empty nodes from the original scene
   const prune = (o) => { for (const c of [...o.children]) { prune(c); if (!c.isMesh && !c.name.startsWith('rig_') && c.children.length === 0) c.removeFromParent(); } };
   prune(root);
@@ -811,10 +818,12 @@ export function updateModelInstance(inst, state, cfg, camDist = 0) {
     const carrier = G['rig_carrier_' + id];
     if (carrier) {
       carrier.position.copy(R['rig_carrier_' + id].p); carrier.position.y += d;
-      G['rig_steer_' + id].rotation.y = state.wheels[i].steer || 0;
+      // a snowmobile's skis follow the handlebars (the physics wheel angle is tiny at speed, so they looked straight)
+      const noSpin = inst.M.corners && inst.M.corners[id] && inst.M.corners[id].noSpin;
+      G['rig_steer_' + id].rotation.y = noSpin ? barTurn(state) * 0.85 : (state.wheels[i].steer || 0);
     }
     const spin = G['rig_spin_' + id];
-    if (spin) spin.rotation.z = -state.wheels[i].spin;
+    if (spin && !(inst.M.corners && inst.M.corners[id] && inst.M.corners[id].noSpin)) spin.rotation.z = -state.wheels[i].spin; // skis do not spin
     for (let k = 0; k < 2; k++) {
       const arm = G[`rig_arm_${id}_${k}`];
       if (!arm) continue;
@@ -825,10 +834,21 @@ export function updateModelInstance(inst, state, cfg, camDist = 0) {
     if (tr) tr.rotation.z = -Math.asin(Math.max(-0.9, Math.min(0.9, d / meta[tr.name].len)));
     for (let k = 0; k < 2; k++) shock(`rig_shock_${id}_${k}`, d * 0.75);
   }
+  if (meta.belt && G.rig_belt_0) {
+    // the track runs with the drive sprockets: the lug phases are shown in turn (the step per frame is one phase at most, so a fast
+    // track reads as a steady blur rather than flickering)
+    const sp = state.wheels[2].spin, K = meta.belt.k;
+    const d = (sp - (inst.beltLast === undefined ? sp : inst.beltLast)) * W[2].r / meta.belt.pitch;
+    inst.beltLast = sp;
+    inst.beltPos = (inst.beltPos || 0) + Math.max(-1 / K, Math.min(1 / K, d));
+    const fr = inst.beltPos - Math.floor(inst.beltPos), shown = Math.min(K - 1, Math.floor(fr * K));
+    for (let k = 0; k < K; k++) { const gb = G['rig_belt_' + k]; if (gb) gb.visible = k === shown; }
+  }
   if (G.rig_axle) {
     // solid rear axle on a swingarm: it follows the average of both rear wheels
     const d = (dy(2) + dy(3)) / 2;
-    G.rig_axle.rotation.z = -Math.asin(Math.max(-0.9, Math.min(0.9, d / meta.axleLen)));
+    const sled = inst.M.corners && inst.M.corners.fl && inst.M.corners.fl.noSpin; // a snowmobile's track only shivers
+    G.rig_axle.rotation.z = -Math.asin(Math.max(-0.9, Math.min(0.9, d / meta.axleLen))) * (sled ? 0.25 : 1);
     shock('rig_shock_rear', d * 0.35);
   }
 }

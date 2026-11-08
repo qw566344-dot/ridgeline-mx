@@ -14,6 +14,7 @@ import { Stage } from './stage.js';
 import { Thumbs } from './thumbs.js';
 import { CasinoUI } from './casino.js';
 import { AdminPanel } from './admin.js';
+import { CRAZY, crazyInit, crazyLoading, crazyAudio, gameplay, midgameAd } from './crazy.js';
 import { DevPanel } from './devpanel.js';
 import { ChatBox } from './chat.js';
 import { Net } from './net.js';
@@ -31,6 +32,7 @@ R.applyQuality(settings.quality());
 const input = new Input();
 applyBindings(settings.get('keybinds')); // keys changed in Settings > Controls
 const audio = new Audio(settings);
+crazyAudio(audio);
 const ui = new UI(settings);
 const game = new Game({ renderer: R, settings, audio, input, ui });
 const stage = new Stage(R);
@@ -48,6 +50,8 @@ new AdminPanel(ui, account);
 new DevPanel(account);
 new ChatBox(ui, account, net);
 ui.net = net;
+// the CrazyGames build is offline: nothing here talks to a server
+if (CRAZY) { social.start = () => {}; social.refresh = () => {}; net.pingRegions = async () => {}; net.autoRejoin = () => {}; net.sendProfile = () => {}; }
 social.presence = () => net.presence();
 
 // make sure what's selected is something this account owns
@@ -81,7 +85,7 @@ social.onPull(() => net.answerPull(account.token));
 async function loadTags() {
   try { const r = await (await fetch(serverBase() + '/api/tags')).json(); if (r && r.tags) setStaffTags(r.tags); } catch { /* offline */ }
 }
-loadTags(); setInterval(loadTags, 60_000);
+if (!CRAZY) { loadTags(); setInterval(loadTags, 60_000); }
 account.onOutbox = (n) => ui.popup(`+${n.toLocaleString()} coins you earned while the server was away are saved now`, 'good');
 // admin tools: a private message, or a kick back to the menu
 async function onAdminMessages(list) {
@@ -138,24 +142,29 @@ watchVersion(); // "new version - refresh" when the game has been updated under 
 window.MX = { game, ui, settings, R, net, stage, input, account, social, loadTags };
 
 // ---- menu wiring
-ui.on('screen', (name) => { if (name !== 'loading') audio.unlock(); });
+ui.on('screen', (name) => { if (name !== 'loading') audio.unlock(); if (name === 'results') gameplay(false); });
 ui.on('startMode', async (opts) => {
   audio.unlock();
   social.fast = false;
+  if (CRAZY) await midgameAd();
   await game.startSession(opts);
+  gameplay(true);
   social.refresh();
 });
-ui.on('pause', () => { game.paused = true; input.enabled = false; ui.showPause(); });
-ui.on('resume', () => { game.paused = false; input.enabled = true; ui.hidePause(); ui.showHud(game); });
+ui.on('pause', () => { gameplay(false); game.paused = true; input.enabled = false; ui.showPause(); });
+ui.on('resume', () => { gameplay(true); game.paused = false; input.enabled = true; ui.hidePause(); ui.showHud(game); });
 ui.on('restart', async () => {
   ui.hidePause(); ui.hideResults();
   input.enabled = true;
   if (game.opts && game.opts.mp) { net.requestRestart(); return; }
+  if (CRAZY) await midgameAd();
   await game.startSession(game.opts);
+  gameplay(true);
 });
 ui.on('resetVehicle', () => { if (game.player && game.player.veh) game.resetRider(game.player); ui.emit('resume'); });
 ui.on('camera', () => { game.cam.cycle(); settings.set('camera', game.cam.mode); });
 async function backToLobby() {
+  gameplay(false);
   if (tutorial.active) tutorial.stop(false);
   ui.hidePause(); ui.hideResults(); ui.hideHud();
   input.enabled = true;
@@ -216,8 +225,15 @@ window.addEventListener('keydown', () => audio.unlock());
 
 // ---- boot
 (async () => {
+  crazyLoading(true);
   ui.showLoading('Loading vehicles...');
   try { await preloadModels((m) => ui.showLoading(m)); } catch (e) { console.warn(e); }
+  if (CRAZY) {
+    await crazyInit();
+    account.crazy();
+    syncEquipped(); ui.show('home'); crazyLoading(false);
+    return;
+  }
   ui.showLoading('Connecting...');
   await account.init();
   net.pingRegions();

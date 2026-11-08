@@ -120,7 +120,7 @@ export class UI {
     });
     $('tutorial-btn').addEventListener('click', () => { $('profile-menu').hidden = true; this.emit('tutorial'); });
     $('rk-find').addEventListener('click', () => this.emit('queue', 'ranked'));
-    this.pollQueues(); setInterval(() => this.pollQueues(), 12000);
+    if (!window.__MX_CRAZY) { this.pollQueues(); setInterval(() => this.pollQueues(), 12000); }
     for (const b of document.querySelectorAll('.lb-tabs button')) b.addEventListener('click', () => { this.lbTab = b.dataset.lb; this.renderLeaderboard(); });
     $('dock-setup').addEventListener('click', () => this.show('play'));
     $('play-btn').addEventListener('click', () => this.onPlay());
@@ -231,7 +231,7 @@ export class UI {
     const A = this.account;
     if (!A || !A.profile) return;
     const s = A.profile.stats || {};
-    $('profile-stats').innerHTML = `<b>${escapeHtml(A.profile.name)}</b><br>${A.mode === 'online' ? 'Online account' : A.mode === 'guest' ? 'Guest - progress saved in this browser' : 'Offline account (this computer)'}<br>Level <b>${levelInfo(A.profile.xp || 0).level}</b> &bull; Laps <b>${s.laps || 0}</b> &bull; Wins <b>${s.wins || 0}</b> &bull; Tricks <b>${s.tricks || 0}</b>${A.profile.ranked && A.profile.ranked.races ? `<br>Ranked <b>${A.profile.tier} ${A.profile.rating}</b>` : ""}`;
+    $('profile-stats').innerHTML = `<b>${escapeHtml(A.profile.name)}</b><br>${A.mode === 'online' ? 'Online account' : A.mode === 'guest' ? 'Guest - progress saved in this browser' : 'Offline account (this computer)'}<br>Level <b>${levelInfo(A.profile.xp || 0).level}</b> &bull; Laps <b>${s.laps || 0}</b> &bull; Wins <b>${s.wins || 0}</b> &bull; Tricks <b>${s.tricks || 0}</b>${A.profile.ranked && A.profile.ranked.races ? (A.profile.placed ? `<br>Ranked <b>${A.profile.tier} ${A.profile.rating}</b>` : `<br>Ranked <b>Unranked ? (${A.profile.ranked.races}/${PLACEMENTS})</b>`) : ""}`;
     $('logout-btn').textContent = A.mode === 'guest' ? 'Log in / create account' : 'Log out';
   }
 
@@ -337,13 +337,13 @@ export class UI {
     const online = A && A.mode === 'online';
     const two = false, mode = 'ranked';
     const rating = (P && (two ? P.rating2 : P.rating)) || RANK_START, tier = rankTier(rating), R = (P && (two ? P.ranked2 : P.ranked)) || { races: 0, wins: 0 };
-    $('rk-badge').innerHTML = rankBadge(tier, 150);
     const placed = !P || P.placed || (R.races || 0) >= PLACEMENTS;
+    $('rk-badge').innerHTML = rankBadge(placed ? tier : 'Unranked', 150); // the grey Unranked crest until the placement matches are done
     $('rk-tier').textContent = placed ? tier : 'Unranked'; $('rk-tier').className = 'tier-name ' + (placed ? tier : '');
-    $('rk-rating').textContent = rating;
+    $('rk-rating').textContent = placed ? rating : '?'; // no rating shown while placing
     $('rk-record').textContent = !placed ? 'Placement ' + (R.races || 0) + '/' + PLACEMENTS : R.races ? `${R.wins}W / ${R.races}` : 'Unranked';
     const nx = nextTier(tier), from = tierStart(tier);
-    $('rk-fill').style.width = (nx ? Math.max(3, Math.min(100, ((rating - from) / (nx[1] - from)) * 100)) : 100) + '%';
+    $('rk-fill').style.width = !placed ? Math.round(((R.races || 0) / PLACEMENTS) * 100) + '%' : (nx ? Math.max(3, Math.min(100, ((rating - from) / (nx[1] - from)) * 100)) : 100) + '%';
     $('rk-next').textContent = !placed ? 'Win or lose, play ' + (PLACEMENTS - (R.races || 0)) + ' more ranked match' + (PLACEMENTS - (R.races || 0) === 1 ? '' : 'es') + ' to get your rank' : nx ? `${nx[1] - rating} rating to ${nx[0]}` : 'Top rank - stay there!';
     if ($('rk-ladder')) $('rk-ladder').innerHTML = RANK_TIERS.map(([n, min], i) => { const hi = RANK_TIERS[i + 1] ? RANK_TIERS[i + 1][1] - 1 : null; return `<div class="rung${n === tier ? ' me' : ''}">${rankBadge(n, 44)}<div><b class="tier-name ${n}">${n}</b><small>${hi ? min + ' - ' + hi : min + '+'}</small></div></div>`; }).join('');
     const q = this.mmState;
@@ -676,10 +676,11 @@ export class UI {
     const left = Math.max(0, R.endsAt - Date.now());
     const mm = String(Math.floor(left / 60000)).padStart(2, '0'), ss = String(Math.floor(left / 1000) % 60).padStart(2, '0');
     const grid = $('shop-grid');
-    grid.innerHTML = `<div class="shop-head"><div><h2>Item Shop</h2><small>New skins and gear every hour. Vehicles are in the Garage.</small></div><div class="reset">New items in <b id="shop-timer">${mm}:${ss}</b></div></div>
+    grid.innerHTML = `<div class="shop-head"><div><h2>Item Shop</h2><small>New skins and gear every hour. Vehicles are in the Garage.</small></div><div class="reset">New items in <b id="shop-timer">${mm}:${ss}</b></div><button id="ad-btn" class="ad-btn" hidden></button></div>
       <h3 class="fsec">Featured</h3><div class="fgrid featured">${R.featured.map((x) => this.shopCard(x, true)).join('')}</div>
       <h3 class="fsec">Daily</h3><div class="fgrid">${R.daily.map((x) => this.shopCard(x)).join('')}</div>`;
     $('shop-tabs').innerHTML = ''; $('shop-sub').innerHTML = '';
+    this.refreshAd();
     grid.querySelectorAll('.fcard').forEach((b) => b.onclick = () => { this.shopSel = { slot: b.dataset.slot, id: b.dataset.id }; grid.querySelectorAll('.fcard.sel').forEach((x) => x.classList.remove('sel')); grid.querySelectorAll(`.fcard[data-slot="${b.dataset.slot}"][data-id="${b.dataset.id}"]`).forEach((x) => x.classList.add('sel')); this.renderShopDetail(); this.syncStage(); });
     // count down, and swap the items when the hour turns over
     clearInterval(this.shopTick);
@@ -687,9 +688,62 @@ export class UI {
       if (this.screen !== 'shop') { clearInterval(this.shopTick); return; }
       const l = Math.max(0, shopRotation().endsAt - Date.now());
       if (shopRotation().slot !== R.slot) { this.shopSel = null; const y = grid.scrollTop; this.renderShop(); grid.scrollTop = y; this.popup('The item shop has new items!', 'good'); return; }
+      this.updateAdBtn();
       const t = $('shop-timer'); if (t) t.textContent = String(Math.floor(l / 60000)).padStart(2, '0') + ':' + String(Math.floor(l / 1000) % 60).padStart(2, '0');
     }, 1000);
     this.renderShopDetail();
+  }
+
+  // ---- rewarded ads: "Watch an ad: +5,000 coins" at the top of the shop. A real ad network plugs in by defining
+  // window.MXAds.showRewarded() (returns a Promise: true when the ad was watched to the end); until then a short test
+  // "ad" is shown so the whole flow can be tried.
+  async refreshAd() {
+    const b = $('ad-btn'), A = this.account;
+    if (!b) return;
+    b.onclick = () => this.watchAd();
+    if (!A || A.mode !== 'crazy') { b.hidden = true; return; }   // hidden in the normal game until a real ad network is connected
+    const st = await A.adStatus();
+    this.adSt = { ...st, at: Date.now() };
+    b.hidden = false;
+    this.updateAdBtn();
+  }
+  updateAdBtn() {
+    const b = $('ad-btn');
+    if (!b || !this.adSt) return;
+    const wait = Math.max(0, this.adSt.nextIn - (Date.now() - this.adSt.at)), left = this.adSt.left;
+    b.disabled = !!this.adBusy || left <= 0 || wait > 0;
+    b.innerHTML = this.adBusy ? 'Ad playing...' : left <= 0 ? 'No more ads today' : wait > 0 ? 'Next ad in ' + Math.floor(wait / 60000) + ':' + String(Math.floor(wait / 1000) % 60).padStart(2, '0') : 'Watch an ad: +5,000 coins <small>' + left + ' left today</small>';
+  }
+  async watchAd() {
+    if (this.adBusy) return;
+    const A = this.account;
+    this.adBusy = true; this.updateAdBtn();
+    const s = await A.adStart();
+    if (s.error) { this.adBusy = false; this.popup(s.error, 'bad'); this.refreshAd(); return; }
+    let done = false;
+    if (window.MXAds && typeof window.MXAds.showRewarded === 'function') { try { done = !!(await window.MXAds.showRewarded()); } catch { done = false; } }
+    else done = await this.testAd((s.minWatch || 4) + 1);
+    if (!done) { this.adBusy = false; this.popup('The ad did not finish, so no coins this time', 'bad'); this.refreshAd(); return; }
+    const r = await A.adClaim(s.nonce);
+    this.adBusy = false;
+    if (r.error) { this.popup(r.error, 'bad'); this.refreshAd(); return; }
+    this.popup('+' + r.added.toLocaleString() + ' coins!', 'good');
+    this.adSt = { left: r.left, nextIn: r.nextIn, at: Date.now() };
+    this.updateAdBtn();
+    if (this.screen === 'shop') this.renderShopDetail();
+  }
+  // the stand-in ad (test mode): a few seconds of countdown, then it counts as watched
+  testAd(sec) {
+    return new Promise((resolve) => {
+      const o = document.createElement('div');
+      o.className = 'ad-overlay';
+      o.innerHTML = '<div class="ad-box"><small>TEST AD</small><h3>An ad plays here</h3><p>This is a stand-in until a real ad network is connected.</p><b id="ad-count">' + sec + '</b><button id="ad-skip" class="small">Close (no coins)</button></div>';
+      document.body.appendChild(o);
+      let left = sec;
+      const done = (v) => { clearInterval(t); o.remove(); resolve(v); };
+      const t = setInterval(() => { left--; const c = o.querySelector('#ad-count'); if (c) c.textContent = Math.max(0, left); if (left <= 0) done(true); }, 1000);
+      o.querySelector('#ad-skip').onclick = () => done(false);
+    });
   }
 
   // a bundle card: the bike in the skin with the rider in the matching kit

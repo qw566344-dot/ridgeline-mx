@@ -223,6 +223,7 @@ function ik(A, T, l1, l2, pole, outMid, outEnd) {
 }
 
 // orient a bone so +Y runs from a to b, with +Z toward `hint`
+const _LAT = new THREE.Vector3(1, 0, 0);
 const _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3(), _m = new THREE.Matrix4();
 function setBone(bone, a, b, hint) {
   _y.subVectors(b, a).normalize();
@@ -778,7 +779,9 @@ export class Rider {
     if (this.gripOn && G.off < 0.999) {
       _y.lerp(G.dir, 1 - G.off).normalize();
       t.c.set(0, 1, -0.3).lerp(fwd, G.off);
-      if (G === this.grip[1] && this.thr > 0.01 && this.rollsThrottle) t.c.applyAxisAngle(_y, -this.thr * 0.7 * (1 - G.off)); // throttle hand
+      // throttle hand: rolling the grip on turns the right wrist back toward the rider about the bar (the side axis),
+      // so the hand tilts - it used to roll about its own length, which twisted the glove off the grip
+      if (G === this.grip[1] && this.thr > 0.01 && this.rollsThrottle) { const a = -this.thr * 0.4 * (1 - G.off); _y.applyAxisAngle(_LAT, a); t.c.applyAxisAngle(_LAT, a); }
       setBone(bone, ha, t.a.copy(ha).addScaledVector(_y, 0.1), t.c);
     } else setBone(bone, ha, t.a.copy(ha).addScaledVector(_y, 0.1), fwd);
   }

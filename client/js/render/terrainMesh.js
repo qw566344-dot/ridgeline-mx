@@ -27,6 +27,7 @@ function terrainMaterial(renderer, look = {}) {
     sh.uniforms.uDirtTint = { value: new THREE.Vector3(...(look.dirt || [1, 1, 1])) };
     sh.uniforms.uGrassTint = { value: new THREE.Vector3(...(look.grass || [1, 1, 1])) };
     sh.uniforms.uSnow = { value: look.snow || 0 };
+    sh.uniforms.uSnowTrack = { value: look.snowTrack || 0 }; // snowmobile maps: the racing surface is packed snow too
     sh.uniforms.uSand = { value: look.sand || 0 };
     // venue tracks (arena, moon, yard): a plain floor colour instead of grass off the track
     sh.uniforms.uFloor = { value: new THREE.Vector4(...(look.floor || [0, 0, 0]), look.floor ? 1 : 0) };
@@ -35,7 +36,7 @@ function terrainMaterial(renderer, look = {}) {
       .replace('#include <common>', '#include <common>\nvarying float vSlope;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSplat = splat;\nvWPos = (modelMatrix * vec4(position, 1.0)).xyz;\nvSlope = 1.0 - normalize(mat3(modelMatrix) * normal).y;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D tGrass; uniform sampler2D tDirt; uniform sampler2D tRock; uniform vec3 uDirtTint; uniform vec3 uGrassTint; uniform float uSnow; uniform float uSand; uniform vec4 uFloor;\nvarying vec3 vSplat;\nvarying vec3 vWPos;\nvarying float vSlope;')
+      .replace('#include <common>', '#include <common>\nuniform sampler2D tGrass; uniform sampler2D tDirt; uniform sampler2D tRock; uniform vec3 uDirtTint; uniform vec3 uGrassTint; uniform float uSnowTrack; uniform float uSnow; uniform float uSand; uniform vec4 uFloor;\nvarying vec3 vSplat;\nvarying vec3 vWPos;\nvarying float vSlope;')
       .replace('#include <color_fragment>', `#include <color_fragment>
         vec2 wuv = vWPos.xz;
         float big = texture2D(tGrass, wuv * 0.011).g;
@@ -64,6 +65,20 @@ function terrainMaterial(renderer, look = {}) {
           float lie = uSnow * (1.0 - smoothstep(0.12, 0.45, vSlope)) * smoothstep(0.15, 0.6, drift + 0.25);
           vec3 snow = vec3(0.86, 0.9, 0.96) * (0.88 + texture2D(tDirt, wuv * 0.3).r * 0.2);
           ground = mix(ground, snow, lie * (1.0 - d * 0.82) * (1.0 - vSplat.y * 0.5));
+        }
+        // snowmobile maps: the track and everything around it is snow (packed and a little blue where it is ridden)
+        if (uSnowTrack > 0.0) {
+          // a toned-down blue-grey snow (full white blows out and hides the jumps), with soft drifts, and darker on slopes so
+          // every ramp, lip and landing reads clearly; the ridden line is a little darker and bluer
+          float drift2 = texture2D(tDirt, wuv * 0.07).r;
+          vec3 packedSnow = vec3(0.27, 0.31, 0.39) * (0.82 + texture2D(tDirt, wuv * 0.25).r * 0.2 + drift2 * 0.12);
+          packedSnow *= 1.0 - clamp(vSlope * 3.0, 0.0, 0.55);
+          packedSnow = mix(packedSnow, packedSnow * vec3(0.78, 0.86, 1.0), d * 0.8);
+          // soft undulation everywhere, and on the ridden line shallow tread marks (darker, bluer hollows)
+          float rutN = texture2D(tDirt, wuv * 0.55).r, soft = texture2D(tDirt, wuv * 0.11 + vec2(rutN * 0.02)).r;
+          packedSnow *= 0.93 + 0.14 * soft;
+          packedSnow *= 1.0 - d * (0.08 + 0.2 * smoothstep(0.38, 0.8, rutN));
+          ground = mix(ground, packedSnow, uSnowTrack);
         }
         diffuseColor.rgb *= ground * 1.9;`);
   };

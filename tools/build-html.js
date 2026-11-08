@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const client = path.join(ROOT, 'client');
+const CRAZY = process.argv.includes('--crazy');   // CrazyGames build: dist-crazygames/index.html (see client/js/crazy.js)
 
 // the game imports '/shared/...' (served by the dev server) and 'three'
 const resolvePlugin = {
@@ -42,8 +43,11 @@ for (const f of fs.existsSync(mdir) ? fs.readdirSync(mdir) : []) {
   if (f.endsWith('.glb')) models['models/' + f] = fs.readFileSync(path.join(mdir, f)).toString('base64');
 }
 const modelScript = `<script>window.__MX_MODELS=${JSON.stringify(models)};</script>`;
-html = html.replace(/<script type="module" src="js\/main.js"><\/script>/, () => `${modelScript}\n<script>\n${js}\n</script>`);
+if (CRAZY) html = html.replace(/<link[^>]*fonts.(googleapis|gstatic).com[^>]*>s*/g, ''); // no outside requests but CrazyGames' own SDK
+const crazyHead = CRAZY ? '<script>window.__MX_CRAZY=true;</script>\n<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>\n' : '';
+html = html.replace(/<script type="module" src="js\/main.js"><\/script>/, () => `${crazyHead}${modelScript}\n<script>\n${js}\n</script>`);
 if (html.includes('js/main.js') || html.includes('css/style.css')) throw new Error('bundle still references external files');
-const out = path.join(ROOT, 'RidgelineMX.html');
+const out = CRAZY ? path.join(ROOT, 'dist-crazygames', 'index.html') : path.join(ROOT, 'RidgelineMX.html');
+fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, html);
 console.log(`wrote ${out} (${(html.length / 1024 / 1024).toFixed(2)} MB)`);

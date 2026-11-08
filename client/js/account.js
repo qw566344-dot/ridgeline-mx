@@ -9,7 +9,7 @@
 import { serverBase } from './config.js';
 import { LOGIN_EPOCH } from '/shared/protocol.js';
 import { hasBadWords } from '/shared/badwords.js';
-import { STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel, TP_PER_COIN } from '/shared/shop.js';
+import { SHOP, STARTER, shopItem, MAX_REWARD, upgradeNeeds, inShop, getBundle, bundleParts, bundlePrice, xpFor, levelInfo, vehicleLevel, TP_PER_COIN } from '/shared/shop.js';
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -52,12 +52,13 @@ function freshProfile(name) {
 // Backup: every online account is also copied into this browser (coins, items,
 // friends + a hash of the password). Free servers forget accounts when they
 // restart; logging in then quietly re-creates the account from this copy.
+const CRAZY = !!window.__MX_CRAZY;   // the CrazyGames build: one offline profile with every vehicle unlocked
 export class Account {
   constructor() {
     // a new update asks everyone to log in again: this browser forgets its saved login once per LOGIN_EPOCH
     if (LS.get('mx.epoch', null) !== LOGIN_EPOCH) { if (LS.get('mx.account', null)) LS.del('mx.account'); LS.set('mx.epoch', LOGIN_EPOCH); }
     const saved0 = LS.get('mx.account', null);
-    const saved = saved0 && saved0.mode !== 'guest' ? saved0 : null; // guest play was removed: everyone logs in
+    const saved = saved0 && saved0.mode !== 'guest' && saved0.mode !== 'crazy' && !CRAZY ? saved0 : null; // guest play was removed: everyone logs in
     this.mode = saved ? saved.mode : null;   // 'online' | 'offline' | 'guest' | null
     this.token = saved ? saved.token : null;
     this.name = saved ? saved.name : null;
@@ -287,6 +288,14 @@ export class Account {
     return null;
   }
 
+  // CrazyGames build: a single local profile that owns every vehicle (nothing to log into, no levels, no server)
+  crazy() {
+    const p = LS.get('mx.crazy', null) || (() => { const f = freshProfile('Rider'); f.coins = 20000; return f; })();
+    for (const it of SHOP) if (it.slot === 'vehicle' && !it.special && !it.pass && !p.owned.includes('vehicle:' + it.id)) p.owned.push('vehicle:' + it.id);
+    this.set('crazy', null, p);
+    this.persistLocal();
+  }
+
   guest() {
     const p = LS.get('mx.guest', null) || freshProfile('Guest');
     this.set('guest', null, p);
@@ -308,6 +317,7 @@ export class Account {
   // save a local (offline / guest) profile
   persistLocal() {
     if (this.mode === 'guest') LS.set('mx.guest', this.profile);
+    if (this.mode === 'crazy') LS.set('mx.crazy', this.profile);
     if (this.mode === 'offline') {
       const all = LS.get('mx.localAccounts', {});
       const k = this.profile.name.toLowerCase();
@@ -348,6 +358,25 @@ export class Account {
     if (this.mode !== 'online') return 'Log in to change your name';
     try { const r = await this.api('rename', { name }); if (r.error) return r.error; this.set('online', this.token, r.profile); return null; }
     catch { return 'Could not reach the server'; }
+  }
+
+  // rewarded ads (the server counts them: 5,000 coins, 20 a day, 2 minutes apart)
+  localAds() { const d = new Date().toISOString().slice(0, 10); const p = this.profile; if (!p.ads || p.ads.day !== d) p.ads = { day: d, n: 0, last: (p.ads && p.ads.last) || 0 }; return p.ads; }
+  localAdStatus() { const a = this.localAds(); return { left: Math.max(0, 20 - a.n), nextIn: Math.max(0, 120000 - (Date.now() - (a.last || 0))), coins: 5000, daily: 20 }; }
+  async adStatus() { if (this.mode === 'crazy') return this.localAdStatus(); try { return await this.api('ad/status'); } catch { return { left: 0, nextIn: 0 }; } }
+  async adStart() {
+    if (this.mode === 'crazy') { const st = this.localAdStatus(); if (st.left <= 0) return { error: 'You have watched all 20 ads for today - come back tomorrow' }; if (st.nextIn > 0) return { error: 'The next ad is ready in ' + Math.ceil(st.nextIn / 1000) + ' s' }; return { ok: true, nonce: 'local', minWatch: 0 }; }
+    try { return await this.api('ad/start', {}); } catch { return { error: 'Could not reach the server' }; } }
+  async adClaim(nonce) {
+    if (this.mode === 'crazy') {
+      const st = this.localAdStatus();
+      if (st.left <= 0 || st.nextIn > 0) return { error: 'Not ready for another ad yet' };
+      const a = this.localAds(); a.n++; a.last = Date.now();
+      this.profile.coins += 5000; this.persistLocal();
+      return { added: 5000, profile: this.profile, ...this.localAdStatus() };
+    }
+    try { const r = await this.api('ad/claim', { nonce }); if (r && r.profile) { this.profile = r.profile; this.changed(); } return r; }
+    catch { return { error: 'Could not reach the server' }; }
   }
 
   async buyBundle(id) {

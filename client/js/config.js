@@ -10,9 +10,9 @@
 //  server in that part of the world (README.md, "Regional servers"),
 //  add a line here, and rebuild RidgelineMX.html.
 // =====================================================================
-export const PUBLIC_SERVER = 'https://ridgeline-mx.onrender.com';
+export const PUBLIC_SERVER = window.__MX_CRAZY ? '' : 'https://ridgeline-mx.onrender.com';   // the CrazyGames build is offline
 
-export const REGIONS = [
+export const REGIONS = window.__MX_CRAZY ? [] : [
   { id: 'na', name: 'North America West', place: 'Oregon, USA', url: 'https://ridgeline-mx.onrender.com' },
   { id: 'central', name: 'North America Central', place: 'Ohio, USA', url: 'https://ridgeline-mx-central.onrender.com' },
   { id: 'eu', name: 'Europe', place: 'Frankfurt, Germany', url: 'https://ridgeline-mx-eu.onrender.com' },

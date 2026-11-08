@@ -31,13 +31,14 @@ export class AdminPanel {
     let t = null;
     $('adm-search').oninput = () => { clearTimeout(t); t = setTimeout(() => this.load(), 250); };
     $('adm-close').onclick = () => this.toggle(false);
+    for (const b of document.querySelectorAll('.adm-tab')) b.onclick = () => this.tab(b.dataset.t);
 
     // tools
     const send = () => { const text = $('adm-ann').value.trim(); if (text) { this.act('announce', { text }); $('adm-ann').value = ''; } };
     $('adm-ann-go').onclick = send;
     $('adm-ann').onkeydown = (e) => { if (e.key === 'Enter') send(); };
     $('adm-ann-clear').onclick = () => this.act('announce', { text: '' });
-    $('adm-log-btn').onclick = () => { const el = $('adm-log'); el.hidden = !el.hidden; $('adm-log-btn').textContent = el.hidden ? 'Show recent admin actions' : 'Hide'; if (!el.hidden) this.loadLog(); };
+    $('adm-log-btn').onclick = () => { $('adm-log').hidden = false; this.loadLog(); };
     $('adm-ev-go').onclick = () => this.act('event', { kind: $('adm-ev-kind').value, minutes: Number($('adm-ev-min').value) });
     $('adm-ev-stop').onclick = () => this.act('event', { kind: '' });
     $('adm-chat-clear').onclick = () => { const b = $('adm-chat-clear'); if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Sure?'; return; } delete b.dataset.sure; b.textContent = 'Clear chat for everyone'; this.act('chatclear', {}); };
@@ -72,6 +73,14 @@ export class AdminPanel {
     const g = this.ui.game;
     if (g) g.cheats = this.allowed() ? { ...this.cheats } : {};
     globalThis.__flipMul = this.allowed() && this.cheats.fastflips ? 10000 : 1; // flips 10,000x faster (admin test cheat)
+  }
+
+  // the panel's tabs: Riders / Broadcast / Cheats / Log
+  tab(t) {
+    for (const b of document.querySelectorAll('.adm-tab')) b.classList.toggle('sel', b.dataset.t === t);
+    for (const p of document.querySelectorAll('.adm-pane')) p.hidden = p.dataset.pane !== t;
+    if (t === 'log') { $('adm-log').hidden = false; this.loadLog(); }
+    if (t === 'cheats') this.renderRace();
   }
 
   toggle(on) {

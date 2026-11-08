@@ -217,40 +217,47 @@ export const VENUE_TRACKS = [
 ];
 
 // =====================================================================
-//  RAMPAGE TRICK PARK - a dedicated trick map. Ride anywhere. Two kicker lines that grow
-//  from a small hop to a big gap (one each way), quarter pipes round both walls, a spine,
-//  a funbox pyramid and side hips, with a short loop that goes through the park.
+//  RAMPAGE TRICK PARK - a dedicated trick map for HUGE jumps, built on a big flat grey baseplate (no trees, no
+//  scenery, nothing in the way). Two long run-up lanes on each side with a big jump and a giant one, a mega kicker and
+//  a giant gap on the loop through the middle, tall quarter pipes along the walls, a spine and a funbox pyramid.
 // =====================================================================
 function trickPark() {
   const ramps = [];
-  for (const x of [-180, -120, -60, 0, 60, 120, 180]) ramps.push({ type: 'quarter', x, z: 190, dir: 3.14, w: 22, r: 7 }, { type: 'quarter', x, z: -190, dir: 0, w: 22, r: 7 });
-  // progression lines: small -> big, on both sides (A rides +x, B rides -x)
-  const K = [[-170, 1.2, 8, 9, 12], [-100, 2, 10, 13, 16], [-20, 3, 11, 18, 20], [70, 4.2, 13, 24, 24]];
-  for (const [x, h, len, gap, L] of K) {
-    ramps.push({ type: 'kicker', x, z: -130, dir: 1.57, w: 8, len, h, gap, landH: h * 1.07, landLen: L });
-    ramps.push({ type: 'kicker', x: -x, z: 130, dir: -1.57, w: 8, len, h, gap, landH: h * 1.07, landLen: L });
-  }
-  // funbox pyramid and hips on the far side of the loop
-  ramps.push({ type: 'box', x: 0, z: 0, dir: 1.57, w: 16, top: 14, s: 6, h: 3 }, { type: 'box', x: 0, z: 0, dir: 1.57, w: 8, top: 6, s: 3.5, h: 4.4 });
-  ramps.push({ type: 'box', x: -75, z: 0, dir: 1.57, w: 12, top: 10, s: 5, h: 2.2 }, { type: 'box', x: 75, z: 0, dir: 1.57, w: 12, top: 10, s: 5, h: 2.2 });
-  // spine: two quarters back to back
-  ramps.push({ type: 'quarter', x: 0, z: -80, dir: 0, w: 20, r: 5 }, { type: 'quarter', x: 0, z: -88, dir: 3.14, w: 20, r: 5 });
-  ramps.push({ type: 'quarter', x: 0, z: 80, dir: 3.14, w: 20, r: 5 }, { type: 'quarter', x: 0, z: 88, dir: 0, w: 20, r: 5 });
+  // sizes: M = the 36 m mega gap (proven on the Mega Ramp Park), G = a giant gap, S/H = warm-ups
+  const K = {
+    S: { len: 10.5, h: 3.0, gap: 12, landH: 3.5, landLen: 13 },
+    H: { len: 14, h: 4.5, gap: 22, landH: 5.0, landLen: 22 },
+    M: { len: 18, h: 6.5, gap: 36, landH: 8.0, landLen: 32 },
+    G: { len: 20, h: 7.5, gap: 44, landH: 9.0, landLen: 38 },
+  };
+  const kick = (x, z, dir, k) => ramps.push({ type: 'kicker', x, z, dir, w: 10, ...K[k] });
+  // outer lanes: a mega, then a giant (A rides +x, B rides -x). 200+ m of flat run-up before each one
+  kick(-100, -165, 1.57, 'M'); kick(120, -165, 1.57, 'G');
+  kick(100, 165, -1.57, 'M'); kick(-120, 165, -1.57, 'G');
+  // inner lanes: warm-ups
+  kick(-150, -105, 1.57, 'S'); kick(50, -105, 1.57, 'H');
+  kick(150, 105, -1.57, 'S'); kick(-50, 105, -1.57, 'H');
+  // tall quarter pipes along both walls
+  for (const x of [-240, -120, 0, 120, 240]) ramps.push({ type: 'quarter', x, z: 305, dir: 3.14, w: 30, r: 12 }, { type: 'quarter', x, z: -305, dir: 0, w: 30, r: 12 });
+  // funbox pyramid in the middle of the loop, a spine across the park
+  ramps.push({ type: 'box', x: 0, z: 0, dir: 1.57, w: 18, top: 16, s: 7, h: 3.5 }, { type: 'box', x: 0, z: 0, dir: 1.57, w: 9, top: 7, s: 4, h: 5.2 });
+  ramps.push({ type: 'quarter', x: 0, z: -70, dir: 0, w: 22, r: 6 }, { type: 'quarter', x: 0, z: -78, dir: 3.14, w: 22, r: 6 });
+  ramps.push({ type: 'quarter', x: 0, z: 70, dir: 3.14, w: 22, r: 6 }, { type: 'quarter', x: 0, z: 78, dir: 0, w: 22, r: 6 });
   return {
     id: 'trickpark', recommend: ['Dirt Bikes', 'Quads'], open: true, freestyle: true,
     name: 'Rampage Trick Park', difficulty: 'Freestyle',
-    desc: 'The trick park: two kicker lines from a small hop up to a big gap, quarter pipes round both walls, a spine, a funbox pyramid and hips. Ride anywhere.',
-    worldSize: 560,
+    desc: 'A huge flat baseplate made for big air: a mega kicker, a giant gap, long run-ups, tall quarter pipes, a spine and a funbox pyramid. Ride anywhere.',
+    worldSize: 780,
     seed: 7707,
-    start: { x: -150, z: 34, heading: 0 },
-    defaultWidth: 24,
-    look: { venue: 'yard', dirt: [0.95, 0.8, 0.66], floor: [0.42, 0.4, 0.37], trees: 0, rocks: 0, fog: 0xd8d2c6, skyTop: 0x4f86c9, horizon: 0xe2dccf },
-    terrain: { hills: 0, hillScale: 100, rim: 26, rimStart: 235, rimSharp: true, bumps: [], ramps },
+    start: { x: -200, z: 40, heading: 0 },
+    defaultWidth: 26,
+    look: { dirt: [0.5, 0.52, 0.56], grass: [0.5, 0.52, 0.56], floor: [0.5, 0.52, 0.56], trees: 0, pines: 0, rocks: 0, fog: 0xcfd6e0, skyTop: 0x4f86c9, horizon: 0xdde3ec },
+    terrain: { hills: 0, hillScale: 100, rim: 30, rimStart: 345, rimSharp: true, bumps: [], ramps },
     segments: [
-      { len: 300, w: 24, free: true, name: 'Park loop', features: [] },
-      { turn: 180, r: 30, berm: 0.6 },
-      { len: 300, w: 24, free: true, name: 'Park loop back', features: [] },
-      { turn: 180, r: 30, berm: 0.6 },
+      { len: 420, w: 26, free: true, name: 'Run-up', features: [{ at: 40, type: 'kicker', h: 3.0, face: 10.5, gap: 12, landH: 3.5, land: 13 }, { at: 190, type: 'kicker', h: 6.5, face: 18, gap: 36, landH: 8, land: 32 }] },
+      { turn: 180, r: 40, berm: 0.6 },
+      { len: 420, w: 26, free: true, name: 'Giant lane', features: [{ at: 60, type: 'kicker', h: 7.5, face: 20, gap: 44, landH: 9, land: 38 }] },
+      { turn: 180, r: 40, berm: 0.6 },
     ],
     gateAt: 14,
     finishAt: 200,

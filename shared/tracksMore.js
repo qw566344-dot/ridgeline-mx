@@ -2343,6 +2343,354 @@ export const MORE_TRACKS = [
   finishAt: 100
  },
  {
+  id: "powder",
+  name: "Powder Valley",
+  difficulty: "Easy",
+  recommend: [
+   "Snowmobiles",
+   "Quads",
+   "Dirt Bikes"
+  ],
+  seed: 9301,
+  defaultWidth: 24,
+  desc: "A wide, friendly snow valley: fresh powder, soft rollers and gentle tables between the pines. The place to learn a snowmobile.",
+  look: {
+   snowTrack: 1,
+   snow: 0.85,
+   dirt: [
+    0.9,
+    0.92,
+    0.98
+   ],
+   grass: [
+    0.95,
+    1,
+    1.08
+   ],
+   trees: 0.5,
+   pines: 1.6,
+   rocks: 0.5,
+   fog: 14937333,
+   skyTop: 4882368,
+   horizon: 15397368
+  },
+  terrain: {
+   hills: 6,
+   hillScale: 220,
+   rim: 50,
+   bumps: [],
+   rimStart: 223
+  },
+  segments: [
+   {
+    len: 220,
+    name: "Valley Straight",
+    features: [],
+    w: 26,
+    free: true
+   },
+   {
+    turn: 90,
+    r: 60,
+    berm: 0.5
+   },
+   {
+    len: 170,
+    name: "Powder Rollers",
+    features: [
+     {
+      at: 20,
+      type: "rollers",
+      n: 5,
+      len: 16,
+      h: 0.9
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 56,
+    berm: 0.5
+   },
+   {
+    len: 210,
+    name: "Snowdrift Tables",
+    features: [
+     {
+      at: 30,
+      type: "table",
+      h: 1.6,
+      face: 9,
+      top: 8,
+      land: 10
+     },
+     {
+      at: 115,
+      type: "table",
+      h: 1.8,
+      face: 10,
+      top: 9,
+      land: 11
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 58,
+    berm: 0.5
+   },
+   {
+    len: 170,
+    name: "Cabin Straight",
+    features: [],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 60,
+    berm: 0.5
+   }
+  ],
+  worldSize: 625,
+  start: {
+   x: -103,
+   z: 144,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "frozenlake",
+  name: "Frozen Lake Sprint",
+  difficulty: "Medium",
+  recommend: [
+   "Snowmobiles",
+   "Quads"
+  ],
+  seed: 9302,
+  defaultWidth: 30,
+  desc: "A huge frozen lake: very wide ice, long flat-out straights and big sweeping turns, with a field of whoops across the middle.",
+  look: {
+   snowTrack: 1,
+   snow: 1,
+   dirt: [
+    0.72,
+    0.84,
+    1
+   ],
+   grass: [
+    0.9,
+    0.98,
+    1.1
+   ],
+   trees: 0.1,
+   pines: 0.4,
+   rocks: 0.2,
+   fog: 14477556,
+   skyTop: 4159680,
+   horizon: 15134712
+  },
+  terrain: {
+   hills: 2,
+   hillScale: 260,
+   rim: 40,
+   bumps: [],
+   rimStart: 275
+  },
+  segments: [
+   {
+    len: 280,
+    name: "Lake Straight",
+    features: [
+     {
+      at: 40,
+      type: "double",
+      h: 2,
+      face: 11,
+      gap: 10,
+      h2: 1.8,
+      land: 13
+     }
+    ],
+    w: 30,
+    free: true
+   },
+   {
+    turn: 180,
+    r: 75,
+    berm: 0.4
+   },
+   {
+    len: 280,
+    name: "Ice Whoops",
+    features: [
+     {
+      at: 24,
+      type: "whoops",
+      n: 14,
+      len: 6,
+      h: 0.55
+     }
+    ],
+    w: 30,
+    free: true
+   },
+   {
+    turn: 180,
+    r: 75,
+    berm: 0.4
+   }
+  ],
+  worldSize: 730,
+  start: {
+   x: -140,
+   z: 75,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "summit",
+  name: "Summit Ridge Trail",
+  difficulty: "Hard",
+  recommend: [
+   "Snowmobiles"
+  ],
+  seed: 9303,
+  defaultWidth: 20,
+  desc: "A narrow trail along a snowy mountain ridge: ridge doubles, a cornice step-up, whiteout rollers and long drops either side. For experienced riders.",
+  look: {
+   snowTrack: 1,
+   snow: 0.8,
+   dirt: [
+    0.82,
+    0.86,
+    0.94
+   ],
+   grass: [
+    0.9,
+    0.96,
+    1.05
+   ],
+   trees: 0.7,
+   pines: 1.8,
+   rocks: 2.2,
+   fog: 14016746,
+   skyTop: 3895222,
+   horizon: 14543090
+  },
+  terrain: {
+   hills: 14,
+   hillScale: 180,
+   rim: 60,
+   bumps: [
+    {
+     x: 60,
+     z: -60,
+     r: 130,
+     h: 16
+    }
+   ],
+   rimStart: 203
+  },
+  segments: [
+   {
+    len: 200,
+    name: "Trailhead",
+    features: [],
+    w: 22,
+    free: true
+   },
+   {
+    turn: 90,
+    r: 44,
+    berm: 0.6
+   },
+   {
+    len: 190,
+    name: "Ridge Doubles",
+    features: [
+     {
+      at: 24,
+      type: "double",
+      h: 2.2,
+      face: 11,
+      gap: 9,
+      h2: 2,
+      land: 13
+     },
+     {
+      at: 100,
+      type: "table",
+      h: 2.4,
+      face: 11,
+      top: 10,
+      land: 13
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 40,
+    berm: 0.6
+   },
+   {
+    len: 200,
+    name: "Cornice Step",
+    features: [
+     {
+      at: 24,
+      type: "step",
+      h: 2,
+      face: 8,
+      gap: 7,
+      h2: 2.8,
+      top: 10,
+      land: 11
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 46,
+    berm: 0.6
+   },
+   {
+    len: 170,
+    name: "Whiteout Rollers",
+    features: [
+     {
+      at: 20,
+      type: "rollers",
+      n: 6,
+      len: 16,
+      h: 1.3
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 42,
+    berm: 0.6
+   }
+  ],
+  worldSize: 586,
+  start: {
+   x: -101,
+   z: 136,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
   id: "glacier",
   name: "Glacier Basin",
   difficulty: "Hard",

@@ -9,7 +9,7 @@
 //    a ribbon across the bottom (Gold up), plus sparkles at the top tiers.
 //  Also the rank-up animation shown after a ranked race.
 // =====================================================================
-import { RANK_TIERS, rankTier } from '/shared/shop.js';
+import { RANK_TIERS, rankTier, PLACEMENTS } from '/shared/shop.js';
 import { RANK_IMG } from './rankImages.js';
 
 // [light, mid, dark, deepest, accent gem] per tier
@@ -199,7 +199,20 @@ export function rankResult(m) {
   const badge = $q('.rr-badge'), tierEl = $q('.rr-tier'), num = $q('.rr-num b'), fill = $q('.rr-bar i'), next = $q('.rr-next'), delta = $q('.rr-delta');
   const showTier = (t) => { badge.innerHTML = rankBadge(t, 170); tierEl.textContent = t.toUpperCase(); tierEl.className = 'rr-tier tier-name ' + t; };
   const showNext = (r) => { const nx = nextTier(rankTier(r)); next.textContent = nx ? `${nx[1] - r} to ${nx[0]}` : 'Top rank'; };
-  showTier(m.was || rankTier(before)); showNext(before);
+  // placement matches: no rating is shown yet - the grey Unranked crest, a '?', and how many placement matches are left
+  if (m.placing && m.left > 0) {
+    badge.innerHTML = rankBadge('Unranked', 170); tierEl.textContent = 'UNRANKED'; tierEl.className = 'rr-tier tier-name';
+    num.textContent = '?'; delta.style.display = 'none';
+    $q('.rr-kind').textContent = 'PLACEMENT MATCH ' + (PLACEMENTS - m.left) + '/' + PLACEMENTS;
+    fill.style.width = ((PLACEMENTS - m.left) / PLACEMENTS) * 100 + '%';
+    next.textContent = m.left + ' placement match' + (m.left === 1 ? '' : 'es') + ' left';
+    requestAnimationFrame(() => el.classList.add('in'));
+    const closeNow = () => { el.classList.add('out'); setTimeout(() => el.remove(), 450); };
+    el.onclick = closeNow;
+    setTimeout(() => el.isConnected && closeNow(), 9000);
+    return;
+  }
+  showTier(m.placing ? 'Unranked' : (m.was || rankTier(before))); showNext(before);
   fill.style.width = tierFrac(before) * 100 + '%';
   requestAnimationFrame(() => el.classList.add('in'));
   // the sequence: hold, count + bar, (promotion / demotion swap), settle
@@ -229,7 +242,7 @@ export function rankResult(m) {
     }
     showNext(r);
     if (k < 1) requestAnimationFrame(step);
-    else { num.textContent = m.rating; showNext(m.rating); fill.style.width = tierFrac(m.rating) * 100 + '%'; }
+    else { if (m.placing) { showTier(m.tier); $q('.rr-kind').textContent = 'YOUR RANK'; } num.textContent = m.rating; showNext(m.rating); fill.style.width = tierFrac(m.rating) * 100 + '%'; }
   };
   requestAnimationFrame(step);
   // timers too: if the page is in the background frames stop, but the end state still lands

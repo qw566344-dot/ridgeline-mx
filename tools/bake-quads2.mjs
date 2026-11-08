@@ -29,6 +29,8 @@ for (const arg of process.argv.slice(2)) {
   const old = QUAD_MODELS[id];
   if (!old) throw new Error('unknown quad ' + id);
   const doc = await io.read(path.resolve(file));
+  // the pack was saved with the steering turned about 7 degrees (bars and front wheels): straighten it first
+  for (const n of doc.getRoot().listNodes()) if (/_steer$/.test(n.getName())) n.setRotation([0, 0, 0, 1]);
   const root = doc.getRoot(), scene = root.listScenes()[0];
   // world matrices and owners (which wheel 1..4 / the bars / the body) before anything is touched
   const WORLD = new Map(), owner = new Map();
@@ -163,13 +165,30 @@ for (const arg of process.argv.slice(2)) {
   const WH = { FL: left(front), FR: right(front), RL: left(rear), RR: right(rear) };
   const zF = (wb[WH.FL].c[2] + wb[WH.FR].c[2]) / 2, zR = (wb[WH.RL].c[2] + wb[WH.RR].c[2]) / 2, zMid = (zF + zR) / 2;
   const yGround = Math.min(...[1, 2, 3, 4].map((i) => wb[i].lo[1]));
-  // the bars: grips near the top of the bars (the Seat part is the crossbar when there is one)
-  const barsAll = by('bars'), crossbar = barsAll.filter((n) => /Seat/i.test(n.getName()));
-  let gripBox = box(crossbar.length ? crossbar : barsAll);
-  if (!crossbar.length) {
-    const sb = gripBox, lo = [sb.lo[0], sb.hi[1] - 0.14 * sb.s[1], sb.lo[2]], hi = [sb.hi[0], sb.hi[1] - 0.04 * sb.s[1], sb.hi[2]];
-    gripBox = { lo, hi, c: lo.map((v, i) => (v + hi[i]) / 2), s: lo.map((v, i) => hi[i] - v) };
+  // the grips: the two outermost chunky pieces of the handlebars (one per side), measured from the real vertices
+  const barsAll = by('bars');
+  const gripPieces = [];
+  for (const n of barsAll) {
+    const m = W(n);
+    for (const pr of n.getMesh().listPrimitives()) {
+      const pos = pr.getAttribute('POSITION'), idx = pr.getIndices();
+      const ix = (i) => (idx ? idx.getScalar(i) : i), tris = (idx ? idx.getCount() : pos.getCount()) / 3;
+      const v = [0, 0, 0], key = new Map(), vid = [];
+      for (let i = 0; i < pos.getCount(); i++) { pos.getElement(i, v); const k = v.map((q) => Math.round(q * 1e4)).join(','); if (!key.has(k)) key.set(k, key.size); vid.push(key.get(k)); }
+      const par = [...Array(key.size).keys()], find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+      for (let t = 0; t < tris; t++) { const a1 = find(vid[ix(t * 3)]), b1 = find(vid[ix(t * 3 + 1)]), c1 = find(vid[ix(t * 3 + 2)]); par[b1] = a1; par[c1] = a1; }
+      const comps = new Map();
+      for (let t = 0; t < tris; t++) {
+        const r = find(vid[ix(t * 3)]); const c = comps.get(r) || { n: 0, lo: [1e9, 1e9, 1e9], hi: [-1e9, -1e9, -1e9] }; c.n++;
+        for (let k = 0; k < 3; k++) { pos.getElement(ix(t * 3 + k), v); for (let q = 0; q < 3; q++) { const w = m[q] * v[0] + m[4 + q] * v[1] + m[8 + q] * v[2] + m[12 + q]; c.lo[q] = Math.min(c.lo[q], w); c.hi[q] = Math.max(c.hi[q], w); } }
+        comps.set(r, c);
+      }
+      for (const c of comps.values()) if (c.n >= 40) gripPieces.push({ n: c.n, c: c.lo.map((q, i) => (q + c.hi[i]) / 2), s: c.lo.map((q, i) => c.hi[i] - q) });
+    }
   }
+  gripPieces.sort((p1, p2) => p1.c[0] - p2.c[0]);
+  const gripLeft = gripPieces[0], gripRight = gripPieces[gripPieces.length - 1];   // pack -x is the quad's left
+  const gripBox = { c: [0, (gripLeft.c[1] + gripRight.c[1]) / 2, (gripLeft.c[2] + gripRight.c[2]) / 2] };
   // scale: the grips end up as high as the old model's (the rider pose depends on it)
   const s = old.attach.gripL[1] / (gripBox.c[1] - yGround);
   const wheelbaseOld = old.wheels.zF - old.wheels.zR;
@@ -230,8 +249,7 @@ for (const arg of process.argv.slice(2)) {
   // new steering pivot + grips from the new bars (the tilt of the axis stays as measured before)
   const pc = bodyMap([0, gripBox.c[1], gripBox.c[2]]);
   const dx = old.steerAxisTo[0] - old.steerPivot[0], dy = old.steerAxisTo[1] - old.steerPivot[1];
-  const inset = gripBox.s[0] * 0.07;
-  const gL = bodyMap([gripBox.lo[0] + inset, gripBox.c[1], gripBox.c[2]]), gR = bodyMap([gripBox.hi[0] - inset, gripBox.c[1], gripBox.c[2]]);
+  const gL = bodyMap(gripLeft.c), gR = bodyMap(gripRight.c);
   out[id] = {
     ...old,
     wheels: { ...old.wheels, rF: r3((wb[WH.FL].s[1] / 2) * s), rR: r3((wb[WH.RL].s[1] / 2) * s) }, // tyre radius = what you see
