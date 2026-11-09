@@ -261,6 +261,14 @@ export class Admin {
     };
   }
 
+  // money (Stripe): totals and the latest purchases
+  payments() {
+    const log = this.A.db.payments || {}, now = Date.now(), day = 864e5;
+    const rows = Object.entries(log).map(([id, p]) => ({ id, ...p, name: (this.A.db.users[p.user] || {}).name || p.user })).sort((a, b) => b.at - a.at);
+    const sum = (f) => rows.filter(f).reduce((a, p) => a + p.cents, 0);
+    return { enabled: this.A.payments.enabled, test: this.A.payments.status().test, count: rows.length, total: sum(() => true), today: sum((p) => now - p.at < day), week: sum((p) => now - p.at < 7 * day), buyers: new Set(rows.map((p) => p.user)).size, recent: rows.slice(0, 40) };
+  }
+
   find(name) { return this.A.db.users[String(name || '').trim().toLowerCase()] || null; }
   // the rider's game sees the change within a few seconds (accounts.js inbox) - no refresh
   bump(u) { u.rev = (u.rev || 0) + 1; }
@@ -398,6 +406,7 @@ export class Admin {
       case 'admin/dev': return this.dev(u, m);
       case 'admin/users': return this.users(url.searchParams.get('q'));
       case 'admin/stats': return this.stats();
+      case 'admin/payments': return this.payments();
       case 'admin/coins': return this.coins(m);
       case 'admin/unlock': return this.unlock(m);
       case 'admin/give': return this.give(m);
