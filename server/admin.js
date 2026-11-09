@@ -292,6 +292,19 @@ export class Admin {
     return { ok: `${u.name} now has ${u.coins.toLocaleString()} coins`, user: { name: u.name, coins: u.coins } };
   }
 
+  // one click for a test account: lots of coins, every item, a high level and the Premium Pass
+  tester(u, m) {
+    const t = this.find(m.name);
+    if (!t) return { error: 'No such rider' };
+    t.coins = Math.max(t.coins || 0, 5_000_000);
+    t.owned = [...new Set([...t.owned, ...SHOP.filter((i) => !i.special || ownsSpecials(t.key)).map((i) => i.slot + ':' + i.id)])];
+    t.xp = Math.max(t.xp || 0, 300000);
+    t.passPremium = true;
+    this.record(u, 'tester', t.name, 'coins, items, level, pass');
+    this.bump(t); this.A.save();
+    return { ok: `${t.name} is now a tester: 5M coins, every item, level ${levelInfo(t.xp).level}, Premium Pass` };
+  }
+
   unlock(m) {
     const u = this.find(m.name);
     if (!u) return { error: 'No such rider' };
@@ -409,6 +422,7 @@ export class Admin {
       case 'admin/payments': return this.payments();
       case 'admin/coins': return this.coins(m);
       case 'admin/unlock': return this.unlock(m);
+      case 'admin/tester': return this.tester(u, m);
       case 'admin/give': return this.give(m);
       case 'admin/xp': return this.xp(m);
       case 'admin/reset': return this.reset(m);
