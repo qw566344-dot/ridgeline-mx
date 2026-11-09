@@ -39,6 +39,7 @@ const AD_MIN_WATCH = Number(process.env.AD_MIN_WATCH_S) || 4;
 // One-off resets that run once per value (stored in the save): placement matches for everyone's ranked rating
 const RANK_EPOCH = 'placements-1';
 import { PASS, passTier, PASS_PRICE } from '../shared/pass.js';
+import { Payments } from './payments.js';
 
 const splitKey = (k) => { const [s, ...rest] = String(k).split(':'); return [s, rest.join(':')]; };
 const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
@@ -65,6 +66,7 @@ export class Accounts {
     this.casino = new Casino(this);
     this.admin = new Admin(this);
     this.chat = new Chat(this);
+    this.payments = new Payments(this);
     this.startedAt = Date.now();
     // the cloud copy is never written until it has been read: a wiped local file
     // must not overwrite everyone's accounts (see loadCloud)
@@ -526,13 +528,10 @@ export class Accounts {
     this.save();
     return { ok: got.length === 1 ? got[0] : `${got.length} rewards claimed`, profile: this.profile(u) };
   }
-  // the premium pass: coins only, once
+  // the premium pass is bought with a card now (Stripe, see payments.js); coins can no longer buy it
   buyPass(u) {
     if (u.passPremium) return { error: 'You already have the Premium Pass' };
-    if (u.coins < PASS_PRICE) return { error: `The Premium Pass costs ${PASS_PRICE.toLocaleString()} coins` };
-    u.coins -= PASS_PRICE; u.passPremium = true;
-    this.save();
-    return { ok: 'Premium Pass unlocked!', profile: this.profile(u) };
+    return { error: 'The Premium Pass is bought with a card now' };
   }
 
   // ---- challenges: today's / this week's counters (reset when the day / week turns over, UTC)
@@ -639,6 +638,8 @@ export class Accounts {
       if (r === 'challenges/claim') return send(200, this.claimChallenge(u, String(m.id || '')));
       if (r === 'pass/claim') return send(200, this.claimPass(u, Number(m.tier) || 0, String(m.track || 'free')));
       if (r === 'pass/buy') return send(200, this.buyPass(u));
+      if (r === 'pay/status') return send(200, this.payments.status());
+      if (r === 'pay/checkout') return this.payments.checkout(u, m.item, req.headers.origin).then((out) => send(200, out));
       if (r === 'logout') return send(200, this.logout(token));
       if (r.startsWith('casino/')) { const out = this.casino.handle(r, u, m); if (out) return send(200, out); }
       if (r === 'chat' || r.startsWith('chat/')) { const out = this.chat.handle(r, u, m, url); if (out) return send(200, out); }

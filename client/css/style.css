@@ -1505,3 +1505,12 @@ body.crazy #privacy-link { display: none !important; }
 .consent a { color: #7fb4ff; }
 .consent-btns { display: flex; gap: 8px; justify-content: flex-end; }
 .consent-btns button { padding: 7px 14px; font-size: 13px; }
+
+/* real-money: the + next to the coins, and the buy box */
+.coin-plus { margin-left: 6px; width: 20px; height: 20px; padding: 0; border-radius: 50%; border: none; background: var(--accent); color: #fff; font-weight: 900; font-size: 15px; line-height: 20px; cursor: pointer; }
+.coin-plus:hover { filter: brightness(1.15); }
+.packs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 4px; }
+.pack { display: grid; gap: 4px; justify-items: center; padding: 14px 8px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); color: inherit; cursor: pointer; font-family: var(--font); }
+.pack:hover { border-color: var(--accent); background: rgba(255,255,255,0.09); }
+.pack b { font-size: 20px; } .pack em { font-style: normal; font-weight: 800; color: var(--accent); }
+.pay-note { font-size: 12px; opacity: 0.7; margin: 8px 0 0; }

@@ -3,6 +3,7 @@
 //   node tools/account-test.js
 import { spawn } from 'child_process';
 import fs from 'fs';
+import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { shopRotation, TP_PER_COIN } from '../shared/shop.js';
@@ -14,7 +15,7 @@ let fails = 0;
 const ok = (c, what) => { console.log((c ? 'ok   ' : 'FAIL ') + what); if (!c) fails++; };
 const api = async (t, r, b) => (await fetch(BASE + '/api/' + r, { method: b ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) }, body: b ? JSON.stringify(b) : undefined })).json();
 function start() {
-  const p = spawn(process.execPath, ['server/server.js'], { cwd: ROOT, env: { ...process.env, PORT: '5398', DATA_DIR: DATA } });
+  const p = spawn(process.execPath, ['server/server.js'], { cwd: ROOT, env: { ...process.env, PORT: '5398', DATA_DIR: DATA, STRIPE_WEBHOOK_SECRET: 'whsec_t' } });
   return p;
 }
 async function up() { for (let i = 0; i < 60; i++) { try { await fetch(BASE + '/health'); return; } catch { await new Promise((r) => setTimeout(r, 100)); } } }
@@ -52,7 +53,7 @@ try {
     const locked = await api(tk, 'pass/claim', { tier: 3, track: 'free' });
     ok(/level 4/i.test(locked.error || ''), 'a pass reward is locked until its level');
     const prem = await api(tk, 'pass/claim', { tier: 1, track: 'premium' }), poor = await api(tk, 'pass/buy');
-    ok(/premium/i.test(prem.error || '') && /60,000/.test(poor.error || ''), 'premium rewards need the pass, and the pass costs 60,000 coins');
+    ok(/premium/i.test(prem.error || '') && /card/i.test(poor.error || ''), 'premium rewards need the pass, which is bought with a card');
     for (let i = 0; i < 31; i++) await api(tk, 'reward', { kind: 'lap', amount: 40 }); // 31 laps = 1860 XP = level 4
     const c0 = (await api(tk, 'me')).profile.coins;
     const got = await api(tk, 'pass/claim', { tier: 3, track: 'free' }), again = await api(tk, 'pass/claim', { tier: 3, track: 'free' });
@@ -103,8 +104,11 @@ try {
   ok(r.profile && r.profile.coins === 1000000, 'test account nahh gets 1,000,000 coins');
   { // buying the premium pass with coins, then claiming
     const tk = r.token;
-    const bought = await api(tk, 'pass/buy'), twice = await api(tk, 'pass/buy');
-    ok(bought.ok && bought.profile.passPremium && bought.profile.coins === 1000000 - 60000 && /already/i.test(twice.error || ''), 'the premium pass is bought once with coins');
+    const refused = await api(tk, 'pass/buy'); // coins can not buy it any more: the pass is a card purchase (signed Stripe webhook, see tools/pay-test.js)
+    const raw = JSON.stringify({ type: 'checkout.session.completed', data: { object: { id: 'cs_acct', payment_status: 'paid', amount_total: 299, metadata: { user: 'nahh', item: 'pass' } } } }), t = Math.floor(Date.now() / 1000);
+    await fetch(BASE + '/api/stripe/webhook', { method: 'POST', headers: { 'Stripe-Signature': `t=${t},v1=${crypto.createHmac('sha256', 'whsec_t').update(t + '.' + raw).digest('hex')}` }, body: raw });
+    const twice = await api(tk, 'pass/buy');
+    ok(/card/i.test(refused.error || '') && /already/i.test(twice.error || '') && (await api(tk, 'me')).profile.passPremium, 'the premium pass is a card purchase, owned once paid');
     for (let i = 0; i < 6; i++) await api(tk, 'reward', { kind: 'lap', amount: 40 }); // level 2
     const all = await api(tk, 'pass/claim', { tier: 0 });
     ok(all.ok && all.profile.owned.includes('color:p-trailblazer') && all.profile.passP.includes(1), 'claim all pays the premium reward for each level reached');

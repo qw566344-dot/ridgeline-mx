@@ -61,6 +61,7 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ exists: lobby.hasParty(code), region: process.env.REGION || null }));
     return;
   }
+  if (req.url.startsWith('/api/stripe/webhook') && req.method === 'POST') { accounts.payments.webhook(req, res); return; }
   if (req.url.startsWith('/api/')) {
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
     accounts.handle(req, res, ip);
