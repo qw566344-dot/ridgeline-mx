@@ -9,6 +9,10 @@ export const COIN_PACKS = [
   { id: 'c3', cents: 199, coins: 60000 },
   { id: 'c4', cents: 399, coins: 130000 },
 ];
+// MASTER SWITCH for real-money buying. false = the + button is hidden, the pass says "coming soon", checkout refuses.
+// Flip to true (and make sure the live Stripe keys are in Render) to open the shop.
+export const PAYMENTS_ON = false;
+
 export const PASS_CENTS = 299; // the Premium Pass, bought once
 
 export const usd = (cents) => '$' + (cents / 100).toFixed(2);

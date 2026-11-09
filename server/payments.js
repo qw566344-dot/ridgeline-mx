@@ -9,14 +9,14 @@
 //  With STRIPE_SECRET_KEY unset everything here is switched off and the game hides the buttons.
 // =====================================================================
 import crypto from 'node:crypto';
-import { moneyItem } from '../shared/money.js';
+import { moneyItem, PAYMENTS_ON } from '../shared/money.js';
 
 const SITES = ['https://www.ridgeline-mx.com', 'https://ridgeline-mx.com', 'https://ridgeline-mx.onrender.com'];
 const siteFor = (origin) => (SITES.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin || '')) ? origin : SITES[0];
 
 export class Payments {
   constructor(accounts) { this.accounts = accounts; }
-  get enabled() { return !!process.env.STRIPE_SECRET_KEY; }
+  get enabled() { return PAYMENTS_ON && !!process.env.STRIPE_SECRET_KEY; }
   get log() { const db = this.accounts.db; return db.payments || (db.payments = {}); } // session id -> what was granted (also stops double grants)
 
   status() { return { enabled: this.enabled, test: /^sk_test_/.test(process.env.STRIPE_SECRET_KEY || '') }; }
