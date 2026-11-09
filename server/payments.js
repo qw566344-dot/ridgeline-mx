@@ -38,6 +38,7 @@ export class Payments {
       'line_items[0][price_data][currency]': 'usd',
       'line_items[0][price_data][unit_amount]': String(item.cents),
       'line_items[0][price_data][product_data][name]': item.name,
+      'line_items[0][price_data][product_data][tax_code]': 'txcd_10000000', // Stripe Tax needs a category; this one is "digital goods / electronically supplied services"
     });
     try {
       const r = await fetch('https://api.stripe.com/v1/checkout/sessions', { method: 'POST', headers: { Authorization: 'Bearer ' + process.env.STRIPE_SECRET_KEY, 'Content-Type': 'application/x-www-form-urlencoded' }, body: f });
