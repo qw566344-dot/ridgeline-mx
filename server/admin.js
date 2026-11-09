@@ -227,7 +227,7 @@ export class Admin {
     q = String(q || '').trim().toLowerCase();
     const F = this.A.friends;
     const users = Object.values(this.A.db.users).filter((u) => !q || u.key.includes(q))
-      .map((u) => ({ name: u.name, online: !!(F && F.online(u.key)), admin: this.isAdmin(u) || this.isDev(u), muted: !!this.muted(u) }))
+      .map((u) => ({ name: u.name, online: !!(F && F.online(u.key)), admin: this.isAdmin(u) || this.isDev(u), muted: !!this.muted(u), mutedUntil: this.muted(u) || 0 }))
       .sort((a, b) => (b.online - a.online) || a.name.localeCompare(b.name)).slice(0, 30);
     return { users };
   }
@@ -237,7 +237,7 @@ export class Admin {
     const F = this.A.friends;
     const list = Object.values(this.A.db.users)
       .filter((u) => !q || u.key.includes(q))
-      .map((u) => ({ name: u.name, coins: u.coins, created: u.created, lastSeen: u.lastSeen || null, online: !!(F && F.online(u.key)), items: u.owned.length, level: levelInfo(u.xp || 0).level, banned: !!u.banned, admin: this.isAdmin(u), owner: this.isOwner(u), muted: !!this.muted(u) }))
+      .map((u) => ({ name: u.name, coins: u.coins, created: u.created, lastSeen: u.lastSeen || null, online: !!(F && F.online(u.key)), items: u.owned.length, level: levelInfo(u.xp || 0).level, banned: !!u.banned, admin: this.isAdmin(u), owner: this.isOwner(u), muted: !!this.muted(u), mutedUntil: this.muted(u) || 0 }))
       .sort((a, b) => (b.online - a.online) || (b.lastSeen || 0) - (a.lastSeen || 0));
     return { users: list, total: Object.keys(this.A.db.users).length };
   }
