@@ -32,8 +32,9 @@ export function roulettePayout(pick, n) {
 // crash: the multiplier climbs from 1.00x until the round crashes
 export const CRASH_RATE = 0.075;                   // 2x after ~9 s, 10x after ~31 s
 export function crashMult(ms) { return Math.exp((CRASH_RATE * Math.max(0, ms)) / 1000); }
-// where a round crashes, from a uniform random 0..1 (about 4% house edge)
-export function crashPointFrom(u) { return Math.min(1000, Math.max(1, Math.floor(96 / (1 - Math.min(0.999999, u))) / 100)); }
+// where a round crashes, from a uniform random 0..1 (about a 1% house edge - it was 4%: one round in 25 crashed at 1.00x)
+export const CRASH_EDGE = 99;
+export function crashPointFrom(u) { return Math.min(1000, Math.max(1, Math.floor(CRASH_EDGE / (1 - Math.min(0.999999, u))) / 100)); }
 
 export function checkBet(amount, coins) {
   amount = Math.floor(Number(amount));

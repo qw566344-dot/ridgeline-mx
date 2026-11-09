@@ -10,6 +10,9 @@
 //  the dealer's face-down card) lives here too; the game only sees bjView.
 // =====================================================================
 import crypto from 'crypto';
+// the player's screen starts the climb a moment after the server does (the start reply takes time to arrive): without this
+// cushion the server was always a little ahead of what you saw, and a cash-out on a number you could see could still lose
+const CRASH_GRACE_MS = 300;
 import { checkBet, validPick, roulettePayout, rouletteColor, crashMult, crashPointFrom, bjDeal, bjHit, bjStand, bjDouble, bjCanDouble, bjView } from '../shared/casino.js';
 
 export class Casino {
@@ -39,7 +42,7 @@ export class Casino {
     u.coins -= b.amount;
     this.A.save();
     const id = crypto.randomBytes(8).toString('hex');
-    this.rounds.set(id, { key: u.key, bet: b.amount, start: Date.now(), cp: crashPointFrom(crypto.randomInt(1_000_000) / 1_000_000) });
+    this.rounds.set(id, { key: u.key, bet: b.amount, start: Date.now() + CRASH_GRACE_MS, cp: crashPointFrom(crypto.randomInt(1_000_000) / 1_000_000) });
     return { id, profile: this.A.profile(u) };
   }
 
