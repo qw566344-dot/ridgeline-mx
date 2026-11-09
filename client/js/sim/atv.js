@@ -324,7 +324,7 @@ export class AtvController {
     if (hit && !c.tough) {
       if (hit.type === 'rider' && (hit.impact > 1.0 || hit.pen > 0.08)) return v.crash('Thrown off');
       if (hit.type === 'roll') return v.crash('Rolled it');
-      if (hit.type === 'hard' && hit.impact > (c.nose || 4.5)) return v.crash('Stuffed the nose');
+      if (hit.type === 'hard' && hit.impact > (c.nose || (v.cfg.bikeWhip ? 9 : 4.5))) return v.crash('Stuffed the nose'); // snowmobiles (bikeWhip) plough through powder: twice as much nose hit before it counts as a crash
     }
     if (c.tough) return this.toughChecks(dt);
     // rollover: tipped past the point of no return
