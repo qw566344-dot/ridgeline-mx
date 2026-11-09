@@ -25,7 +25,7 @@ import { preloadModels, skinTime } from './render/modelRig.js';
 import { escapeHtml, setStaffTags } from './util.js';
 import { serverBase } from './config.js';
 import { Tutorial } from './tutorial.js';
-import { watchVersion, watchMoved } from './version.js';
+import { watchVersion } from './version.js';
 
 const settings = new Settings();
 const R = new Renderer(document.getElementById('game'));
@@ -139,7 +139,6 @@ ui.on('joinParty', async (inv) => {
 });
 
 // expose for debugging / automated tests in the console
-if (!CRAZY) watchMoved();
 watchVersion(); // "new version - refresh" when the game has been updated under an open page
 window.MX = { game, ui, settings, R, net, stage, input, account, social, loadTags };
 
