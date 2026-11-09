@@ -229,8 +229,9 @@ export class AtvController {
         if (holding) this.whipSide = Math.sign(inp.steer);
         const late = v.assist.landing > 0 ? clamp(((this.timeToLand || 9) - 0.3) / 0.4, 0, 1) : 1;
         const amt = this.whipAmt * late, side = this.whipSide || 0;
-        const rollT = -side * 97 * DEG * amt;      // laid over up to flat sideways (same as the bikes)
-        const yawT = side * 76 * DEG * amt;        // rear kicks well out
+        const ws = c.whipScale || 1;                 // how big the whip is (1 = the full dirt-bike whip; sleds use a small one)
+        const rollT = -side * 97 * ws * DEG * amt; // laid over (the bikes go up to flat sideways)
+        const yawT = side * 76 * ws * DEG * amt;   // tail kicks out
         const vx = v.vel.x, vz = v.vel.z, vh = Math.hypot(vx, vz);
         const hk = holding ? amt : 0;
         const K = 55 + (30 - 55) * hk, C = 14 + (7.5 - 14) * hk;
