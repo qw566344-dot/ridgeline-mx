@@ -47,6 +47,14 @@ try {
   await hook(sess('cs_6', 'paytester', 'pass', PASS_CENTS));
   ok((await api(tk, 'me')).profile.passPremium === true, 'the paid pass webhook unlocks the Premium Pass');
   ok((await api(tk, 'inbox?rev=0')).profile !== undefined, 'the open game is told to refresh its profile');
+  { // coming back from Stripe: the buyer can ask what their purchase was (no refresh, no waiting)
+    const c = await api(tk, 'pay/confirm', { sid: 'cs_1' }), p = await api(tk, 'pay/confirm', { sid: 'cs_6' });
+    ok(c.ok && c.item === pack.id && c.coins === pack.coins && c.cents === pack.cents && c.profile.coins === await coins(), 'confirm tells the buyer what they bought, with the fresh profile');
+    ok(p.ok && p.item === 'pass' && p.profile.passPremium, 'confirm works for the pass too');
+    const other = (await api(null, 'register', { name: 'Stranger', password: pw })).token;
+    ok((await api(other, 'pay/confirm', { sid: 'cs_1' })).pending === true, "nobody else can read someone's purchase");
+    ok((await api(tk, 'pay/confirm', { sid: 'cs_unknown_zzzzzz' })).pending === true && !!(await api(tk, 'pay/confirm', { sid: '../x' })).error, 'unknown purchases stay pending, bad ids are refused');
+  }
 } finally { srv.kill(); }
 console.log(fails ? `\n${fails} FAILED` : '\nall payment checks passed');
 process.exit(fails ? 1 : 0);

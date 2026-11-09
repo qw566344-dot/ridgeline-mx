@@ -29,7 +29,7 @@ export class Payments {
     const site = siteFor(origin);
     const f = new URLSearchParams({
       mode: 'payment',
-      success_url: site + '/?paid=1',
+      success_url: site + '/?paid=1&sid={CHECKOUT_SESSION_ID}', // Stripe fills in the id
       cancel_url: site + '/?paid=0',
       client_reference_id: u.key,
       'metadata[user]': u.key,
@@ -46,6 +46,25 @@ export class Payments {
       if (!r.ok || !j.url) { console.log('stripe checkout failed:', j && j.error && j.error.message); return { error: 'Could not start the payment' }; }
       return { ok: true, url: j.url };
     } catch { return { error: 'Could not reach the payment service' }; }
+  }
+
+  // The player is back from Stripe and asks "did my payment go through?" - no waiting for the webhook:
+  // if the grant is not recorded yet we ask Stripe about that one session ourselves (fulfil() is once-only, so
+  // the webhook arriving too changes nothing). Only the buyer can see their own purchase.
+  async confirm(u, sid) {
+    sid = String(sid || '');
+    if (!/^cs_[A-Za-z0-9_]{1,120}$/.test(sid)) return { error: 'Bad purchase id' };
+    if (!this.log[sid] && this.enabled) {
+      try {
+        const r = await fetch('https://api.stripe.com/v1/checkout/sessions/' + sid, { headers: { Authorization: 'Bearer ' + process.env.STRIPE_SECRET_KEY } });
+        const j = await r.json();
+        if (r.ok && j.metadata && j.metadata.user === u.key) this.fulfil(j);
+      } catch { /* the webhook will still do it */ }
+    }
+    const rec = this.log[sid];
+    if (!rec || rec.user !== u.key) return { pending: true };
+    const item = moneyItem(rec.item) || {};
+    return { ok: true, item: rec.item, coins: item.coins || 0, cents: rec.cents, profile: this.accounts.profile(u) };
   }
 
   // Stripe signs every webhook: "t=timestamp,v1=hmac". Anything that does not verify is thrown away.

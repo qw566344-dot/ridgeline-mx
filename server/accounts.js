@@ -639,6 +639,7 @@ export class Accounts {
       if (r === 'pass/claim') return send(200, this.claimPass(u, Number(m.tier) || 0, String(m.track || 'free')));
       if (r === 'pass/buy') return send(200, this.buyPass(u));
       if (r === 'pay/status') return send(200, this.payments.status());
+      if (r === 'pay/confirm') return this.payments.confirm(u, m.sid).then((out) => send(200, out));
       if (r === 'pay/checkout') return this.payments.checkout(u, m.item, req.headers.origin).then((out) => send(200, out));
       if (r === 'logout') return send(200, this.logout(token));
       if (r.startsWith('casino/')) { const out = this.casino.handle(r, u, m); if (out) return send(200, out); }

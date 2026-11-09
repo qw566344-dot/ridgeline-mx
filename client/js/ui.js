@@ -1169,16 +1169,28 @@ export class UI {
     this.payOn = false;
     try { const r = await this.account.api('pay/status'); this.payOn = !!(r && r.enabled); } catch { /* offline */ }
     this.renderTop();
-    // back from Stripe: ?paid=1 (done) or ?paid=0 (cancelled)
-    const m = /[?&]paid=([01])/.exec(location.search);
+    // back from Stripe: ?paid=1&sid=... (done) or ?paid=0 (cancelled)
+    const m = /[?&]paid=([01])/.exec(location.search), sid = (/[?&]sid=([A-Za-z0-9_]+)/.exec(location.search) || [])[1];
     if (!m) return;
     try { history.replaceState(null, '', location.pathname); } catch { /* */ }
     if (m[1] === '0') { this.popup('Payment cancelled - you were not charged.', 'bad'); return; }
-    this.popup('<b>Thank you!</b><br>Your purchase is being added...', 'good', null, 6);
-    for (let i = 0; i < 6; i++) { // Stripe tells the server a moment after paying
-      await new Promise((r) => setTimeout(r, 2000));
-      try { const r = await this.account.api('me'); if (r && r.profile) { this.account.profile = r.profile; this.account.changed(); this.renderTop(); if (this.screen === 'pass') this.renderPass(); } } catch { /* */ }
+    // ask the server about this exact purchase (it checks with Stripe itself, so there is nothing to wait for or refresh)
+    for (let i = 0; sid && i < 10; i++) {
+      const r = await this.account.api('pay/confirm', { sid }).catch(() => null);
+      if (r && r.ok) { this.thankYou(r); return; }
+      if (r && r.error) break;
+      await new Promise((res) => setTimeout(res, 1500));
     }
+    this.popup('<b>Thank you!</b><br>Your payment went through. If it does not show up in a minute, reload the page.', 'good', null, 10);
+  }
+  // the thank-you box after a purchase: what was bought, and that it is already in the account
+  thankYou(r) {
+    const A = this.account;
+    if (r.profile) { A.profile = r.profile; A.persistLocal && A.persistLocal(); A.changed(); }
+    this.renderTop(); if (this.screen === 'pass') this.renderPass();
+    const what = r.item === 'pass' ? 'the <b>Premium Pass</b>' : `<b>${r.coins.toLocaleString()} coins</b>`;
+    const now = r.item === 'pass' ? 'It is unlocked on your account - open the Pass screen to claim your rewards.' : `They are in your account now. You have <b>${A.coins.toLocaleString()} coins</b>.`;
+    this.modal(`<div class="paid-ok"><div class="paid-check">&#10003;</div><h2>Thank you!</h2><p>You bought ${what} for ${usd(r.cents)}.</p><p>${now}</p></div>`, [['Awesome!', null, 'primary']]);
   }
   async startBuy(item) {
     const r = await this.account.api('pay/checkout', { item }).catch(() => null);

@@ -1547,3 +1547,8 @@ body.crazy #privacy-link { display: none !important; }
 .ax-live-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--ax-panel2); border-radius: 10px; padding: 9px 12px; font-size: 13px; }
 .ax-live-item small { color: var(--ax-mut); display: block; }
 @media (max-width: 700px) { .ax-shell { height: 96vh; border-radius: 12px; } .ax-num { display: none; } .ax-quick { margin-left: 0; } }
+.paid-ok { text-align: center; padding: 6px 4px 0; }
+.paid-ok h2 { margin: 10px 0 6px; font-size: 26px; }
+.paid-ok p { margin: 6px 0; opacity: 0.9; }
+.paid-check { width: 64px; height: 64px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; font-size: 36px; font-weight: 900; color: #0b1a12; background: #3ddc97; box-shadow: 0 0 0 8px rgba(61,220,151,0.18); animation: paidpop .45s cubic-bezier(.2,1.4,.4,1); }
+@keyframes paidpop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
