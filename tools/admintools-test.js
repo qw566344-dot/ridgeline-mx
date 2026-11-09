@@ -38,11 +38,6 @@ await post('equip', { slot: 'color', id: 'tiger' }, R.token);
 await post('admin/take', { name: 'Rider1', item: 'color:tiger' }, owner.token);
 const me = await get('me', R.token);
 check('take item removes it and unequips it', !me.profile.owned.includes('color:tiger') && me.profile.equipped.color === 'stock');
-// make tester: one click for coins, every item, a high level and the Premium Pass (admins only)
-const denied = await post('admin/tester', { name: 'Rider1' }, R.token);
-const made = await post('admin/tester', { name: 'Rider1' }, owner.token);
-const tme = await get('me', R.token);
-check('make tester gives coins, items, level and the pass (and riders cannot use it)', !!denied.error && made.ok && tme.profile.coins >= 5000000 && tme.profile.level >= 30 && tme.profile.passPremium === true && tme.profile.owned.length > 100);
 
 // kick: out of the party on the game server, and a kick in the next poll
 const A = client('lmkk'), T = client('Rider1');

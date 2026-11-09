@@ -237,7 +237,6 @@ export class AdminPanel {
             <input type="number" class="adm-set" placeholder="coins (minus takes)" data-n="${n}"><button class="ax-btn sm" data-a="addbox" data-n="${n}">Add coins</button>
             <button class="ax-btn sm" data-a="xp" data-n="${n}">Add XP</button>
             <button class="ax-btn sm" data-a="unlock" data-n="${n}">Unlock all</button>
-            <button class="ax-btn sm pri" data-a="tester" data-n="${n}" title="5M coins, every item, high level and the Premium Pass">Make tester</button>
             <button class="ax-btn sm" data-a="give" data-n="${n}">Give item</button>
             ${u.online && !u.owner ? `<button class="ax-btn sm" data-a="summon" data-n="${n}" title="Bring them into your party">Summon</button><button class="ax-btn sm bad" data-a="blow" data-n="${n}" title="Troll: they blow up">Blow up</button>` : ''}
             ${u.owner ? '' : `<button class="ax-btn sm" data-a="kick" data-n="${n}">Kick</button>`}
@@ -256,7 +255,6 @@ export class AdminPanel {
       if (a === 'add') this.act('coins', { name: n, add: Number(b.dataset.v) });
       if (a === 'addbox') { const inp = b.previousElementSibling; if (inp.value.trim() !== '') this.act('coins', { name: n, add: Number(inp.value) }); }
       if (a === 'unlock') this.act('unlock', { name: n });
-      if (a === 'tester') this.act('tester', { name: n });
       if (a === 'join') this.joinRider(n);
       if (a === 'summon') this.summonRider(n);
       if (a === 'give') { this.tab('broadcast'); $('adm-give-name').value = n; $('adm-give-item').focus(); }
