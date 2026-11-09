@@ -22,6 +22,15 @@ const g0 = { h: 0, nx: 0, ny: 1, nz: 0 };
 const _f = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _n = new THREE.Vector3();
 
 const _ax = new THREE.Vector3();
+// snowmobile whip (a copy of the dirt bike's controller, see bike.js): scratch objects and the "exact angular acceleration" helper
+const _qi = new THREE.Quaternion(), _Y = new THREE.Vector3(0, 1, 0), _tf = new THREE.Vector3(), _tu = new THREE.Vector3(), _tl = new THREE.Vector3(), _te = new THREE.Vector3(), _tw = new THREE.Vector3(), _lv = new THREE.Vector3();
+const _tm = new THREE.Matrix4(), _tq = new THREE.Quaternion(), _ac = new THREE.Vector3(), _lp = new THREE.Vector3();
+function addAccel(v, axis, a) {
+  const I = v.cfg.inertia;
+  _ac.copy(axis).multiplyScalar(a).applyQuaternion(_qi.copy(v.quat).invert());
+  _ac.x *= I[0]; _ac.y *= I[1]; _ac.z *= I[2];
+  v.torque.add(_ac.applyQuaternion(v.quat));
+}
 export class AtvController {
   constructor(veh) {
     this.v = veh;
@@ -172,26 +181,79 @@ export class AtvController {
       const lean = car ? clamp(inp.lean, -0.6, 0.6) : inp.lean;
       let ap = (lean * A.flipRate * (globalThis.__flipMul || 1) - pitchW) * (Math.abs(lean) > 0.1 ? A.flipAccel : A.spinDamp);
       ap += -inp.throttle * A.gyro * 0.4 + inp.rearBrake * A.gyro;
+      // snowmobiles pitch about a LEVEL axis square to the heading, like the dirt bike (bike.js): with the sled laid over in a
+      // whip its own side axis is tilted, and pitch torques then turned into yaw and nose-dived it
+      let pAxis = left, pW = pitchW;
+      if (c.bikeWhip) {
+        const lvl = _lp.set(fwd.z, 0, -fwd.x);
+        if (v.airTime < 0.03) this._lvl = null;
+        const ls = lvl.lengthSq();
+        if (ls > 1e-4) {
+          lvl.multiplyScalar(1 / Math.sqrt(ls));
+          if (this._lvl && lvl.dot(this._lvl) < 0) lvl.negate();
+          const sb = 1 - sstep(0.03, 0.15, ls);
+          if (sb > 0) lvl.lerp(left, sb).normalize();
+        } else lvl.copy(left);
+        (this._lvl || (this._lvl = new THREE.Vector3())).copy(lvl);
+        pAxis = lvl; pW = v.angVel.dot(lvl);
+      }
       if ((car || Math.abs(inp.lean) < 0.1) && v.airTime > 0.08) {
         const desired = this.landingDirection();
         _c.crossVectors(fwd, desired);
-        const e = Math.atan2(_c.dot(left), fwd.dot(desired));
+        const e = Math.atan2(_c.dot(pAxis), fwd.dot(desired));
         if (car) {
           // a buggy keeps its momentum in the air: the levelling only fades in after the jump has left the
           // ground and is a soft, well-damped spring (the old stiff one rang and snapped the nose around)
           const k = sstep(0.12, 0.7, v.airTime);
           ap += (e * 4.5 - pitchW * 4.0) * k - pitchW * 0.35 * (1 - k);
         } else {
-          const keepAp = -pitchW * 0.35;
-          const assistAp = v.assist.landing > 0 ? ap + (e * 12 - pitchW * 3) * v.assist.landing : ap;
+          const keepAp = -pW * 0.35;
+          const assistAp = v.assist.landing > 0 ? ap + (e * 12 - pW * 3) * v.assist.landing : ap;
           const wKeep = sstep(1.0, 1.4, Math.abs(tr.pitch)) * sstep(0.9, 1.3, Math.abs(e));
           ap = assistAp + (keepAp - assistAp) * wKeep;
         }
       }
-      v.torque.addScaledVector(left, ap * I[0]);
+      if (c.bikeWhip) addAccel(v, pAxis, ap); else v.torque.addScaledVector(left, ap * I[0]);
       const roll = Math.asin(clamp(left.y, -1, 1));
       tr.whip = Math.max(tr.whip, Math.abs(roll));
       if (car) v.torque.addScaledVector(fwd, ((-this.steer * A.whip * DEG - roll) * 13 - rollW * 7) * I[2]);
+      else if (c.bikeWhip && !inp.clutch) {
+        // SNOWMOBILE WHIP = the dirt bike's whip (bike.js): ONE controller turns the sled toward "laid over and swung out"
+        // while A / D is held, and back to upright and lined up with its flight line once let go. (The quad's separate roll
+        // and yaw springs overshot on a sled and spun it into a 360.)
+        const holding = Math.abs(inp.steer) > 0.15;
+        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 5.0) : Math.max(0, (this.whipAmt || 0) - dt * 9);
+        const flipT = Math.max(sstep(1.6, 2.2, Math.abs(tr.pitch)), Math.abs(lean) > 0.1 ? 1 : 0, sstep(1.8, 2.6, Math.abs(pitchW)));
+        this.flipBlend = (this.flipBlend || 0) + (flipT - (this.flipBlend || 0)) * Math.min(1, dt * 14);
+        const swingK = (1 - this.flipBlend) * clamp((0.985 - Math.abs(fwd.y)) / 0.12, 0, 1);
+        if (holding) this.whipSide = Math.sign(inp.steer);
+        const late = v.assist.landing > 0 ? clamp(((this.timeToLand || 9) - 0.3) / 0.4, 0, 1) : 1;
+        const amt = this.whipAmt * late, side = this.whipSide || 0;
+        const rollT = -side * 97 * DEG * amt;      // laid over up to flat sideways (same as the bikes)
+        const yawT = side * 76 * DEG * amt;        // rear kicks well out
+        const vx = v.vel.x, vz = v.vel.z, vh = Math.hypot(vx, vz);
+        const hk = holding ? amt : 0;
+        const K = 55 + (30 - 55) * hk, C = 14 + (7.5 - 14) * hk;
+        const lvlA = _lv.set(fwd.z, 0, -fwd.x);
+        if (swingK > 0 && Math.abs(fwd.y) < 0.95 && lvlA.lengthSq() > 0.01) {
+          lvlA.normalize();
+          const pitchNow = Math.asin(clamp(fwd.y, -1, 1));
+          if (vh > 2) _tf.set(vx / vh, 0, vz / vh).applyAxisAngle(_Y, yawT); else _tf.set(fwd.x, 0, fwd.z).normalize();
+          _tf.multiplyScalar(Math.cos(pitchNow)); _tf.y = Math.sin(pitchNow); _tf.normalize();
+          _tu.copy(_Y).addScaledVector(_tf, -_tf.y).normalize().applyAxisAngle(_tf, rollT);
+          _tl.crossVectors(_tu, _tf);
+          _tm.makeBasis(_tl, _tu, _tf); _tq.setFromRotationMatrix(_tm);
+          _tq.multiply(_qi.copy(v.quat).invert());
+          if (_tq.w < 0) { _tq.x = -_tq.x; _tq.y = -_tq.y; _tq.z = -_tq.z; _tq.w = -_tq.w; }
+          const sh = Math.sqrt(1 - Math.min(1, _tq.w * _tq.w)), ang = 2 * Math.acos(Math.min(1, _tq.w));
+          _te.set(_tq.x, _tq.y, _tq.z); if (sh > 1e-5) _te.multiplyScalar(ang / sh); else _te.set(0, 0, 0);
+          _tw.copy(v.angVel);
+          _te.addScaledVector(lvlA, -_te.dot(lvlA)); _tw.addScaledVector(lvlA, -_tw.dot(lvlA)); // the pitch axis belongs to flips and the landing assist
+          _te.multiplyScalar(K * swingK).addScaledVector(_tw, -C * swingK);
+          addAccel(v, _te, 1);
+        }
+        if (swingK < 1) v.torque.addScaledVector(fwd, ((rollT - roll) * 75 - rollW * 15) * (1 - swingK) * I[2]); // mid-flip: only keep the roll in check
+      }
       else {
         // WHIP, like the bikes' but a little less: hold A / D and the quad lies over while the tail swings out; let go and it
         // straightens along its flight line. It fades out before the landing.

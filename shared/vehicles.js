@@ -691,7 +691,7 @@ export const VEHICLES = [
   // They are meant for the snow maps (Powder Valley, Frozen Lake Sprint, Summit Ridge Trail). ---
   {
     ...ATV_BASE,
-    id: 'sled400', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 1, modelKey: 'q_sled400', ...quadShape('sled400'), name: 'Snow Cruiser 400', paint: 'white', tier: 'Starter',
+    id: 'sled400', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 1, bikeWhip: true, modelKey: 'q_sled400', ...quadShape('sled400'), name: 'Snow Cruiser 400', paint: 'white', tier: 'Starter',
     desc: 'The stock snowmobile. Steady, forgiving and easy to ride: good power, soft suspension and plenty of grip in the powder. The one to start on.',
     stats: { speed: 6, accel: 6, handling: 7, stability: 8, suspension: 7 },
     mass: 275, inertia: [90, 108, 48],
@@ -701,7 +701,7 @@ export const VEHICLES = [
   },
   {
     ...ATV_BASE,
-    id: 'sled600', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 1, modelKey: 'q_sled600', ...quadShape('sled600'), name: 'Trail Runner 600', paint: 'blue', tier: 'Pro',
+    id: 'sled600', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 1, bikeWhip: true, modelKey: 'q_sled600', ...quadShape('sled600'), name: 'Trail Runner 600', paint: 'blue', tier: 'Pro',
     desc: 'The trail sled: lighter, sharper and quicker to turn in than the stock one. Great on the twisty trails, with a higher top speed.',
     stats: { speed: 7, accel: 7, handling: 9, stability: 7, suspension: 7 },
     mass: 250, inertia: [82, 98, 44],
@@ -711,7 +711,7 @@ export const VEHICLES = [
   },
   {
     ...ATV_BASE,
-    id: 'sled800', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 1, modelKey: 'q_sled800', ...quadShape('sled800', (w) => ({ ...w, freq: w.freq * 0.92, travel: w.travel * 1.2 })), name: 'Mountain Climber 800', paint: 'orange', tier: 'Pro',
+    id: 'sled800', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 1, bikeWhip: true, modelKey: 'q_sled800', ...quadShape('sled800', (w) => ({ ...w, freq: w.freq * 0.92, travel: w.travel * 1.2 })), name: 'Mountain Climber 800', paint: 'orange', tier: 'Pro',
     desc: 'The mountain sled: huge torque, long soft suspension and a heavy, planted feel. Pulls hard out of corners and eats big landings, but turns wide.',
     stats: { speed: 7, accel: 9, handling: 6, stability: 9, suspension: 9 },
     mass: 310, inertia: [102, 122, 55],
@@ -722,7 +722,7 @@ export const VEHICLES = [
   },
   {
     ...ATV_BASE,
-    id: 'sled1000', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 1, modelKey: 'q_sled1000', ...quadShape('sled1000', (w) => ({ ...w, mu: w.mu * 1.05 })), name: 'Race Sled 1000', paint: 'red', tier: 'Works',
+    id: 'sled1000', category: 'Snowmobiles', wheelieDeg: 30, wheelieMax: 0.7, whipScale: 1, bikeWhip: true, modelKey: 'q_sled1000', ...quadShape('sled1000', (w) => ({ ...w, mu: w.mu * 1.05 })), name: 'Race Sled 1000', paint: 'red', tier: 'Works',
     desc: 'The race sled: the fastest snowmobile. Very quick, very stiff and very sharp - it rewards a clean line on the frozen lake and punishes mistakes.',
     stats: { speed: 10, accel: 9, handling: 8, stability: 6, suspension: 7 },
     mass: 235, inertia: [76, 92, 41],
