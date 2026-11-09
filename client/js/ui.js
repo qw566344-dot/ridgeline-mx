@@ -444,7 +444,7 @@ export class UI {
       const d = document.createElement('div');
       const jumps = T.features.filter((f) => !['whoops', 'rollers'].includes(f.type)).length;
       const rec = mode === 'freestyle' ? `Best ${(S.bestScore(def.id) || 0).toLocaleString()} pts` : `Best lap ${fmtTime(S.bestLap(def.id, S.get('vehicle')))}`;
-      const recs = (def.recommend || []).map((c) => `<span class="rec">${{ 'Dirt Bikes': 'BIKE', Quads: 'QUAD', 'Side-by-Sides': 'UTV', Buggies: 'BUGGY' }[c]}</span>`).join('');
+      const recs = (def.recommend || []).map((c) => `<span class="rec">${{ 'Dirt Bikes': 'BIKE', Quads: 'QUAD', 'Side-by-Sides': 'UTV', Buggies: 'BUGGY', Snowmobiles: 'SLED' }[c]}</span>`).join('');
       d.innerHTML = `<b>${def.name}</b><span class="diff ${def.difficulty}">${def.difficulty.toUpperCase()}</span>${recs}<p>${(T.L / 1000).toFixed(2)} km &bull; ${jumps} jumps</p><p>${rec}</p>`;
       d.title = def.desc;
       b.appendChild(d);

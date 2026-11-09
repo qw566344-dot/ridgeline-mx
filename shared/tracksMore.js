@@ -2691,6 +2691,487 @@ export const MORE_TRACKS = [
   finishAt: 100
  },
  {
+  id: "lodge",
+  name: "Lodge Loop",
+  difficulty: "Easy",
+  recommend: [
+   "Snowmobiles",
+   "Quads",
+   "Dirt Bikes"
+  ],
+  seed: 9304,
+  defaultWidth: 22,
+  desc: "A groomed trail looping past a ski lodge: smooth berms, an easy rhythm section and a big finish-line table. A good first race for a new sled.",
+  look: {
+   snowTrack: 1,
+   snow: 0.9,
+   dirt: [
+    0.92,
+    0.93,
+    0.99
+   ],
+   grass: [
+    0.96,
+    1,
+    1.06
+   ],
+   trees: 0.9,
+   pines: 2.2,
+   rocks: 0.4,
+   fog: 15134455,
+   skyTop: 5080260,
+   horizon: 15528953
+  },
+  terrain: {
+   hills: 7,
+   hillScale: 200,
+   rim: 46,
+   bumps: [
+    {
+     x: -60,
+     z: 40,
+     r: 120,
+     h: -3
+    }
+   ],
+   rimStart: 259
+  },
+  segments: [
+   {
+    len: 200,
+    name: "Lodge Straight",
+    features: [],
+    w: 24,
+    free: false
+   },
+   {
+    turn: 90,
+    r: 52,
+    berm: 0.6
+   },
+   {
+    len: 150,
+    name: "Gondola Rhythm",
+    features: [
+     {
+      at: 16,
+      type: "double",
+      h: 1.6,
+      face: 8,
+      gap: 6.5,
+      h2: 1.4,
+      land: 9
+     },
+     {
+      at: 80,
+      type: "rollers",
+      n: 4,
+      len: 13,
+      h: 0.9
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 48,
+    berm: 0.6
+   },
+   {
+    len: 210,
+    name: "Pine Run",
+    features: [
+     {
+      at: 18,
+      type: "table",
+      h: 1.7,
+      face: 9,
+      top: 8,
+      land: 10
+     }
+    ],
+    free: true
+   },
+   {
+    turn: -60,
+    r: 50,
+    berm: 0.5
+   },
+   {
+    len: 140,
+    name: "Chairlift Whoops",
+    features: [
+     {
+      at: 16,
+      type: "whoops",
+      n: 10,
+      len: 5.5,
+      h: 0.5
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 150,
+    r: 52,
+    berm: 0.6
+   },
+   {
+    len: 170,
+    name: "Finish Table",
+    features: [
+     {
+      at: 30,
+      type: "table",
+      h: 1.9,
+      face: 10,
+      top: 9,
+      land: 11
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 52,
+    berm: 0.6
+   }
+  ],
+  worldSize: 699,
+  start: {
+   x: -106,
+   z: 199,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "whiteout",
+  name: "Whiteout Pass",
+  difficulty: "Hard",
+  recommend: [
+   "Snowmobiles"
+  ],
+  seed: 9305,
+  defaultWidth: 18,
+  desc: "A narrow mountain pass in a blizzard: a cliff-edge triple, a step-up and steep whiteout rollers. The view is short, so learn the jumps.",
+  look: {
+   snowTrack: 1,
+   snow: 0.95,
+   dirt: [
+    0.8,
+    0.84,
+    0.92
+   ],
+   grass: [
+    0.88,
+    0.94,
+    1.02
+   ],
+   trees: 0.3,
+   pines: 1.2,
+   rocks: 2.6,
+   fog: 12898524,
+   skyTop: 7310771,
+   horizon: 13621990
+  },
+  terrain: {
+   hills: 16,
+   hillScale: 170,
+   rim: 62,
+   bumps: [
+    {
+     x: 40,
+     z: -50,
+     r: 120,
+     h: 18
+    }
+   ],
+   rimStart: 221
+  },
+  segments: [
+   {
+    len: 230,
+    name: "Pass Entry",
+    features: [
+     {
+      at: 110,
+      type: "whoops",
+      n: 16,
+      len: 6,
+      h: 0.6
+     }
+    ],
+    w: 20,
+    free: true
+   },
+   {
+    turn: 90,
+    r: 40,
+    berm: 0.6
+   },
+   {
+    len: 240,
+    name: "Cliff Triple",
+    features: [
+     {
+      at: 30,
+      type: "triple",
+      h: 2.1,
+      face: 10,
+      gap: 9,
+      h2: 1.9,
+      land: 12
+     },
+     {
+      at: 150,
+      type: "rollers",
+      n: 4,
+      len: 15,
+      h: 1.1
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 42,
+    berm: 0.6
+   },
+   {
+    len: 230,
+    name: "Blizzard Step",
+    features: [
+     {
+      at: 24,
+      type: "step",
+      h: 1.9,
+      face: 8,
+      gap: 7,
+      h2: 2.6,
+      top: 10,
+      land: 11
+     },
+     {
+      at: 120,
+      type: "double",
+      h: 2.2,
+      face: 11,
+      gap: 9,
+      h2: 2,
+      land: 13
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 40,
+    berm: 0.6
+   },
+   {
+    len: 240,
+    name: "Whiteout Rollers",
+    features: [
+     {
+      at: 30,
+      type: "rollers",
+      n: 5,
+      len: 16,
+      h: 1.2
+     },
+     {
+      at: 140,
+      type: "double",
+      h: 2,
+      face: 10,
+      gap: 8,
+      h2: 1.8,
+      land: 12
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 42,
+    berm: 0.6
+   }
+  ],
+  worldSize: 622,
+  start: {
+   x: -114,
+   z: 161,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
+  id: "tundra",
+  name: "Tundra Rally",
+  difficulty: "Medium",
+  recommend: [
+   "Snowmobiles",
+   "Quads"
+  ],
+  seed: 9306,
+  defaultWidth: 28,
+  desc: "Open arctic tundra: huge sweeping turns, long rolling straights and a big whoop field. Wide enough to race side by side.",
+  look: {
+   snowTrack: 1,
+   snow: 1,
+   dirt: [
+    0.78,
+    0.86,
+    0.98
+   ],
+   grass: [
+    0.92,
+    0.98,
+    1.08
+   ],
+   trees: 0.05,
+   pines: 0.3,
+   rocks: 0.8,
+   fog: 14740213,
+   skyTop: 4029124,
+   horizon: 15331833
+  },
+  terrain: {
+   hills: 5,
+   hillScale: 280,
+   rim: 44,
+   bumps: [
+    {
+     x: 0,
+     z: 0,
+     r: 150,
+     h: -4
+    }
+   ],
+   rimStart: 370
+  },
+  segments: [
+   {
+    len: 260,
+    name: "Tundra Straight",
+    features: [
+     {
+      at: 40,
+      type: "rollers",
+      n: 6,
+      len: 18,
+      h: 1
+     }
+    ],
+    w: 28,
+    free: true
+   },
+   {
+    turn: 90,
+    r: 80,
+    berm: 0.4
+   },
+   {
+    len: 220,
+    name: "Aurora Tables",
+    features: [
+     {
+      at: 30,
+      type: "table",
+      h: 1.9,
+      face: 11,
+      top: 10,
+      land: 12
+     },
+     {
+      at: 130,
+      type: "table",
+      h: 2.1,
+      face: 12,
+      top: 11,
+      land: 13
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 90,
+    r: 75,
+    berm: 0.4
+   },
+   {
+    len: 250,
+    name: "Permafrost Whoops",
+    features: [
+     {
+      at: 20,
+      type: "whoops",
+      n: 14,
+      len: 6.5,
+      h: 0.6
+     }
+    ],
+    free: false
+   },
+   {
+    turn: -50,
+    r: 85,
+    berm: 0.3
+   },
+   {
+    len: 200,
+    name: "Caribou Doubles",
+    features: [
+     {
+      at: 28,
+      type: "double",
+      h: 2,
+      face: 11,
+      gap: 9,
+      h2: 1.8,
+      land: 13
+     }
+    ],
+    free: false
+   },
+   {
+    turn: 140,
+    r: 75,
+    berm: 0.4
+   },
+   {
+    len: 240,
+    name: "Long Rollers",
+    features: [
+     {
+      at: 24,
+      type: "rollers",
+      n: 6,
+      len: 18,
+      h: 1.1
+     }
+    ],
+    free: true
+   },
+   {
+    turn: 90,
+    r: 80,
+    berm: 0.4
+   }
+  ],
+  worldSize: 921,
+  start: {
+   x: -230,
+   z: 278,
+   heading: 0
+  },
+  gateAt: 14,
+  finishAt: 100
+ },
+ {
   id: "glacier",
   name: "Glacier Basin",
   difficulty: "Hard",
