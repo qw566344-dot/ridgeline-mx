@@ -701,7 +701,7 @@ export class UI {
     const b = $('ad-btn'), A = this.account;
     if (!b) return;
     b.onclick = () => this.watchAd();
-    if (!A || A.mode !== 'crazy') { b.hidden = true; return; }   // hidden in the normal game until a real ad network is connected
+    if (!A || A.mode !== 'crazy' || window.__MX_GM) { b.hidden = true; return; }   // (GameMonetize has no rewarded ads)   // hidden in the normal game until a real ad network is connected
     const st = await A.adStatus();
     this.adSt = { ...st, at: Date.now() };
     b.hidden = false;

@@ -39,6 +39,12 @@ const BUILD = (() => {
 })();
 
 const server = http.createServer((req, res) => {
+  // old address -> the real one. Pages only (never /api, so anything still talking to the old host keeps working).
+  if ((req.method === 'GET' || req.method === 'HEAD') && !req.url.startsWith('/api/') && (req.headers.host || '').toLowerCase() === 'ridgeline-mx.onrender.com') {
+    res.writeHead(301, { Location: 'https://www.ridgeline-mx.com' + req.url, 'Cache-Control': 'public, max-age=3600' });
+    res.end();
+    return;
+  }
   if (req.url.startsWith('/api/version')) {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify({ build: BUILD }));

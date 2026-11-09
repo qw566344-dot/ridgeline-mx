@@ -8,7 +8,8 @@ import { fileURLToPath } from 'url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const client = path.join(ROOT, 'client');
-const CRAZY = process.argv.includes('--crazy');   // CrazyGames build: dist-crazygames/index.html (see client/js/crazy.js)
+const GM = process.argv.includes('--gamemonetize');   // GameMonetize build: dist-gamemonetize/index.html (same offline game, their SDK)
+const CRAZY = process.argv.includes('--crazy') || GM;   // CrazyGames build: dist-crazygames/index.html (see client/js/crazy.js)
 
 // the game imports '/shared/...' (served by the dev server) and 'three'
 const resolvePlugin = {
@@ -44,10 +45,15 @@ for (const f of fs.existsSync(mdir) ? fs.readdirSync(mdir) : []) {
 }
 const modelScript = `<script>window.__MX_MODELS=${JSON.stringify(models)};</script>`;
 if (CRAZY) html = html.replace(/<link[^>]*fonts.(googleapis|gstatic).com[^>]*>s*/g, ''); // no outside requests but CrazyGames' own SDK
-const crazyHead = CRAZY ? '<script>window.__MX_CRAZY=true;</script>\n<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>\n' : '';
+const GM_ID = process.env.GM_GAME_ID || '8h4q4xxy2vqub1gous4qtclkjcg58qlz';
+const gmHead = `<script>window.__MX_CRAZY=true;window.__MX_GM=true;
+window.SDK_OPTIONS = { gameId: "${GM_ID}", onEvent: function (a) { switch (a.name) { case "SDK_GAME_PAUSE": if (window.__gmPause) window.__gmPause(true); break; case "SDK_GAME_START": if (window.__gmPause) window.__gmPause(false); break; case "SDK_READY": break; } } };
+(function (a, b, c) { var d = a.getElementsByTagName(b)[0]; a.getElementById(c) || (a = a.createElement(b), a.id = c, a.src = "https://api.gamemonetize.com/sdk.js", d.parentNode.insertBefore(a, d)); })(document, "script", "gamemonetize-sdk");
+</script>\n`;
+const crazyHead = GM ? gmHead : CRAZY ? '<script>window.__MX_CRAZY=true;</script>\n<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>\n' : '';
 html = html.replace(/<script type="module" src="js\/main.js"><\/script>/, () => `${crazyHead}${modelScript}\n<script>\n${js}\n</script>`);
 if (html.includes('js/main.js') || html.includes('css/style.css')) throw new Error('bundle still references external files');
-const out = CRAZY ? path.join(ROOT, 'dist-crazygames', 'index.html') : path.join(ROOT, 'RidgelineMX.html');
+const out = GM ? path.join(ROOT, 'dist-gamemonetize', 'index.html') : CRAZY ? path.join(ROOT, 'dist-crazygames', 'index.html') : path.join(ROOT, 'RidgelineMX.html');
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, html);
 console.log(`wrote ${out} (${(html.length / 1024 / 1024).toFixed(2)} MB)`);

@@ -41,8 +41,26 @@ export function gameplay(on) {
   try { if (s) (on ? s.game.gameplayStart() : s.game.gameplayStop()); } catch { /* ignore */ }
 }
 
+// GAMEMONETIZE build (window.__MX_GM): their SDK tells us when an ad starts (SDK_GAME_PAUSE: mute) and ends (SDK_GAME_START)
+let gmWait = null;
+window.__gmPause = (on) => { mute(on); if (gmWait) (on ? gmWait.onPause() : gmWait.onStart()); };
+function gmAd() {
+  const g = window.sdk;
+  if (!g || typeof g.showBanner !== 'function') return Promise.resolve();
+  gameplay(false);
+  return new Promise((resolve) => {
+    let paused = false, done = false;
+    const fin = () => { if (!done) { done = true; gmWait = null; mute(false); resolve(); } };
+    gmWait = { onPause: () => { paused = true; }, onStart: fin };
+    try { g.showBanner(); } catch { fin(); }
+    setTimeout(() => { if (!paused) fin(); }, 2500);   // no ad was ready: carry on
+    setTimeout(fin, 90000);                            // never freeze the game on an ad
+  });
+}
+
 // an ad between races: resolves when it ended or was skipped (or failed - never block the game on an ad)
 export function midgameAd() {
+  if (window.__MX_GM) return gmAd();
   const s = sdk();
   if (!CRAZY || !s) return Promise.resolve();
   gameplay(false);
