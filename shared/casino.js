@@ -33,7 +33,8 @@ export function roulettePayout(pick, n) {
 export const CRASH_RATE = 0.075;                   // 2x after ~9 s, 10x after ~31 s
 export function crashMult(ms) { return Math.exp((CRASH_RATE * Math.max(0, ms)) / 1000); }
 // where a round crashes, from a uniform random 0..1 (about a 1% house edge - it was 4%: one round in 25 crashed at 1.00x)
-export const CRASH_EDGE = 99;
+// now a fair game: no house edge at all (100) - on average a cash-out target pays back exactly what it risks
+export const CRASH_EDGE = 100;
 export function crashPointFrom(u) { return Math.min(1000, Math.max(1, Math.floor(CRASH_EDGE / (1 - Math.min(0.999999, u))) / 100)); }
 
 export function checkBet(amount, coins) {
@@ -100,4 +101,41 @@ function bjFinish(h) {
 // what the player may see (the dealer's second card stays face down until the hand is over)
 export function bjView(h) {
   return { player: h.player, dealer: h.done ? h.dealer : [h.dealer[0], '??'], pTotal: bjValue(h.player).total, dTotal: h.done ? bjValue(h.dealer).total : bjValue([h.dealer[0]]).total, done: h.done, result: h.result, win: h.win, bet: h.bet, canDouble: bjCanDouble(h) };
+}
+
+// ---------------------------------------------------------------------
+//  MINES: a 5x5 board hides some mines. Each safe tile you open raises the multiplier; cash out any time.
+//  Opening a mine loses the bet. The multiplier is the true odds of surviving that many picks, minus a 1% edge.
+//  A game is a plain object so the server and the browser share it. rand(n) -> whole number 0..n-1
+// ---------------------------------------------------------------------
+export const MINES_TILES = 25, MINES_EDGE = 0.99, MINES_MIN = 1, MINES_MAX = 24;
+export function minesMult(mines, picks) {
+  let m = 1;
+  for (let i = 0; i < picks; i++) m *= (MINES_TILES - i) / (MINES_TILES - mines - i);
+  return Math.max(1, Math.floor(m * MINES_EDGE * 100) / 100);
+}
+export function minesStart(bet, mines, rand) {
+  mines = Math.max(MINES_MIN, Math.min(MINES_MAX, Math.floor(Number(mines)) || 3));
+  const tiles = Array.from({ length: MINES_TILES }, (_, i) => i);
+  for (let i = tiles.length - 1; i > 0; i--) { const j = rand(i + 1); [tiles[i], tiles[j]] = [tiles[j], tiles[i]]; }
+  return { bet, mines, bombs: tiles.slice(0, mines), open: [], done: false, hit: -1, win: 0 };
+}
+// open one tile: a mine ends the game (lost); opening every safe tile cashes out by itself
+export function minesPick(g, i) {
+  i = Math.floor(Number(i));
+  if (g.done || !(i >= 0 && i < MINES_TILES) || g.open.includes(i)) return g;
+  if (g.bombs.includes(i)) { g.done = true; g.hit = i; g.win = 0; return g; }
+  g.open.push(i);
+  if (g.open.length >= MINES_TILES - g.mines) return minesCash(g);
+  return g;
+}
+export function minesCash(g) {
+  if (g.done || !g.open.length) return g;
+  g.done = true; g.win = Math.floor(g.bet * minesMult(g.mines, g.open.length));
+  return g;
+}
+// the mines stay hidden until the game is over
+export function minesView(g) {
+  return { bet: g.bet, mines: g.mines, open: g.open, done: g.done, hit: g.hit, win: g.win, bombs: g.done ? g.bombs : null,
+    mult: minesMult(g.mines, g.open.length), next: g.open.length < MINES_TILES - g.mines ? minesMult(g.mines, g.open.length + 1) : 0 };
 }

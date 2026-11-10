@@ -264,3 +264,53 @@ function trickPark() {
   };
 }
 VENUE_TRACKS.push(trickPark());
+
+// A big snowy mountain for snowmobiles: open (ride anywhere), a groomed trail loop with jumps, and freeride kickers
+// scattered over the slopes (their spots come from tools/make-summit.mjs). Sleds only - bikes and quads can ride it too.
+VENUE_TRACKS.push({
+  id: 'snowfield', recommend: ['Snowmobiles'], open: true,
+  name: 'Summit Snowfield', difficulty: 'Medium',
+  desc: 'A huge snowy mountain made for sleds: ride anywhere. A groomed trail loop with tables, doubles and whoops, plus freeride kickers hidden across the slopes and ridges.',
+  worldSize: 900,
+  seed: 7611,
+  start: { x: -141, z: 269, heading: 0 },
+  defaultWidth: 16,
+  look: { snowTrack: 1, snow: 1, dirt: [0.9, 0.92, 0.98], grass: [0.95, 0.99, 1.05], trees: 0.5, pines: 2.4, rocks: 1.2, fog: 0xdbe6f1, skyTop: 0x5a88c0, horizon: 0xeaf1f8 },
+  terrain: { hills: 34, hillScale: 240, rim: 70, rimStart: 380, bumps: [{ x: 150, z: -140, r: 240, h: 70 }, { x: -200, z: -160, r: 150, h: 38 }],
+    ramps: [
+        { type: 'kicker', x: 260, z: 236, dir: -1.28, w: 7, len: 11, h: 2.83, gap: 13, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -304, z: 152, dir: -0.03, w: 7, len: 11, h: 3.08, gap: 11, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -52, z: -340, dir: 2.9, w: 7, len: 11, h: 3, gap: 11, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -112, z: 176, dir: 1.04, w: 7, len: 11, h: 2.62, gap: 13, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -112, z: -148, dir: 0.75, w: 7, len: 11, h: 3.76, gap: 10, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -220, z: 56, dir: -1.13, w: 7, len: 11, h: 3, gap: 13, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -316, z: -256, dir: -1.2, w: 7, len: 11, h: 2.68, gap: 10, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: 92, z: 332, dir: 3.14, w: 7, len: 11, h: 2.73, gap: 9, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -328, z: -88, dir: -1.37, w: 7, len: 11, h: 2.89, gap: 9, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: 32, z: 200, dir: 0.26, w: 7, len: 11, h: 3.48, gap: 9, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -184, z: -268, dir: -1.98, w: 7, len: 11, h: 3.57, gap: 11, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: 224, z: -304, dir: 1.48, w: 7, len: 11, h: 3.25, gap: 10, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -232, z: 284, dir: 0.37, w: 7, len: 11, h: 3.24, gap: 10, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -340, z: 260, dir: -1.63, w: 7, len: 11, h: 3.54, gap: 12, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -100, z: 332, dir: 2.43, w: 7, len: 11, h: 3.77, gap: 14, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: 212, z: -136, dir: 2.76, w: 7, len: 11, h: 2.97, gap: 11, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: 104, z: -232, dir: 2.72, w: 7, len: 11, h: 2.79, gap: 10, landH: 2.8, landLen: 14 },
+        { type: 'kicker', x: -4, z: -124, dir: -0.66, w: 7, len: 11, h: 3.25, gap: 10, landH: 2.8, landLen: 14 },
+    ] },
+  segments: [
+    { len: 180, w: 17, free: true, name: 'Base Trail' },
+    { turn: 70, r: 40, berm: 0.6 },
+    { len: 160, name: 'Lodge Rollers', features: [{ at: 40, type: 'rollers', n: 5, len: 12, h: 1.0 }] },
+    { turn: -50, r: 50 },
+    { len: 150, name: 'Pine Jumps', features: [{ at: 20, type: 'table', h: 1.9, face: 8, top: 8, land: 10 }, { at: 90, type: 'double', h: 1.8, face: 7.5, gap: 6.5, h2: 1.6, land: 9 }] },
+    { turn: 120, r: 35, berm: 1 },
+    { len: 200, free: true, name: 'Powder Valley', features: [{ at: 25, type: 'whoops', n: 8, len: 5.5, h: 0.5 }] },
+    { turn: -40, r: 60 },
+    { len: 150, name: 'Ridge Climb' },
+    { turn: 150, r: 30, berm: 1 },
+    { len: 180, free: true, name: 'Summit Run', features: [{ at: 40, type: 'table', h: 2.1, face: 8.5, top: 9, land: 11 }] },
+    { turn: 110, r: 40, berm: 1 },
+  ],
+  gateAt: 16,
+  finishAt: 160,
+});

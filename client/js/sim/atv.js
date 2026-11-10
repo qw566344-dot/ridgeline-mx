@@ -222,19 +222,19 @@ export class AtvController {
         // while A / D is held, and back to upright and lined up with its flight line once let go. (The quad's separate roll
         // and yaw springs overshot on a sled and spun it into a 360.)
         const holding = Math.abs(inp.steer) > 0.15;
-        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 5.0) : Math.max(0, (this.whipAmt || 0) - dt * 9);
+        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 2.6) : Math.max(0, (this.whipAmt || 0) - dt * 5);
         const flipT = Math.max(sstep(1.6, 2.2, Math.abs(tr.pitch)), Math.abs(lean) > 0.1 ? 1 : 0, sstep(1.8, 2.6, Math.abs(pitchW)));
         this.flipBlend = (this.flipBlend || 0) + (flipT - (this.flipBlend || 0)) * Math.min(1, dt * 14);
         const swingK = (1 - this.flipBlend) * clamp((0.985 - Math.abs(fwd.y)) / 0.12, 0, 1);
         if (holding) this.whipSide = Math.sign(inp.steer);
         const late = v.assist.landing > 0 ? clamp(((this.timeToLand || 9) - 0.3) / 0.4, 0, 1) : 1;
-        const amt = this.whipAmt * late, side = this.whipSide || 0;
+        const amt = (this.whipAmt * this.whipAmt * (3 - 2 * this.whipAmt)) * late, side = this.whipSide || 0;
         const ws = c.whipScale || 1;                 // how big the whip is (1 = the full dirt-bike whip; sleds use a small one)
         const rollT = -side * 97 * ws * DEG * amt; // laid over (the bikes go up to flat sideways)
         const yawT = side * 76 * ws * DEG * amt;   // tail kicks out
         const vx = v.vel.x, vz = v.vel.z, vh = Math.hypot(vx, vz);
         const hk = holding ? amt : 0;
-        const K = 55 + (30 - 55) * hk, C = 14 + (7.5 - 14) * hk;
+        const K = 45 + (24 - 45) * hk, C = 13 + (9 - 13) * hk;
         const lvlA = _lv.set(fwd.z, 0, -fwd.x);
         if (swingK > 0 && Math.abs(fwd.y) < 0.95 && lvlA.lengthSq() > 0.01) {
           lvlA.normalize();
@@ -253,22 +253,23 @@ export class AtvController {
           _te.multiplyScalar(K * swingK).addScaledVector(_tw, -C * swingK);
           addAccel(v, _te, 1);
         }
-        if (swingK < 1) v.torque.addScaledVector(fwd, ((rollT * swingK - roll) * 75 - rollW * 15) * (1 - swingK) * I[2]); // (no whip lay-over target while flipping: A / D during a flip used to twist the bike about its own nose, up to 22 rad/s)
+        if (swingK < 1) v.torque.addScaledVector(fwd, ((rollT * (swingK + (1 - swingK) * 0.06) - roll) * 60 - rollW * 12) * (1 - swingK) * I[2]); // (no whip lay-over target while flipping: A / D during a flip used to twist the bike about its own nose, up to 22 rad/s)
       }
       else {
         // WHIP, like the bikes' but a little less: hold A / D and the quad lies over while the tail swings out; let go and it
         // straightens along its flight line. It fades out before the landing.
         const holding = Math.abs(inp.steer) > 0.15;
-        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 6) : Math.max(0, (this.whipAmt || 0) - dt * 9);
+        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 3.2) : Math.max(0, (this.whipAmt || 0) - dt * 5);
         if (holding) this.whipSide = Math.sign(inp.steer);
         const side = this.whipSide || 0;
-        const late = v.assist.landing > 0 ? clamp(((this.timeToLand || 9) - 0.3) / 0.4, 0, 1) : 1;
+        // the whip is let out well before the wheels touch (a quad is wide and heavy: landing sideways threw it over)
+        const late = v.assist.landing > 0 ? clamp(((this.timeToLand || 9) - 0.5) / 0.55, 0, 1) : 1;
         // no whip while flipping (same rule as the bike): A / D in the middle of a flip must not twist or spin it
         const flipT = Math.max(sstep(1.6, 2.2, Math.abs(tr.pitch)), Math.abs(lean) > 0.1 ? 1 : 0, sstep(1.8, 2.6, Math.abs(pitchW)));
         this.flipBlend = (this.flipBlend || 0) + (flipT - (this.flipBlend || 0)) * Math.min(1, dt * 14);
-        const amt = this.whipAmt * late * (1 - this.flipBlend);
-        const rollT = -side * Math.min(100, A.whip * 1.32 * (c.whipScale || 0.7)) * DEG * amt;
-        const yawT = side * 76 * (c.whipScale || 0.7) * DEG * amt;
+        const amt = (this.whipAmt * this.whipAmt * (3 - 2 * this.whipAmt)) * late * (1 - this.flipBlend);
+        const rollT = -side * Math.min(42, A.whip * 1.0 * (c.whipScale || 0.7)) * DEG * amt;
+        const yawT = side * 46 * (c.whipScale || 0.7) * DEG * amt;
         v.torque.addScaledVector(fwd, ((rollT - roll) * (holding ? 22 : 14) - rollW * (holding ? 6 : 7)) * I[2]);
         const vx = v.vel.x, vz = v.vel.z, hx = fwd.x, hz = fwd.z;
         if (vx * vx + vz * vz > 4 && hx * hx + hz * hz > 0.01 && Math.abs(fwd.y) < 0.95) {

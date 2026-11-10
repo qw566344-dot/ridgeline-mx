@@ -279,14 +279,14 @@ export class BikeController {
         // The longer you hold, the further it goes; let go and a spring brings it
         // back upright and lined up with where you are flying, ready to land.
         const holding = Math.abs(inp.steer) > 0.15; // the key itself: the smoothed ground steering kept whipping after you let go
-        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 5.0) : Math.max(0, (this.whipAmt || 0) - dt * 9);
+        this.whipAmt = holding ? Math.min(1, (this.whipAmt || 0) + dt * 2.6) : Math.max(0, (this.whipAmt || 0) - dt * 5);
         // the swing spring keeps the bike lined up for the landing - but never in the middle of a flip
         // (a normal jump tips the nose down ~50 degrees - that is not a flip; pointing near vertical it is)
         const flipT = Math.max(sstep(1.6, 2.2, Math.abs(tr.pitch)), Math.abs(lean) > 0.1 ? 1 : 0, sstep(1.8, 2.6, Math.abs(pitchW)));
         this.flipBlend = (this.flipBlend || 0) + (flipT - (this.flipBlend || 0)) * Math.min(1, dt * 14);
         const swingK = (1 - this.flipBlend) * clamp((0.985 - Math.abs(fwd.y)) / 0.12, 0, 1);
         if (holding) this.whipSide = Math.sign(inp.steer);
-        const amt = this.whipAmt * late;
+        const amt = (this.whipAmt * this.whipAmt * (3 - 2 * this.whipAmt)) * late; // eased in
         const side = this.whipSide || 0;
         const rollT = -side * Math.min(97, A.whip * (tr.scrubLock ? 1.55 : 1.32)) * DEG * amt; // lay it over (up to flat sideways; a scrub goes flatter)
         const yawT = side * 76 * DEG * amt;                 // rear kicks well out, nose into the whip
@@ -300,7 +300,7 @@ export class BikeController {
         // over the other way, flipped it or landed it crooked. The pitch stays with the landing assist.
         const hk = holding ? amt : 0;     // near the ground the whip fades: pulled straight as if let go
         // let go: straightens in about half a second (was quicker - it snapped back)
-        const K = 55 + (30 - 55) * hk, C = 14 + (7.5 - 14) * hk;
+        const K = 45 + (24 - 45) * hk, C = 13 + (9 - 13) * hk;
         const vh = Math.hypot(vx, vz);
         const lvlA = _lv.set(fwd.z, 0, -fwd.x);
         if (swingK > 0 && Math.abs(fwd.y) < 0.95 && lvlA.lengthSq() > 0.01) {
@@ -324,7 +324,7 @@ export class BikeController {
           addAccel(v, _te, 1);
         }
         // mid-flip (or pointing straight down): only keep the roll in check
-        if (swingK < 1) v.torque.addScaledVector(fwd, ((rollT * swingK - roll) * 75 - rollW * 15) * (1 - swingK) * I[2]); // (no whip lay-over target while flipping: A / D during a flip used to twist the bike about its own nose, up to 22 rad/s)
+        if (swingK < 1) v.torque.addScaledVector(fwd, ((rollT * (swingK + (1 - swingK) * 0.12) - roll) * 55 - rollW * 12) * (1 - swingK) * I[2]); // (no whip lay-over target while flipping: A / D during a flip used to twist the bike about its own nose, up to 22 rad/s)
         // scrub: whipping hard right off the lip keeps the bike low and fast
         // the lay-over about the bike's own length (with the nose down, the lean from level reads smaller)
         const rollAx = Math.asin(clamp(left.y / Math.sqrt(Math.max(0.05, 1 - fwd.y * fwd.y)), -1, 1));

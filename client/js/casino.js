@@ -3,7 +3,7 @@
 //  Online accounts: the server decides every result (server/casino.js).
 //  Offline / guest accounts: the same rules run here (shared/casino.js).
 // =====================================================================
-import { checkBet, validPick, roulettePayout, rouletteColor, crashMult, crashPointFrom, MIN_BET, bjDeal, bjHit, bjStand, bjDouble, bjCanDouble, bjView } from '/shared/casino.js';
+import { checkBet, validPick, roulettePayout, rouletteColor, crashMult, crashPointFrom, MIN_BET, bjDeal, bjHit, bjStand, bjDouble, bjCanDouble, bjView, minesStart, minesPick, minesCash, minesView, minesMult, MINES_TILES } from '/shared/casino.js';
 
 const $ = (id) => document.getElementById(id);
 // the pockets round a European wheel, clockwise from 0
@@ -47,6 +47,21 @@ export class CasinoUI {
       this.local = { bet: b.amount, start: Date.now(), cp: crashPointFrom(Math.random()) };
       return { id: 'local' };
     }
+    if (route.startsWith('mines/')) { // mines, same rules as the server
+      const a = route.slice(6);
+      let g = this.localMines;
+      if (a === 'start') {
+        if (g && !g.done) return { error: 'Finish the game you are playing first' };
+        const b = checkBet(body.bet, p.coins); if (b.error) return b;
+        p.coins -= b.amount; g = this.localMines = minesStart(b.amount, body.mines, (n) => Math.floor(Math.random() * n));
+      } else {
+        if (!g || g.done) return { error: 'Start a new game' };
+        if (a === 'pick') minesPick(g, body.i); else if (a === 'cash') { if (!g.open.length) return { error: 'Open a tile first' }; minesCash(g); }
+      }
+      if (g.done) { p.coins += g.win; this.localMines = null; }
+      save();
+      return { game: minesView(g) };
+    }
     if (route.startsWith('bj/')) { // blackjack, same rules as the server
       const a = route.slice(3);
       let h = this.localHand;
@@ -77,6 +92,17 @@ export class CasinoUI {
     return { error: 'Unknown' };
   }
 
+  // shrink the open game so the whole of it fits in the window (no scrolling on any screen size)
+  fit() {
+    const g = document.querySelector('.casino-stage [data-game]:not([hidden])');
+    if (!g || !g.offsetParent) return;
+    g.style.zoom = '1';
+    const foot = document.querySelector('.cs-foot'), footH = foot ? foot.offsetHeight + 8 : 0;
+    const avail = window.innerHeight - g.getBoundingClientRect().top - footH - 10, need = g.scrollHeight;
+    g.style.zoom = need > avail && avail > 120 ? String(Math.max(0.4, avail / need)) : '1';
+  }
+  fitSoon() { clearTimeout(this._ft); this._ft = setTimeout(() => this.fit(), 30); }
+
   // switch the game on screen (Roulette / Blackjack / Crash tabs)
   setGame(id) {
     this.game = id;
@@ -84,6 +110,7 @@ export class CasinoUI {
     document.querySelectorAll('[data-cgame]').forEach((b) => b.classList.toggle('sel', b.dataset.cgame === id));
     document.querySelectorAll('.casino-stage [data-game]').forEach((g) => (g.hidden = g.dataset.game !== id));
     if (id === 'crash' && !this.round) this.drawCrash(1, false);
+    this.fitSoon();
   }
 
   // the roulette wheel: coloured pockets (one conic gradient) with their numbers round the rim
@@ -98,9 +125,10 @@ export class CasinoUI {
 
   wire() {
     this.buildWheel();
+    window.addEventListener('resize', () => this.fitSoon());
     document.querySelectorAll('[data-cgame]').forEach((b) => b.onclick = () => this.setGame(b.dataset.cgame));
     let last = null; try { last = localStorage.getItem('mx.casinoGame'); } catch { /* private mode */ }
-    this.setGame(['roulette', 'blackjack', 'crash'].includes(last) ? last : 'roulette');
+    this.setGame(['roulette', 'blackjack', 'crash', 'mines'].includes(last) ? last : 'roulette');
     document.querySelectorAll('[data-chip]').forEach((b) => b.onclick = () => {
       const inp = $(b.dataset.for);
       const v = b.dataset.chip;
@@ -111,6 +139,10 @@ export class CasinoUI {
     $('rl-num').oninput = () => { const n = Math.max(0, Math.min(36, Math.floor(Number($('rl-num').value) || 0))); this.pick = 'n' + n; this.renderPicks(); };
     $('rl-spin').onclick = () => this.spin();
     $('cr-go').onclick = () => (this.round ? this.cashOut() : this.startCrash());
+    $('mn-count').innerHTML = Array.from({ length: 24 }, (_, i) => `<option value="${i + 1}"${i === 2 ? ' selected' : ''}>${i + 1}</option>`).join('');
+    $('mn-go').onclick = () => (this.mines && !this.mines.done ? this.minesCash() : this.minesStart());
+    $('mn-grid').innerHTML = Array.from({ length: MINES_TILES }, (_, i) => `<button class="mn-tile" data-i="${i}" disabled></button>`).join('');
+    $('mn-grid').onclick = (e) => { const t = e.target.closest('.mn-tile'); if (t) this.minesPick(Number(t.dataset.i)); };
     $('bj-deal').onclick = () => this.bjMove('deal');
     $('bj-hit').onclick = () => this.bjMove('hit');
     $('bj-stand').onclick = () => this.bjMove('stand');
@@ -118,6 +150,7 @@ export class CasinoUI {
   }
 
   show() {
+    this.fitSoon();
     $('casino-coins').textContent = this.A.coins.toLocaleString();
     this.renderPicks();
     this.renderHist();
@@ -136,7 +169,7 @@ export class CasinoUI {
     $('cr-hist').innerHTML = this.crashHist.map((c) => `<span class="ch ${c >= 2 ? 'hi' : ''}">${c.toFixed(2)}x</span>`).join('');
   }
 
-  msg(id, text, kind = '') { const el = $(id); el.textContent = text; el.className = 'cmsg ' + kind; }
+  msg(id, text, kind = '') { const el = $(id); el.textContent = text; el.className = 'cmsg ' + kind; this.fitSoon(); }
 
   // ---- roulette
   async spin() {
@@ -191,6 +224,7 @@ export class CasinoUI {
     $('casino-coins').textContent = this.A.coins.toLocaleString(); this.ui.renderTop();
   }
   renderHand(h) {
+    this.fitSoon();
     const card = (c, i) => {
       if (c === '??') return `<span class="pcard back" style="animation-delay:${i * 0.08}s"></span>`;
       const suit = c.slice(-1), rank = c.slice(0, -1), red = suit === 'H' || suit === 'D';
@@ -206,6 +240,57 @@ export class CasinoUI {
       const t = { blackjack: `Blackjack! +${(h.win - h.bet).toLocaleString()} coins`, win: `You win +${(h.win - h.bet).toLocaleString()} coins`, push: 'Push - your bet comes back', lose: 'Dealer wins', bust: 'Bust - over 21' }[h.result];
       this.msg('bj-msg', t, h.win > h.bet ? 'good' : h.result === 'push' ? '' : 'bad');
     }
+  }
+
+  // ---- mines
+  renderMines(g) {
+    this.fitSoon();
+    this.mines = g;
+    const tiles = $('mn-grid').children;
+    for (let i = 0; i < tiles.length; i++) {
+      const t = tiles[i], open = g.open.includes(i), bomb = g.bombs && g.bombs.includes(i);
+      t.className = 'mn-tile' + (open ? ' gem' : '') + (g.done && bomb ? (i === g.hit ? ' boom' : ' mine') : '');
+      t.textContent = open ? '◆' : g.done && bomb ? '✹' : '';
+      t.disabled = g.done || open;
+    }
+    $('mn-mult').textContent = g.mult.toFixed(2) + 'x';
+    $('mn-next').textContent = g.next ? g.next.toFixed(2) + 'x' : '-';
+    $('mn-win').textContent = g.done ? (g.win ? g.win.toLocaleString() : '0') : Math.floor(g.bet * g.mult).toLocaleString();
+    $('mn-go').textContent = g.done ? 'BET' : g.open.length ? `CASH OUT ${Math.floor(g.bet * g.mult).toLocaleString()}` : 'Open a tile';
+    $('mn-go').classList.toggle('cash', !g.done && g.open.length > 0);
+    $('mn-go').disabled = !g.done && !g.open.length;
+    $('mn-count').disabled = $('mn-bet').disabled = !g.done;
+  }
+  async minesStart() {
+    if (this.minesBusy) return;
+    this.minesBusy = true; this.msg('mn-msg', '');
+    const r = await this.call('mines/start', { bet: Number($('mn-bet').value), mines: Number($('mn-count').value) });
+    this.minesBusy = false;
+    if (r.error) return this.msg('mn-msg', r.error, 'bad');
+    this.renderMines({ ...r.game, done: false });
+    $('casino-coins').textContent = this.A.coins.toLocaleString(); this.ui.renderTop();
+  }
+  async minesPick(i) {
+    if (this.minesBusy || !this.mines || this.mines.done) return;
+    this.minesBusy = true;
+    const r = await this.call('mines/pick', { i });
+    this.minesBusy = false;
+    if (r.error) return this.msg('mn-msg', r.error, 'bad');
+    this.renderMines(r.game);
+    if (r.game.done) this.minesOver(r.game);
+  }
+  async minesCash() {
+    if (this.minesBusy || !this.mines || this.mines.done) return;
+    this.minesBusy = true;
+    const r = await this.call('mines/cash', {});
+    this.minesBusy = false;
+    if (r.error) return this.msg('mn-msg', r.error, 'bad');
+    this.renderMines(r.game); this.minesOver(r.game);
+  }
+  minesOver(g) {
+    if (g.win) this.msg('mn-msg', `Cashed out at ${g.mult.toFixed(2)}x: +${(g.win - g.bet).toLocaleString()} coins`, 'good');
+    else this.msg('mn-msg', 'BOOM - you hit a mine and lost the bet', 'bad');
+    $('casino-coins').textContent = this.A.coins.toLocaleString(); this.ui.renderTop();
   }
 
   // ---- crash

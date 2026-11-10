@@ -12,7 +12,8 @@
 import crypto from 'crypto';
 // the player's screen starts the climb a moment after the server does (the start reply takes time to arrive): without this
 // cushion the server was always a little ahead of what you saw, and a cash-out on a number you could see could still lose
-const CRASH_GRACE_MS = 300;
+const CRASH_GRACE_MS = 500;
+import { minesStart, minesPick, minesCash, minesView } from '../shared/casino.js';
 import { checkBet, validPick, roulettePayout, rouletteColor, crashMult, crashPointFrom, bjDeal, bjHit, bjStand, bjDouble, bjCanDouble, bjView } from '../shared/casino.js';
 
 export class Casino {
@@ -93,7 +94,30 @@ export class Casino {
     return { hand: bjView(h), profile: this.A.profile(u) };
   }
 
+  // ---- mines: the bet comes off on the start, the win is paid when the game ends (a mine, or a cash out)
+  mines(u, action, m) {
+    this.games = this.games || new Map();
+    let g = this.games.get(u.key);
+    if (action === 'start') {
+      if (g && !g.done) return { error: 'Finish the game you are playing first', game: minesView(g) };
+      const b = checkBet(m.bet, u.coins);
+      if (b.error) return b;
+      u.coins -= b.amount;
+      g = minesStart(b.amount, m.mines, (n) => crypto.randomInt(n));
+      this.games.set(u.key, g);
+    } else {
+      if (!g || g.done) return { error: 'Start a new game' };
+      if (action === 'pick') minesPick(g, m.i);
+      else if (action === 'cash') { if (!g.open.length) return { error: 'Open a tile first', game: minesView(g) }; minesCash(g); }
+      else return { error: 'Unknown move' };
+    }
+    if (g.done) { u.coins += g.win; this.games.delete(u.key); }
+    this.A.save();
+    return { game: minesView(g), profile: this.A.profile(u) };
+  }
+
   handle(route, u, m) {
+    if (route.startsWith('casino/mines/')) return this.mines(u, route.slice(13), m);
     if (route.startsWith('casino/bj/')) return this.bj(u, route.slice(10), m);
     switch (route) {
       case 'casino/roulette': return this.roulette(u, m);

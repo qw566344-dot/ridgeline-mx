@@ -868,6 +868,13 @@ export class UI {
       return;
     }
     const rows = d && d.tricks;
+    // the board starts over every 2 days: the top 3 are paid when it does
+    if (d && d.ends) {
+      const left = Math.max(0, d.ends - Date.now()), h = Math.floor(left / 3_600_000), m = Math.floor((left % 3_600_000) / 60_000);
+      const pz = (d.prizes || []).map((c, i) => `#${i + 1}: ${c.toLocaleString()}`).join(' &nbsp;|&nbsp; ');
+      const lastW = d.last && d.last.winners && d.last.winners.length ? `<br>Last winners: ${d.last.winners.map((w, i) => `#${i + 1} <b>${escapeHtml(w.name)}</b> (+${w.prize.toLocaleString()})`).join(', ')}` : '';
+      $('lb-note').innerHTML = `Trick points this round. Resets in <b>${h >= 24 ? Math.floor(h / 24) + 'd ' + (h % 24) + 'h' : h + 'h ' + m + 'm'}</b> - prizes (coins): ${pz}${lastW}`;
+    }
     if (!rows) { $('lb-tricks').innerHTML = '<li class="hint">Can\'t reach the server</li>'; return; }
     if (!rows.length) { $('lb-tricks').innerHTML = '<li class="hint">Nobody yet - land some tricks!</li>'; return; }
     const pts = (v) => `${v.toLocaleString()} <small>trick points</small>`;
@@ -877,7 +884,7 @@ export class UI {
       <div class="medal">${i + 1}</div><b>${escapeHtml(r.name)}</b>${lv(r)}<span class="v">${pts(r.v)}</span><span class="stag top${i + 1}">#${i + 1} LEADERBOARD</span><div class="step"></div></div>`; }).join('');
     $('lb-tricks').innerHTML = rows.slice(3).map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 4}</span><b>${escapeHtml(r.name)} ${lv(r)}</b><span class="v">${pts(r.v)}</span></li>`).join('');
     const mine = rows.findIndex((r) => r.name.toLowerCase() === me);
-    if (P && this.account.mode === 'online' && mine < 0) { $('lb-mine').hidden = false; $('lb-mine').innerHTML = `You: <b>${pts((P.stats && P.stats.tp) || 0)}</b> - the top 25 are shown`; }
+    if (P && this.account.mode === 'online' && mine < 0) { $('lb-mine').hidden = false; $('lb-mine').innerHTML = `You: <b>${pts(P.tpp || 0)}</b> - the top 25 are shown`; }
   }
 
   // ------------------------------------------------------------- pass

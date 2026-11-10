@@ -97,7 +97,8 @@ async function onAdminMessages(list) {
       if (net.code) net.leave();
       ui.show('home');
       ui.popup(`<b>You were kicked by ${escapeHtml(a.from)}</b>${a.text ? '<br>' + escapeHtml(a.text) : ''}`, 'bad', [['OK', () => {}, true]], 20);
-    } else ui.popup(`<b>Message from ${escapeHtml(a.from)} (admin)</b><br>${escapeHtml(a.text)}`, '', [['OK', () => {}, true]], 25);
+    } else if (a.from === 'Leaderboard') ui.popup(`<b>Leaderboard prize!</b><br>${escapeHtml(a.text)}`, 'good', [['Nice!', () => {}, true]], 25);
+    else ui.popup(`<b>Message from ${escapeHtml(a.from)} (admin)</b><br>${escapeHtml(a.text)}`, '', [['OK', () => {}, true]], 25);
   }
 }
 social.onAdmin(onAdminMessages);

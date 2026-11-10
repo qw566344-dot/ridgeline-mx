@@ -48,6 +48,7 @@ const NAME_RE = /^[A-Za-z0-9_ .-]{3,16}$/;
 // Delete the line (or the name) when testing is over.
 const TEST_COINS = { nahh: 1_000_000 };
 const MAX_COINS = 5_000_000;
+const BOARD_DAYS = 2, BOARD_PRIZES = [150_000, 95_000, 65_000]; // the leaderboard resets every 2 days; prizes for 1st, 2nd, 3rd
 const CLOUD_RETRY_MS = Number(process.env.CLOUD_RETRY_MS) || 30_000; // background cloud load retry (tests make it short)
 
 export class Accounts {
@@ -64,6 +65,7 @@ export class Accounts {
     this.saveTimer = null;
     this.friends = new Friends(this);
     this.casino = new Casino(this);
+    setInterval(() => { try { this.rollBoard(); } catch { /* next time */ } }, 60_000).unref();
     this.admin = new Admin(this);
     this.chat = new Chat(this);
     this.payments = new Payments(this);
@@ -209,7 +211,7 @@ export class Accounts {
   hash(password, salt) { return crypto.scryptSync(String(password), salt, 32).toString('hex'); }
 
   profile(u) {
-    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, rating2: u.rating2 || RANK_START, tier2: rankTier(u.rating2 || RANK_START), ranked2: u.ranked2 || { races: 0, wins: 0 }, placed: ((u.ranked && u.ranked.races) || 0) >= PLACEMENTS, renames: u.renames || 0, pass: u.pass || [], passP: u.passP || [], passPremium: !!u.passPremium, admin: this.admin.isAdmin(u), dev: this.admin.isDev(u) };
+    return { name: u.name, coins: u.coins, owned: u.owned, equipped: u.equipped, stats: u.stats, tpp: u.tpp || 0, xp: u.xp || 0, level: levelInfo(u.xp || 0).level, rating: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), ranked: u.ranked || { races: 0, wins: 0 }, rating2: u.rating2 || RANK_START, tier2: rankTier(u.rating2 || RANK_START), ranked2: u.ranked2 || { races: 0, wins: 0 }, placed: ((u.ranked && u.ranked.races) || 0) >= PLACEMENTS, renames: u.renames || 0, pass: u.pass || [], passP: u.passP || [], passPremium: !!u.passPremium, admin: this.admin.isAdmin(u), dev: this.admin.isDev(u) };
   }
 
   issue(u) {
@@ -467,7 +469,7 @@ export class Accounts {
     if (kind === 'trick') {
       u.tpLog = (u.tpLog || []).filter((r) => now - r[0] < 600_000);
       const tp = Math.min(Math.round(amount * TP_PER_COIN), Math.max(0, 250_000 - u.tpLog.reduce((a, r) => a + r[1], 0)));
-      if (tp > 0) { u.stats.tp = (u.stats.tp || 0) + tp; u.tpLog.push([now, tp]); this.lbCache = null; this.save(); }
+      if (tp > 0) { this.rollBoard(); u.tpp = (u.tpp || 0) + tp; u.stats.tp = (u.stats.tp || 0) + tp; u.tpLog.push([now, tp]); this.lbCache = null; this.save(); }
     }
     // challenge progress counts the ride itself, so it keeps going after the coin cap is hit
     // (trick points from the amount asked for, which MAX_REWARD already limits)
@@ -563,12 +565,31 @@ export class Accounts {
     return { ok: `+${c.coins.toLocaleString()} coins and +${c.xp} XP`, profile: this.profile(u), ...this.challenges(u) };
   }
 
-  // top 25 riders by trick points (cached for 30 s)
+  // ---- the trick leaderboard starts over every 2 days (UTC). When a period ends the top 3 are paid:
+  // 1st 150,000 coins, 2nd 95,000, 3rd 65,000. u.tpp = trick points in the current period (the lifetime u.stats.tp stays).
+  boardPeriod(t = Date.now()) { return Math.floor(dayNo(t) / BOARD_DAYS); }
+  boardEnds(t = Date.now()) { return (this.boardPeriod(t) + 1) * BOARD_DAYS * 86_400_000; }
+  rollBoard() {
+    const P = this.boardPeriod(), B = this.db.board || (this.db.board = { period: P, last: null });
+    if (B.period === P) return;
+    const users = Object.values(this.db.users).filter((u) => !u.banned && u.tpp > 0).sort((a, b) => b.tpp - a.tpp).slice(0, BOARD_PRIZES.length);
+    const winners = users.map((u, i) => {
+      u.coins = Math.min(MAX_COINS, u.coins + BOARD_PRIZES[i]); u.rev = (u.rev || 0) + 1;
+      if (this.admin) this.admin.tell(u.key, { kind: 'msg', from: 'Leaderboard', text: `You finished #${i + 1} on the trick leaderboard! +${BOARD_PRIZES[i].toLocaleString()} coins have been added to your account.` });
+      return { name: u.name, v: u.tpp, prize: BOARD_PRIZES[i] };
+    });
+    for (const u of Object.values(this.db.users)) if (u.tpp) u.tpp = 0;
+    B.last = { period: B.period, winners }; B.period = P;
+    this.lbCache = null; this.save();
+  }
+
+  // top 25 riders by trick points this period (cached for 30 s)
   leaderboard() {
+    this.rollBoard();
     const now = Date.now();
     if (this.lbCache && now - this.lbCache.at < 30_000) return this.lbCache.data;
     const users = Object.values(this.db.users).filter((u) => !u.banned);
-    const data = { tricks: users.map((u) => ({ name: u.name, v: (u.stats && u.stats.tp) || 0, level: levelInfo(u.xp || 0).level })).filter((r) => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 25),
+    const data = { prizes: BOARD_PRIZES, ends: this.boardEnds(), last: (this.db.board && this.db.board.last) || null, tricks: users.map((u) => ({ name: u.name, v: u.tpp || 0, level: levelInfo(u.xp || 0).level })).filter((r) => r.v > 0).sort((a, b) => b.v - a.v).slice(0, 25),
       // ranked: riders who have played at least one ranked race, by rating
       ranked: users.filter((u) => u.ranked && u.ranked.races >= PLACEMENTS).map((u) => ({ name: u.name, v: u.rating || RANK_START, tier: rankTier(u.rating || RANK_START), races: u.ranked.races, wins: u.ranked.wins })).sort((a, b) => b.v - a.v).slice(0, 25),
       // ranked 2v2: its own rating
