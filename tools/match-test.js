@@ -44,7 +44,7 @@ const leader = (await until(r1, (m) => m.t === 'party' && m.leader)).leader;
 const lc = leader === s1.players.find((p) => p.name === 'RankOne').id ? r1 : r2;
 lc.send({ t: 'end' });
 const k1 = await until(r1, (m) => m.t === 'rank'), k2 = await until(r2, (m) => m.t === 'rank');
-check('the result moves both ratings, one up and one down', k1 && k2 && k1.delta + k2.delta === 0 && Math.abs(k1.delta) > 0 && k1.tier && k2.tier);
+check('the result moves both ratings, one up and one down (the winner gains more than the loser loses)', k1 && k2 && k1.delta !== 0 && k2.delta !== 0 && (k1.delta > 0) !== (k2.delta > 0) && k1.delta + k2.delta > 0 && k1.tier && k2.tier);
 const me = await (await fetch(B + '/api/me', { headers: { Authorization: 'Bearer ' + A1.token } })).json();
 check('the rating is saved on the account', me.profile.rating === k1.rating && me.profile.ranked.races === 1);
 const lb = await get('leaderboard');

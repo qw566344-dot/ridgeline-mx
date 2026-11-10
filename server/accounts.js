@@ -528,10 +528,13 @@ export class Accounts {
     this.save();
     return { ok: got.length === 1 ? got[0] : `${got.length} rewards claimed`, profile: this.profile(u) };
   }
-  // the premium pass is bought with a card now (Stripe, see payments.js); coins can no longer buy it
+  // the premium pass: PASS_PRICE coins, once (the card version in payments.js stays switched off)
   buyPass(u) {
     if (u.passPremium) return { error: 'You already have the Premium Pass' };
-    return { error: 'The Premium Pass is bought with a card now' };
+    if (u.coins < PASS_PRICE) return { error: `The Premium Pass costs ${PASS_PRICE.toLocaleString()} coins` };
+    u.coins -= PASS_PRICE; u.passPremium = true;
+    this.save();
+    return { ok: 'Premium Pass unlocked!', profile: this.profile(u) };
   }
 
   // ---- challenges: today's / this week's counters (reset when the day / week turns over, UTC)

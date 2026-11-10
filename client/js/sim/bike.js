@@ -324,7 +324,7 @@ export class BikeController {
           addAccel(v, _te, 1);
         }
         // mid-flip (or pointing straight down): only keep the roll in check
-        if (swingK < 1) v.torque.addScaledVector(fwd, ((rollT - roll) * 75 - rollW * 15) * (1 - swingK) * I[2]);
+        if (swingK < 1) v.torque.addScaledVector(fwd, ((rollT * swingK - roll) * 75 - rollW * 15) * (1 - swingK) * I[2]); // (no whip lay-over target while flipping: A / D during a flip used to twist the bike about its own nose, up to 22 rad/s)
         // scrub: whipping hard right off the lip keeps the bike low and fast
         // the lay-over about the bike's own length (with the nose down, the lean from level reads smaller)
         const rollAx = Math.asin(clamp(left.y / Math.sqrt(Math.max(0.05, 1 - fwd.y * fwd.y)), -1, 1));

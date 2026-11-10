@@ -43,7 +43,7 @@ try {
   await hook(sess('cs_5', 'paytester', 'bogus', pack.cents));
   ok(await coins() === c0 + pack.coins, 'unpaid, wrong-amount, unknown-rider and unknown-item sessions grant nothing');
   ok(!(await api(tk, 'me')).profile.passPremium, 'no pass before buying it');
-  ok(/card/i.test((await api(tk, 'pass/buy')).error || '') && !(await api(tk, 'me')).profile.passPremium, 'coins can no longer buy the pass');
+  ok(/45,000/.test((await api(tk, 'pass/buy')).error || '') && !(await api(tk, 'me')).profile.passPremium, 'too few coins: the pass is refused (it costs 45,000 coins)');
   await hook(sess('cs_6', 'paytester', 'pass', PASS_CENTS));
   ok((await api(tk, 'me')).profile.passPremium === true, 'the paid pass webhook unlocks the Premium Pass');
   ok((await api(tk, 'inbox?rev=0')).profile !== undefined, 'the open game is told to refresh its profile');

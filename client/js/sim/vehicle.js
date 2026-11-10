@@ -173,10 +173,14 @@ export class Vehicle {
     const tb = _t[0].copy(this.torque).applyQuaternion(_q.copy(this.quat).invert());
     tb.x /= cfg.inertia[0]; tb.y /= cfg.inertia[1]; tb.z /= cfg.inertia[2];
     tb.applyQuaternion(this.quat);
+    // safety nets (off with the admin Fast flips cheat): a contact can try to kick the spin by tens of rad/s in a single step
+    // (landing at a skewed angle, a probe poking the ground) - cap the change per step, and cap the spin rate itself:
+    // on the ground nothing legit spins faster than ~13 rad/s (flips and whips are 4-6), in the air ~14
+    const cheat = globalThis.__flipMul > 1;
+    if (!cheat) { const dw = tb.length() * dt; if (dw > 6) tb.multiplyScalar(6 / dw); }
     this.angVel.addScaledVector(tb, dt);
     const wl = this.angVel.length();
-    // (the admin Fast flips cheat lifts the spin-rate limit - 25 rad/s capped it at about four turns a second)
-    const wMax = globalThis.__flipMul > 1 ? 300 : 25;
+    const wMax = cheat ? 300 : this.crashed ? 25 : contacts > 0 ? 13 : 14;
     if (wl > wMax) this.angVel.multiplyScalar(wMax / wl);
     this.pos.addScaledVector(this.vel, dt);
     const q = this.quat, w = this.angVel;

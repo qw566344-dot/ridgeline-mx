@@ -13,7 +13,7 @@ import { getTrack, TRACKS } from '../shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, isSpecial, isPassVehicle } from '../shared/vehicles.js';
 import { buildTrack, buildFields, locatePrecise } from '../shared/trackgen.js';
 import { LapTracker, GAME } from '../shared/rules.js';
-import { GEAR_SETS, RANK_START, PLACEMENTS, rankTier, EXTRA_SLOTS, extraOf } from '../shared/shop.js';
+import { GEAR_SETS, RANK_START, PLACEMENTS, rankTier, EXTRA_SLOTS, extraOf, RANK_GAIN, RANK_LOSS } from '../shared/shop.js';
 import { CODE_CHARS, CODE_LENGTH, validCode, cleanName, STATE_LEN, MODES, SNAPSHOT_RATE, PROTOCOL_VERSION } from '../shared/protocol.js';
 
 // rating where the harder track pools start (Gold / Diamond, see RANK_TIERS in shared/shop.js)
@@ -327,7 +327,8 @@ export class Lobby {
   dissolve(party) {
     for (const m of [...party.members.values()]) { this.leave(m, false); if (m.conn) m.conn.send({ t: 'left' }); }
   }
-  // ranked result: every pair of riders is a head-to-head (Elo), split over the field
+  // ranked result: every pair of riders is a head-to-head (Elo), split over the field.
+  // Climbing is made a little easier: points gained count x1.2 and points lost x0.85 (RANK_GAIN / RANK_LOSS).
   rate(party, rows) {
     const A = this.accounts, keys = party.match.keys;
     const field = rows.map((r) => ({ r, u: A.db.users[keys.get(r.id)] })).filter((x) => x.u);
@@ -341,7 +342,8 @@ export class Lobby {
     field.forEach((x, i) => {
       const u = x.u, before = R[i];
       const placing = ((u.ranked && u.ranked.races) || 0) < PLACEMENTS; // placement matches swing the rating 2.5x
-      u.rating = Math.max(100, Math.round(before + d[i] * (placing ? 2.5 : 1)));
+      const swing = d[i] * (placing ? 2.5 : 1);
+      u.rating = Math.max(100, Math.round(before + swing * (swing > 0 ? RANK_GAIN : RANK_LOSS)));
       u.ranked = { races: ((u.ranked && u.ranked.races) || 0) + 1, wins: ((u.ranked && u.ranked.wins) || 0) + (i === 0 ? 1 : 0) };
       const p = this.players.get(x.r.id);
       if (p && p.conn) p.conn.send({ t: 'rank', placing, left: Math.max(0, PLACEMENTS - u.ranked.races), rating: u.rating, delta: u.rating - before, tier: rankTier(u.rating), was: rankTier(before), pos: x.r.pos });
@@ -362,9 +364,10 @@ export class Lobby {
     const avg = teams.map((T) => T.reduce((k, x) => k + (x.u.rating2 || RANK_START), 0) / T.length);
     const e0 = 1 / (1 + 10 ** ((avg[1] - avg[0]) / 400));
     const d0 = Math.round(32 * ((winT === 0 ? 1 : 0) - e0)) || (winT === 0 ? 1 : -1);
+    const gain = Math.max(1, Math.round(Math.abs(d0) * RANK_GAIN)), loss = Math.max(1, Math.round(Math.abs(d0) * RANK_LOSS)); // winners get x1.2, losers lose x0.85
     for (const x of riders) {
       const u = x.u, before = u.rating2 || RANK_START, won = x.t === winT;
-      u.rating2 = Math.max(100, before + (x.t === 0 ? d0 : -d0));
+      u.rating2 = Math.max(100, before + (won ? gain : -loss));
       u.ranked2 = { races: ((u.ranked2 && u.ranked2.races) || 0) + 1, wins: ((u.ranked2 && u.ranked2.wins) || 0) + (won ? 1 : 0) };
       const p = this.players.get(x.id), mate = teams[x.t].find((y) => y !== x);
       if (p && p.conn) p.conn.send({ t: 'rank', mode: 'ranked2', won, rating: u.rating2, delta: u.rating2 - before, tier: rankTier(u.rating2), was: rankTier(before), pos: x.r ? x.r.pos : null, score, team: x.t, mate: mate ? mate.u.name : null });

@@ -11,7 +11,7 @@
 //  Claimed on the server (server/accounts.js). An item you already own
 //  pays out coins instead (half its shop price, at least 300).
 // =====================================================================
-export const PASS_PRICE = 60000; // coins - a real goal (many hours of riding)
+export const PASS_PRICE = 45000; // coins - a real goal (many hours of riding)
 export const PASS_SEASON = 'Season 1';
 export const PASS_TIERS = 30;
 

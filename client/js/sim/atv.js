@@ -253,7 +253,7 @@ export class AtvController {
           _te.multiplyScalar(K * swingK).addScaledVector(_tw, -C * swingK);
           addAccel(v, _te, 1);
         }
-        if (swingK < 1) v.torque.addScaledVector(fwd, ((rollT - roll) * 75 - rollW * 15) * (1 - swingK) * I[2]); // mid-flip: only keep the roll in check
+        if (swingK < 1) v.torque.addScaledVector(fwd, ((rollT * swingK - roll) * 75 - rollW * 15) * (1 - swingK) * I[2]); // (no whip lay-over target while flipping: A / D during a flip used to twist the bike about its own nose, up to 22 rad/s)
       }
       else {
         // WHIP, like the bikes' but a little less: hold A / D and the quad lies over while the tail swings out; let go and it
@@ -263,14 +263,17 @@ export class AtvController {
         if (holding) this.whipSide = Math.sign(inp.steer);
         const side = this.whipSide || 0;
         const late = v.assist.landing > 0 ? clamp(((this.timeToLand || 9) - 0.3) / 0.4, 0, 1) : 1;
-        const amt = this.whipAmt * late;
+        // no whip while flipping (same rule as the bike): A / D in the middle of a flip must not twist or spin it
+        const flipT = Math.max(sstep(1.6, 2.2, Math.abs(tr.pitch)), Math.abs(lean) > 0.1 ? 1 : 0, sstep(1.8, 2.6, Math.abs(pitchW)));
+        this.flipBlend = (this.flipBlend || 0) + (flipT - (this.flipBlend || 0)) * Math.min(1, dt * 14);
+        const amt = this.whipAmt * late * (1 - this.flipBlend);
         const rollT = -side * Math.min(100, A.whip * 1.32 * (c.whipScale || 0.7)) * DEG * amt;
         const yawT = side * 76 * (c.whipScale || 0.7) * DEG * amt;
         v.torque.addScaledVector(fwd, ((rollT - roll) * (holding ? 22 : 14) - rollW * (holding ? 6 : 7)) * I[2]);
         const vx = v.vel.x, vz = v.vel.z, hx = fwd.x, hz = fwd.z;
         if (vx * vx + vz * vz > 4 && hx * hx + hz * hz > 0.01 && Math.abs(fwd.y) < 0.95) {
           const yawOff = Math.atan2(vz * hx - vx * hz, vx * hx + vz * hz);       // + = nose to the left of the flight line
-          if (!(inp.clutch)) v.torque.addScaledVector(up, ((yawT - yawOff) * 26 - yawW * 7) * I[1]);
+          if (!(inp.clutch)) v.torque.addScaledVector(up, ((yawT - yawOff) * 26 - yawW * 7) * (1 - this.flipBlend) * I[1]);
         }
       }
       // Shift + A / D: flat spin; otherwise a little yaw to line up the landing

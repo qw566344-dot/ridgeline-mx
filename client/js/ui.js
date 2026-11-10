@@ -13,7 +13,7 @@
 import { TRACKS, getTrack, DIFFICULTY_ORDER } from '/shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, getVehicle, paintFor, CATEGORIES, UPGRADES, SPECIAL_VEHICLES, SPECIAL_CATEGORY, PASS_VEHICLES } from '/shared/vehicles.js';
 import { GEAR_SETS, shopItem, upgradeLevels, upgradeNeeds, rarityOf, shopRotation, inShop, BUNDLES, getBundle, bundlePrice, levelInfo, vehicleLevel , EXTRAS, EXTRA_SLOTS, EXTRA_NAMES, extraOf } from '/shared/shop.js';
-import { PASS, PASS_SEASON, PASS_TIERS } from '/shared/pass.js';
+import { PASS, PASS_PRICE, PASS_SEASON, PASS_TIERS } from '/shared/pass.js';
 import { COIN_PACKS, PASS_CENTS, usd } from '/shared/money.js';
 import { buildTrack } from '/shared/trackgen.js';
 import { fmtTime } from './settings.js';
@@ -895,7 +895,7 @@ export class UI {
     $('ps-xptext').textContent = `${L.into.toLocaleString()} / ${L.need.toLocaleString()} XP · LEVEL ${L.level + 1} NEXT`;
     $('ps-info').innerHTML = `${PASS_TIERS} LEVELS · ${prem ? 'PREMIUM PASS OWNED' : LOCK + ' PASS REWARDS NEED THE PREMIUM PASS'}`;
     $('ps-passlabel').innerHTML = prem ? 'PASS' : 'PASS ' + LOCK;
-    $('ps-prem').innerHTML = prem ? '<b>PREMIUM PASS</b><small>EVERY LEVEL UNLOCKED</small>' : `<b>PREMIUM PASS</b><small>${usd(PASS_CENTS)} · A REWARD EVERY LEVEL</small>`;
+    $('ps-prem').innerHTML = prem ? '<b>PREMIUM PASS</b><small>EVERY LEVEL UNLOCKED</small>' : `<b>PREMIUM PASS</b><small>${PASS_PRICE.toLocaleString()} COINS · A REWARD EVERY LEVEL</small>`;
     $('ps-prem').classList.toggle('owned', prem);
     const veh = S.get('vehicle'), col = S.get('color'), gear = S.get('gear') || 'match';
     const info = (R) => {
@@ -926,11 +926,11 @@ export class UI {
     } else $('ps-next').innerHTML = '<div><small>SEASON 1</small><b>Pass complete</b></div>';
     const act = $('ps-action');
     const arrow = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg>';
-    let mode = !online ? 'account' : ready.length ? 'claim' : !prem ? (this.payOn ? 'buy' : 'soon') : 'none';
+    let mode = !online ? 'account' : ready.length ? 'claim' : !prem ? 'buy' : 'none';
     act.className = 'ps-action ' + mode;
     act.innerHTML = mode === 'account' ? `<span>LOG IN TO AN ONLINE ACCOUNT</span>${arrow}` : mode === 'claim' ? `<span>CLAIM ${ready.length > 1 ? 'ALL (' + ready.length + ')' : 'REWARD'}</span>${arrow}`
-      : mode === 'buy' ? `<span>UNLOCK PREMIUM PASS</span><em>${usd(PASS_CENTS)}</em>${arrow}` : mode === 'soon' ? '<span>PREMIUM PASS COMING SOON</span>' : '<span>KEEP RIDING TO LEVEL UP</span>';
-    act.disabled = mode === 'none' || mode === 'soon';
+      : mode === 'buy' ? `<span>UNLOCK PREMIUM PASS</span><em><i class="coin"></i>${PASS_PRICE.toLocaleString()}</em>${arrow}` : '<span>KEEP RIDING TO LEVEL UP</span>';
+    act.disabled = mode === 'none';
     const finish = (r) => {
       if (!r || r.error) { this.popup((r && r.error) || 'Something went wrong', 'bad'); return; }
       if (r.profile) { A.profile = r.profile; A.persistLocal && A.persistLocal(); A.changed(); }
@@ -939,8 +939,8 @@ export class UI {
     act.onclick = async () => {
       if (mode === 'account') { this.emit('logout'); return; }
       if (mode === 'claim') { act.disabled = true; finish(await A.api('pass/claim', { tier: 0 }).catch(() => null)); return; }
-      if (mode === 'buy') this.popup(`<b>Unlock the Premium Pass for ${usd(PASS_CENTS)}?</b><br>A reward at every level - pass-only skins and kits - including every level you have already reached. You pay on Stripe's secure page.`, '',
-        [['Pay with card', () => this.startBuy('pass'), true], ['Not now', () => {}]], 0);
+      if (mode === 'buy') this.popup(`<b>Unlock the Premium Pass for ${PASS_PRICE.toLocaleString()} coins?</b><br>A reward at every level - pass-only skins and kits - including every level you have already reached.`, '',
+        [['Unlock', async () => finish(await A.api('pass/buy').catch(() => null)), true], ['Not now', () => {}]], 0);
     };
     $('ps-track').querySelectorAll('.pc.ready').forEach((bt) => bt.onclick = async () => { bt.disabled = true; finish(await A.api('pass/claim', { tier: Number(bt.dataset.tier), track: bt.dataset.track }).catch(() => null)); });
     $('ps-track').querySelectorAll('.pc.needprem').forEach((bt) => bt.onclick = () => act.click());

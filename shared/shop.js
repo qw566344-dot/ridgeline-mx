@@ -433,6 +433,8 @@ export function xpFor(kind, coins) {
 }
 // ranked: everyone starts on 1000; the rating moves after every ranked race (server/lobby.js)
 export const RANK_START = 1000;
+// ranked points: gains count a bit more than losses, so climbing is easier (1 = plain Elo)
+export const RANK_GAIN = 1.2, RANK_LOSS = 0.85;
 export const PLACEMENTS = 4; // a new ranked rider plays this many placement matches (bigger rating swings, no rank shown yet)
 export const RENAME_FREE = 1, RENAME_MAX = 3, RENAME_COST = 50000; // first name change free, the next two cost coins
 export const RANK_TIERS = [['Bronze', 0], ['Silver', 1100], ['Gold', 1250], ['Platinum', 1400], ['Diamond', 1550], ['Pro', 1700]];
