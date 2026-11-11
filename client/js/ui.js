@@ -873,10 +873,10 @@ export class UI {
       const left = Math.max(0, d.ends - Date.now()), h = Math.floor(left / 3_600_000), m = Math.floor((left % 3_600_000) / 60_000);
       const when = h >= 24 ? Math.floor(h / 24) + 'd ' + (h % 24) + 'h' : h + 'h ' + m + 'm';
       const medals = ['gold', 'silver', 'bronze'];
-      const prizes = (d.prizes || []).map((c, i) => `<div class="lbi-prize ${medals[i]}"><span class="lbi-medal">${i + 1}</span><b>${c.toLocaleString()}</b><small>coins</small></div>`).join('');
+      const prizes = '';
       const last = d.last && d.last.winners && d.last.winners.length ? `<div class="lbi-last">Last round: ${d.last.winners.map((w, i) => `<span>#${i + 1} <b>${escapeHtml(w.name)}</b></span>`).join('')}</div>` : '';
       $('lb-info').hidden = false;
-      $('lb-info').innerHTML = `<div class="lbi-top"><span class="lbi-title">Prizes this round</span><span class="lbi-timer">Resets in <b>${when}</b></span></div><div class="lbi-prizes">${prizes}</div>${last}`;
+      $('lb-info').innerHTML = `<div class="lbi-top"><span class="lbi-title">Top 3 win coins every 2 days</span><span class="lbi-timer">Resets in <b>${when}</b></span></div>${last}`;
       $('lb-note').textContent = 'Trick points this round - land tricks in any mode to climb';
     }
     if (!rows) { $('lb-tricks').innerHTML = '<li class="hint">Can\'t reach the server</li>'; return; }
@@ -884,8 +884,8 @@ export class UI {
     const pts = (v) => `${v.toLocaleString()} <small>trick points</small>`;
     const lv = (r) => (r.level ? `<em class="lv">Lv ${r.level}</em>` : '');
     // the top 3 on a podium: 2nd, 1st, 3rd
-    $('lb-podium').innerHTML = [1, 0, 2].filter((i) => rows[i]).map((i) => { const r = rows[i]; return `<div class="pod p${i + 1}${r.name.toLowerCase() === me ? ' me' : ''}">
-      <div class="medal">${i + 1}</div><b>${escapeHtml(r.name)}</b>${lv(r)}<span class="v">${pts(r.v)}</span><span class="stag top${i + 1}">#${i + 1} LEADERBOARD</span><div class="step"></div></div>`; }).join('');
+    $('lb-podium').innerHTML = [1, 0, 2].filter((i) => rows[i]).map((i) => { const r = rows[i]; const pr = (d && d.prizes && d.prizes[i]) || 0; return `<div class="podcol">${pr ? `<div class="pod-prize p${i + 1}"><span>${i + 1}</span><b>${pr.toLocaleString()}</b><small>coins</small></div>` : ''}<div class="pod p${i + 1}${r.name.toLowerCase() === me ? ' me' : ''}">
+      <div class="medal">${i + 1}</div><b>${escapeHtml(r.name)}</b>${lv(r)}<span class="v">${pts(r.v)}</span><span class="stag top${i + 1}">#${i + 1} LEADERBOARD</span><div class="step"></div></div></div>`; }).join('');
     $('lb-tricks').innerHTML = rows.slice(3).map((r, i) => `<li class="${r.name.toLowerCase() === me ? 'me' : ''}"><span class="pos">${i + 4}</span><b>${escapeHtml(r.name)} ${lv(r)}</b><span class="v">${pts(r.v)}</span></li>`).join('');
     const mine = rows.findIndex((r) => r.name.toLowerCase() === me);
     if (P && this.account.mode === 'online' && mine < 0) { $('lb-mine').hidden = false; $('lb-mine').innerHTML = `You: <b>${pts(P.tpp || 0)}</b> - the top 25 are shown`; }

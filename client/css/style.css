@@ -1610,3 +1610,14 @@ body.crazy #privacy-link { display: none !important; }
 /* dragging a picture over the game: the chat lights up as the drop target */
 #chat.dropping { outline: 3px dashed var(--gold, #f2c443); outline-offset: 4px; box-shadow: 0 0 24px rgba(242,196,67,.45); }
 #chat.dropping::after { content: 'Drop the picture to send it'; position: absolute; left: 0; right: 0; bottom: 100%; margin-bottom: 8px; text-align: center; font-weight: 700; color: #1a1408; background: var(--gold, #f2c443); border-radius: 8px; padding: 4px 8px; font-size: 13px; }
+
+/* leaderboard podium: the prize sits right above its place */
+.lb-podium .podcol { display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; min-width: 0; }
+.pod-prize { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 7px 10px; border-radius: 12px; background: rgba(0,0,0,.32); border: 1px solid rgba(255,255,255,.12); white-space: nowrap; }
+.pod-prize span { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 13px; color: #1a1408; }
+.pod-prize b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.pod-prize small { font-size: 10px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+.pod-prize.p1 { border-color: rgba(242,183,5,.6); background: rgba(242,183,5,.12); } .pod-prize.p1 span { background: linear-gradient(135deg, #ffe680, #f2b705); }
+.pod-prize.p2 span { background: linear-gradient(135deg, #f4f6f9, #a9b3c1); }
+.pod-prize.p3 span { background: linear-gradient(135deg, #f3c39a, #c7783f); }
+.lbi-top { margin-bottom: 0; }
