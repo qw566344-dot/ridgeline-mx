@@ -8,6 +8,9 @@ import { checkBet, validPick, roulettePayout, rouletteColor, crashMult, crashPoi
 const $ = (id) => document.getElementById(id);
 // the pockets round a European wheel, clockwise from 0
 const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+// Mines symbols: a cut gem for a safe tile, a bomb with a lit fuse for a mine
+const GEM_SVG = '<svg viewBox="0 0 48 48" class="mn-ico"><defs><linearGradient id="gm1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a7f3d0"/><stop offset="1" stop-color="#10b981"/></linearGradient></defs><path d="M14 8h20l9 11-19 22L5 19z" fill="url(#gm1)" stroke="#d1fae5" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 19h38M17 19l7-11 7 11M17 19l7 22 7-22" fill="none" stroke="#ecfdf5" stroke-opacity=".75" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+const BOMB_SVG = '<svg viewBox="0 0 48 48" class="mn-ico"><defs><radialGradient id="bm1" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#6b7280"/><stop offset="1" stop-color="#111827"/></radialGradient></defs><circle cx="22" cy="28" r="14" fill="url(#bm1)" stroke="#374151" stroke-width="1.5"/><ellipse cx="16.5" cy="22" rx="4" ry="2.6" fill="#fff" fill-opacity=".35" transform="rotate(-35 16.5 22)"/><rect x="26" y="9.5" width="7" height="6" rx="1.5" transform="rotate(35 29 12)" fill="#4b5563"/><path d="M33 9c3-3 6-1 8-4" fill="none" stroke="#d6b36a" stroke-width="2.2" stroke-linecap="round"/><g transform="translate(42 4)"><path d="M0-5L1.6-1.6 5 0 1.6 1.6 0 5-1.6 1.6-5 0-1.6-1.6z" fill="#fde047"/><circle r="1.4" fill="#fff"/></g></svg>';
 const POCKET = { red: '#c81e2a', black: '#17181c', green: '#138a43' };
 
 export class CasinoUI {
@@ -250,7 +253,7 @@ export class CasinoUI {
     for (let i = 0; i < tiles.length; i++) {
       const t = tiles[i], open = g.open.includes(i), bomb = g.bombs && g.bombs.includes(i);
       t.className = 'mn-tile' + (open ? ' gem' : '') + (g.done && bomb ? (i === g.hit ? ' boom' : ' mine') : '');
-      t.textContent = open ? '◆' : g.done && bomb ? '✹' : '';
+      t.innerHTML = open ? GEM_SVG : g.done && bomb ? BOMB_SVG : '';
       t.disabled = g.done || open;
     }
     $('mn-mult').textContent = g.mult.toFixed(2) + 'x';

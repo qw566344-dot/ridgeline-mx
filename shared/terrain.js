@@ -18,6 +18,8 @@ export function makeBaseFn(def) {
       const dx = x - b.x, dz = z - b.z;
       h += b.h * Math.exp(-(dx * dx + dz * dz) / (b.r * b.r));
     }
+    // a mountainside: the whole map slopes (tilt = [metres of height per metre in x, per metre in z])
+    if (t.tilt) h += t.tilt[0] * x + t.tilt[1] * z;
     // craters (moon tracks): a bowl d deep with a raised rim around it
     for (const c of t.craters || []) {
       const q = Math.hypot(x - c.x, z - c.z) / c.r;

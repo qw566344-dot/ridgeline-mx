@@ -311,6 +311,7 @@ export class Lobby {
     if (mode === 'ranked') {
       const avg = entries.reduce((k, e) => k + (e.rating || RANK_START), 0) / entries.length;
       const want = avg >= RANK_TIERS_MIN.diamond ? ['Hard', 'Expert'] : avg >= RANK_TIERS_MIN.gold ? ['Medium', 'Hard'] : ['Easy', 'Medium'];
+      pool = pool.filter((t) => !t.gravity); // low-gravity tracks (the Moon) are not fair for rating points: never in ranked
       const sel = pool.filter((t) => want.includes(t.difficulty));
       if (sel.length) pool = sel;
     } else {

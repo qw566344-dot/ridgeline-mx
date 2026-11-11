@@ -625,7 +625,7 @@ export class Accounts {
     const url = new URL(req.url, 'http://x');
     const token = (req.headers.authorization || '').replace(/^Bearer /, '');
     let body = '';
-    req.on('data', (d) => { body += d; if (body.length > 65536) req.destroy(); });
+    req.on('data', (d) => { body += d; if (body.length > 300000) req.destroy(); });
     req.on('end', () => {
       let m = {};
       try { m = body ? JSON.parse(body) : {}; } catch { return send(400, { error: 'Bad request' }); }

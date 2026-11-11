@@ -52,11 +52,38 @@ export class ChatBox {
       if (!m.dataset.sure) { m.dataset.sure = 1; m.title = 'Click again to delete'; m.style.outline = '1px solid var(--bad)'; return; }
       this.A.api('admin/chatdelete', { id: Number(m.dataset.id) }).then(() => { this.msgs = this.msgs.filter((x) => String(x.id) !== m.dataset.id); this.render(); });
     };
+    // dragging a picture into the window sends it - only for the one account allowed to post pictures (the server checks too)
+    window.addEventListener('dragover', (e) => { if (this.mayPic() && e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+    window.addEventListener('drop', (e) => {
+      if (!this.mayPic() || !e.dataTransfer || !e.dataTransfer.files.length) return;
+      e.preventDefault();
+      const f = [...e.dataTransfer.files].find((x) => /^image\//.test(x.type));
+      if (f) this.sendPicture(f);
+    });
+    this.log.addEventListener('click', (e) => { const im = e.target.closest('.cm-img'); if (im) im.classList.toggle('big'); });
     if (net) net.onPartyChat = (m) => this.partyMessage(m);
     this.loop();
   }
 
   available() { return this.A.mode === 'online' && !!this.A.token; }
+  // only lmkk may post pictures (dragging one in, or typing a link to one)
+  mayPic() { return this.available() && this.visible() && !!(this.A.profile && String(this.A.profile.name).toLowerCase() === 'lmkk'); }
+  // shrink the picture (so it stays small to send) and post it to the global chat
+  sendPicture(file) {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = async () => {
+      const k = Math.min(1, 640 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      let q = 0.72, data = c.toDataURL('image/jpeg', q);
+      while (data.length > 150_000 && q > 0.3) { q -= 0.12; data = c.toDataURL('image/jpeg', q); }
+      const r = await this.A.api('chat/send', { img: data, text: this.input.value.trim() }).catch(() => ({ error: 'Could not reach the server' }));
+      if (r.error) this.system(r.error, 'global'); else { this.input.value = ''; this.poll(); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); this.system('That file is not a picture', 'global'); };
+    img.src = url;
+  }
   inParty() { return !!(this.net && this.net.code && this.net.party); }
   isAdmin() { return this.available() && this.A.profile && this.A.profile.admin; }
   myName() { return ((this.A.profile && this.A.profile.name) || (this.net && this.net.name()) || '').toLowerCase(); }
@@ -168,7 +195,7 @@ export class ChatBox {
     const me = this.myName();
     if (m.system) return `<div class="cm sys" data-id="${m.id || ''}">${clean(m.text)}</div>`;
     const tags = (STAFF_TAGS[m.name.toLowerCase()] || []).map(([label, cls]) => `<span class="stag ${cls}">${label}</span>`).join('');
-    return `<div class="cm${m.name.toLowerCase() === me ? ' me' : ''}${m.party ? ' pt' : ''}" data-id="${m.id}">${tags}<b>${clean(m.name)}</b>${clean(m.text)}</div>`;
+    return `<div class="cm${m.name.toLowerCase() === me ? ' me' : ''}${m.party ? ' pt' : ''}" data-id="${m.id}">${tags}<b>${clean(m.name)}</b>${clean(m.text)}${m.img ? `<img class="cm-img" src="${escapeHtml(m.img)}" alt="picture" referrerpolicy="no-referrer" loading="lazy">` : ''}</div>`;
   }
 
   render() {
