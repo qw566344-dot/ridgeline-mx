@@ -132,6 +132,9 @@ export const BIKE_COLORS = [
   { id: 'icecrystal', name: 'Ice Crystal', pattern: 'crystal', body: 0xbae6fd, accent: 0xf0f9ff, third: 0x0369a1, gear: [0xbae6fd, 0x0369a1, 0xf0f9ff] },
   { id: 'ruby', name: 'Ruby', pattern: 'crystal', body: 0x450a0a, accent: 0xdc2626, third: 0xfecaca, gear: [0x450a0a, 0xfecaca, 0xdc2626] },
   { id: 'prismatic', name: 'Prismatic', pattern: 'prism', body: 0x111827, accent: 0xf8fafc, third: 0xd4a017, gear: [0x111827, 0xd4a017, 0xf8fafc] },
+  // full combos: everything one colour, paint and rider kit
+  { id: 'fullwhite', name: 'Full Whiteout', body: 0xffffff, accent: 0xf4f6f8, third: 0xe3e7ec, gear: [0xffffff, 0xf4f6f8, 0xe3e7ec] },
+  { id: 'fullblack', name: 'Full Blackout', body: 0x050506, accent: 0x0c0c0f, third: 0x17171b, gear: [0x050506, 0x0c0c0f, 0x17171b] },
   { id: 'opal', name: 'Opal', pattern: 'prism', body: 0xf5f5f4, accent: 0xe0e7ff, third: 0xffffff, gear: [0xf5f5f4, 0x111111, 0xe0e7ff] },
   { id: 'blueflame', name: 'Blue Flame', pattern: 'flames', body: 0x1d4ed8, accent: 0x7dd3fc, third: 0x0b1020, gear: [0x1d4ed8, 0x0b1020, 0x7dd3fc] },
   { id: 'ghostflame', name: 'Ghost Flame', pattern: 'flames', body: 0x27272a, accent: 0xa5f3fc, third: 0xe4e4e7, gear: [0x3f3f46, 0x111111, 0x71717a] },

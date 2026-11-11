@@ -54,6 +54,9 @@ export const GEAR_SETS = [
   { id: 'kit-p-glacier', name: 'Glacier Elite Kit', skin: 'p-glacier' },
   { id: 'kit-p-solarflare', name: 'Solar Flare Kit', skin: 'p-solarflare' },
   { id: 'kit-p-prismelite', name: 'Prism Elite Kit', skin: 'p-prismelite' },
+  // full combos: paint + rider kit all in one colour
+  { id: 'kit-fullwhite', name: 'Full Whiteout Kit', skin: 'fullwhite' },
+  { id: 'kit-fullblack', name: 'Full Blackout Kit', skin: 'fullblack' },
 ];
 
 export const SHOP = [
@@ -281,6 +284,9 @@ export const SHOP = [
   // bundle kits (only sold in their bundle; priced from their skin below)
 ];
 for (const g of GEAR_SETS) if (g.skin && !g.skin.startsWith('p-')) SHOP.push({ id: g.id, slot: 'gear', price: 0, bundleOnly: true });
+
+// the two full combos: ordinary Legendary skins (they rotate through the shop like the others)
+SHOP.push({ id: 'fullwhite', slot: 'color', price: 10500, rarity: 'Legendary' }, { id: 'fullblack', slot: 'color', price: 10500, rarity: 'Legendary' });
 
 // ---------------------------------------------------------------------
 //  BUNDLES: a bike skin and the rider kit that matches it, together for
