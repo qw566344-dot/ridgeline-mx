@@ -53,12 +53,23 @@ export class ChatBox {
       this.A.api('admin/chatdelete', { id: Number(m.dataset.id) }).then(() => { this.msgs = this.msgs.filter((x) => String(x.id) !== m.dataset.id); this.render(); });
     };
     // dragging a picture into the window sends it - only for the one account allowed to post pictures (the server checks too)
-    window.addEventListener('dragover', (e) => { if (this.mayPic() && e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+    // (a file from your computer, or a picture dragged straight off a web page - that arrives as a link)
+    const dropTypes = ['Files', 'text/uri-list', 'text/html', 'text/plain'];
+    window.addEventListener('dragover', (e) => {
+      if (this.mayPic() && e.dataTransfer && [...e.dataTransfer.types].some((t) => dropTypes.includes(t))) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; this.el.classList.add('dropping'); }
+    });
+    window.addEventListener('dragleave', (e) => { if (!e.relatedTarget) this.el.classList.remove('dropping'); });
     window.addEventListener('drop', (e) => {
-      if (!this.mayPic() || !e.dataTransfer || !e.dataTransfer.files.length) return;
-      e.preventDefault();
-      const f = [...e.dataTransfer.files].find((x) => /^image\//.test(x.type));
-      if (f) this.sendPicture(f);
+      this.el.classList.remove('dropping');
+      if (!this.mayPic() || !e.dataTransfer) return;
+      const dt = e.dataTransfer;
+      const f = [...dt.files].find((x) => /^image\//.test(x.type));
+      if (f) { e.preventDefault(); return this.sendPicture(f); }
+      // dragged from a web page: take the picture's link (the link list first, then the <img> in the dragged html, then plain text)
+      let url = (dt.getData('text/uri-list') || '').split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith('#')) || '';
+      if (!url) { const mm = /<img[^>]+src=["']([^"']+)["']/i.exec(dt.getData('text/html') || ''); if (mm) url = mm[1].replace(/&amp;/g, '&'); }
+      if (!url) { const tx = (dt.getData('text/plain') || '').trim(); if (/^(https?:\/\/|data:image\/)\S+$/.test(tx)) url = tx; }
+      if (url) { e.preventDefault(); this.sendLink(url); }
     });
     // a link that is not a picture (or is blocked): show the link instead of a broken image
     this.log.addEventListener('error', (e) => {
@@ -75,6 +86,11 @@ export class ChatBox {
   available() { return this.A.mode === 'online' && !!this.A.token; }
   // only lmkk may post pictures (dragging one in, or typing a link to one)
   mayPic() { return this.available() && this.visible() && !!(this.A.profile && String(this.A.profile.name).toLowerCase() === 'lmkk'); }
+  // a picture dragged in from a web page: send its link (or the data image) to the global chat
+  async sendLink(url) {
+    const r = await this.A.api('chat/send', { img: url, text: this.input.value.trim() }).catch(() => ({ error: 'Could not reach the server' }));
+    if (r.error) this.system(r.error === 'That picture is too big or not an image' ? 'That picture link is too long to send - copy the image address and type it in instead' : r.error, 'global'); else { this.input.value = ''; this.poll(); }
+  }
   // shrink the picture (so it stays small to send) and post it to the global chat
   sendPicture(file) {
     const img = new Image(), url = URL.createObjectURL(file);

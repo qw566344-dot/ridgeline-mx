@@ -1606,3 +1606,7 @@ body.crazy #privacy-link { display: none !important; }
 .lbi-last b { color: #fff; }
 .cm-img-fail { color: var(--accent, #ff7a3d); font-size: 12px; }
 @media (max-width: 560px) { .lbi-prizes { grid-template-columns: 1fr; } }
+
+/* dragging a picture over the game: the chat lights up as the drop target */
+#chat.dropping { outline: 3px dashed var(--gold, #f2c443); outline-offset: 4px; box-shadow: 0 0 24px rgba(242,196,67,.45); }
+#chat.dropping::after { content: 'Drop the picture to send it'; position: absolute; left: 0; right: 0; bottom: 100%; margin-bottom: 8px; text-align: center; font-weight: 700; color: #1a1408; background: var(--gold, #f2c443); border-radius: 8px; padding: 4px 8px; font-size: 13px; }
