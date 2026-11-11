@@ -1587,3 +1587,22 @@ body.crazy #privacy-link { display: none !important; }
 /* chat pictures (only one account can post them) */
 .cm-img { display: block; max-width: 100%; max-height: 140px; margin-top: 4px; border-radius: 8px; cursor: zoom-in; object-fit: contain; background: rgba(0,0,0,.25); }
 .cm-img.big { max-height: 60vh; cursor: zoom-out; }
+
+/* leaderboard: prizes and countdown card */
+.lb-info { margin: 4px 0 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(180deg, rgba(242,196,67,.12), rgba(255,255,255,.04)); border: 1px solid rgba(242,196,67,.28); }
+.lbi-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.lbi-title { font-family: var(--display); font-style: italic; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 15px; color: var(--gold, #f2c443); }
+.lbi-timer { font-size: 13px; color: var(--muted); padding: 4px 12px; border-radius: 999px; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.1); }
+.lbi-timer b { color: #fff; font-variant-numeric: tabular-nums; margin-left: 4px; }
+.lbi-prizes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.lbi-prize { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.1); min-width: 0; }
+.lbi-prize b { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lbi-prize small { font-size: 11px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+.lbi-medal { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 14px; color: #1a1408; }
+.lbi-prize.gold .lbi-medal { background: linear-gradient(135deg, #ffe680, #f2b705); } .lbi-prize.gold { border-color: rgba(242,183,5,.55); }
+.lbi-prize.silver .lbi-medal { background: linear-gradient(135deg, #f4f6f9, #a9b3c1); }
+.lbi-prize.bronze .lbi-medal { background: linear-gradient(135deg, #f3c39a, #c7783f); }
+.lbi-last { margin-top: 10px; font-size: 12px; color: var(--muted); display: flex; gap: 6px 14px; flex-wrap: wrap; }
+.lbi-last b { color: #fff; }
+.cm-img-fail { color: var(--accent, #ff7a3d); font-size: 12px; }
+@media (max-width: 560px) { .lbi-prizes { grid-template-columns: 1fr; } }

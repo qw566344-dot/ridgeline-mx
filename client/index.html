@@ -19,7 +19,7 @@
   <div id="chat" class="chat off">
     <div class="chat-head" id="chat-head"><div id="chat-tabs" class="chat-tabs" hidden><button data-chat-tab="global" class="sel">Global<i id="chat-dot-global" hidden></i></button><button data-chat-tab="party">Party<i id="chat-dot-party" hidden></i></button></div><span class="chat-title">Chat</span><span class="chat-key"><b id="chat-new" class="chat-new" hidden></b><kbd>T</kbd> to type</span></div>
     <div id="chat-log" class="chat-log"></div>
-    <div class="chat-row"><input id="chat-input" maxlength="200" placeholder="Type a message, Enter sends" autocomplete="off"><button id="chat-send" class="small">Send</button></div>
+    <div class="chat-row"><input id="chat-input" maxlength="1000" placeholder="Type a message, Enter sends" autocomplete="off"><button id="chat-send" class="small">Send</button></div>
   </div>
 
   <div id="ui">
@@ -55,7 +55,7 @@
         <button data-go="ranked" title="Ranked"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M8.5 12.5l3.5-3 3.5 3"/></svg><span>Ranked</span></button>
         <button data-go="garage" title="Garage"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span>Garage</span></button>
         <button data-go="shop" title="Shop"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span>Shop</span></button>
-        <button data-go="leaderboard" title="Leaderboard"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21V11"/><path d="M12 21V5"/><path d="M16 21v-7"/><path d="M4 21h16"/></svg><span>Leaderboard</span></button>
+        <button data-go="leaderboard" title="Leaderboard"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21V11"/><path d="M12 21V5"/><path d="M16 21v-7"/><path d="M4 21h16"/></svg><span>Leaderboard</span></button>
         <button data-go="pass" title="Pass"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12" stroke-dasharray="2 2"/></svg><span>Pass</span><b id="pass-dot" class="badge" hidden>!</b></button>
         <button data-go="challenges" title="Challenges"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.6"/></svg><span>Challenges</span><b id="chal-dot" class="badge" hidden>!</b></button>
         <button data-go="casino" title="Casino"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="9" cy="15" r="1"/></svg><span>Casino</span></button>
@@ -340,6 +340,7 @@
         <div class="sheet-head"><h2>Leaderboard</h2></div>
         <div class="seg lb-tabs"><button data-lb="tricks" class="sel">Tricks</button><button data-lb="ranked">Ranked</button></div>
         <p id="lb-note" class="hint">Trick points - land tricks in any mode to climb</p>
+        <div id="lb-info" class="lb-info" hidden></div>
         <div id="lb-podium" class="lb-podium"></div>
         <ol id="lb-tricks" class="lb-list"></ol>
         <div id="lb-mine" class="lb-mine" hidden></div>

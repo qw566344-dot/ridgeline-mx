@@ -13,7 +13,7 @@ t.push(['other data img refused', !!A.chat.send(O, { img: tiny }).error]); await
 t.push(['other url img refused', !!A.chat.send(O, { img: 'https://x.com/a.png' }).error]); await wait();
 t.push(['other typed url stays text', (() => { A.chat.send(O, { text: 'https://x.com/a.png' }); const m = A.chat.list.at(-1); return m.text === 'https://x.com/a.png' && !m.img; })()]); await wait();
 t.push(['lmkk typed url -> picture', (() => { const r = A.chat.send(L, { text: 'https://x.com/cat.png' }); const m = A.chat.list.at(-1); return r.ok && m.img === 'https://x.com/cat.png' && m.text === ''; })()]); await wait();
-t.push(['lmkk non-image link stays text', (() => { A.chat.send(L, { text: 'https://x.com/page' }); const m = A.chat.list.at(-1); return !m.img && m.text.includes('page'); })()]); await wait();
+t.push(['lmkk long link without .jpg becomes a picture', (() => { const u = 'https://imgs.search.brave.com/' + 'a'.repeat(215) + '/rs:fit:500:0:1:0/g:ce'; A.chat.send(L, { text: u }); const m = A.chat.list.at(-1); return m.img === u && !m.text; })()]); await wait();
 t.push(['lmkk dropped image ok + served', (() => { const r = A.chat.send(L, { img: tiny, text: 'look' }); const m = A.chat.read(0).messages.at(-1); return r.ok && m.img === tiny && m.text === 'look'; })()]); await wait();
 t.push(['bad data refused', !!A.chat.send(L, { img: 'data:text/html;base64,AAAA' }).error]); await wait();
 t.push(['javascript url refused', !!A.chat.send(L, { img: 'javascript:alert(1)' }).error]); await wait();

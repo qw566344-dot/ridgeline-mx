@@ -13,10 +13,9 @@ const MAX_LEN = 200;
 const IMAGE_USER = 'lmkk';
 const MAX_DATA_IMG = 160_000;                       // characters of the data image the game sends (it shrinks the picture first)
 const DATA_IMG = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
-const IMG_URL = /^https?:\/\/[^\s"'<>\\]{4,480}$/i;
-const IMG_EXT = /\.(png|jpe?g|gif|webp|avif)(\?[^\s]*)?$/i;
-const IMG_HOST = /^https?:\/\/(i\.imgur\.com|media\.discordapp\.net|cdn\.discordapp\.com|pbs\.twimg\.com|i\.redd\.it|upload\.wikimedia\.org)\//i;
-const isImageUrl = (s) => IMG_URL.test(s) && (IMG_EXT.test(s) || IMG_HOST.test(s));
+const IMG_URL = /^https?:\/\/[^\s"'<>\\]{4,1000}$/i;
+// any web link works for the picture account (image search results, CDNs and so on have no file ending): the game just tries to show it as a picture
+const isImageUrl = (s) => IMG_URL.test(s);
 const GAP_MS = 100; // spam away - this only stops a stuck key flooding the server
 
 export class Chat {
@@ -31,7 +30,8 @@ export class Chat {
   }
 
   send(u, m) {
-    let text = String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, MAX_LEN);
+    const full = String(m.text || '').replace(/\s+/g, ' ').trim();
+    let text = full.slice(0, MAX_LEN);
     // pictures: only IMAGE_USER. A link to an image typed on its own becomes a picture for them; for everybody else it stays plain text.
     const mayPic = String(u.name).toLowerCase() === IMAGE_USER;
     let img = null, data = null;
@@ -41,7 +41,7 @@ export class Chat {
       if (DATA_IMG.test(s) && s.length <= MAX_DATA_IMG) data = s;
       else if (isImageUrl(s)) img = s;
       else return { error: 'That picture is too big or not an image' };
-    } else if (mayPic && isImageUrl(text)) { img = text; text = ''; }
+    } else if (mayPic && isImageUrl(full)) { img = full; text = ''; } // (the whole link, even a long one)
     if (!text && !img && !data) return { error: 'Type a message first' };
     const mu = this.A.admin && this.A.admin.muted(u);
     if (mu) return { error: `You are muted for ${Math.ceil((mu - Date.now()) / 60000)} more min` };

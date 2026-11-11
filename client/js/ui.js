@@ -853,7 +853,7 @@ export class UI {
 
   // ------------------------------------------------------------- leaderboard
   async renderLeaderboard() {
-    $('lb-podium').innerHTML = ''; $('lb-tricks').innerHTML = '<li class="hint">Loading...</li>'; $('lb-mine').hidden = true;
+    $('lb-podium').innerHTML = ''; $('lb-tricks').innerHTML = '<li class="hint">Loading...</li>'; $('lb-mine').hidden = true; $('lb-info').hidden = true;
     const tab = this.lbTab || 'tricks';
     for (const b of document.querySelectorAll('.lb-tabs button')) b.classList.toggle('sel', b.dataset.lb === tab);
     $('lb-note').textContent = tab === 'ranked' ? 'Ranked 1v1 rating - win ranked matches to climb from Bronze to Pro' : tab === 'ranked2' ? 'Ranked 2v2 rating - win team races to climb' : 'Trick points - land tricks in any mode to climb';
@@ -871,9 +871,13 @@ export class UI {
     // the board starts over every 2 days: the top 3 are paid when it does
     if (d && d.ends) {
       const left = Math.max(0, d.ends - Date.now()), h = Math.floor(left / 3_600_000), m = Math.floor((left % 3_600_000) / 60_000);
-      const pz = (d.prizes || []).map((c, i) => `#${i + 1}: ${c.toLocaleString()}`).join(' &nbsp;|&nbsp; ');
-      const lastW = d.last && d.last.winners && d.last.winners.length ? `<br>Last winners: ${d.last.winners.map((w, i) => `#${i + 1} <b>${escapeHtml(w.name)}</b> (+${w.prize.toLocaleString()})`).join(', ')}` : '';
-      $('lb-note').innerHTML = `Trick points this round. Resets in <b>${h >= 24 ? Math.floor(h / 24) + 'd ' + (h % 24) + 'h' : h + 'h ' + m + 'm'}</b> - prizes (coins): ${pz}${lastW}`;
+      const when = h >= 24 ? Math.floor(h / 24) + 'd ' + (h % 24) + 'h' : h + 'h ' + m + 'm';
+      const medals = ['gold', 'silver', 'bronze'];
+      const prizes = (d.prizes || []).map((c, i) => `<div class="lbi-prize ${medals[i]}"><span class="lbi-medal">${i + 1}</span><b>${c.toLocaleString()}</b><small>coins</small></div>`).join('');
+      const last = d.last && d.last.winners && d.last.winners.length ? `<div class="lbi-last">Last round: ${d.last.winners.map((w, i) => `<span>#${i + 1} <b>${escapeHtml(w.name)}</b></span>`).join('')}</div>` : '';
+      $('lb-info').hidden = false;
+      $('lb-info').innerHTML = `<div class="lbi-top"><span class="lbi-title">Prizes this round</span><span class="lbi-timer">Resets in <b>${when}</b></span></div><div class="lbi-prizes">${prizes}</div>${last}`;
+      $('lb-note').textContent = 'Trick points this round - land tricks in any mode to climb';
     }
     if (!rows) { $('lb-tricks').innerHTML = '<li class="hint">Can\'t reach the server</li>'; return; }
     if (!rows.length) { $('lb-tricks').innerHTML = '<li class="hint">Nobody yet - land some tricks!</li>'; return; }

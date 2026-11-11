@@ -60,6 +60,13 @@ export class ChatBox {
       const f = [...e.dataTransfer.files].find((x) => /^image\//.test(x.type));
       if (f) this.sendPicture(f);
     });
+    // a link that is not a picture (or is blocked): show the link instead of a broken image
+    this.log.addEventListener('error', (e) => {
+      const im = e.target;
+      if (!im || !im.classList || !im.classList.contains('cm-img')) return;
+      const a = document.createElement('a'); a.href = im.src; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'picture would not load - open link'; a.className = 'cm-img-fail';
+      im.replaceWith(a);
+    }, true);
     this.log.addEventListener('click', (e) => { const im = e.target.closest('.cm-img'); if (im) im.classList.toggle('big'); });
     if (net) net.onPartyChat = (m) => this.partyMessage(m);
     this.loop();
@@ -118,7 +125,9 @@ export class ChatBox {
   }
 
   async send() {
-    const text = this.input.value.trim();
+    let text = this.input.value.trim();
+    // the box takes long links (for pictures); everything else is cut to 200 letters
+    if (!(this.mayPic() && /^https?:\/\/\S+$/.test(text))) text = text.slice(0, 200);
     if (!text) return;
     this.input.value = '';
     if (this.tab === 'party') {
