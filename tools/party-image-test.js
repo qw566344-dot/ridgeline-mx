@@ -1,0 +1,41 @@
+// Party chat pictures: only the account lmkk can send one (a link, a typed link, or a dragged-in file handed over
+// with a ticket from chat/stash); everybody else's pictures are refused and their links stay plain text.
+//   node tools/party-image-test.js   (starts its own server on port 5395)
+import { spawn } from 'child_process';
+import fs from 'fs';
+import { PROTOCOL_VERSION } from '../shared/protocol.js';
+fs.rmSync('tools/out/pi-data', { recursive: true, force: true });
+const srv = spawn(process.execPath, ['server/server.js'], { env: { ...process.env, PORT: '5395', DATA_DIR: 'tools/out/pi-data' } });
+await new Promise((r) => setTimeout(r, 1500));
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const post = async (path, body, token) => (await fetch('http://localhost:5395/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body) })).json();
+const L = await post('register', { name: 'lmkk', password: 'password1' });
+const O = await post('register', { name: 'Other', password: 'password1' });
+const client = (name, auth) => { const ws = new WebSocket('ws://localhost:5395/ws'); const c = { ws, msgs: [], send: (o) => ws.send(JSON.stringify(o)) }; ws.onmessage = (e) => c.msgs.push(JSON.parse(e.data)); c.open = new Promise((res) => (ws.onopen = () => { c.send({ t: 'hello', v: PROTOCOL_VERSION, name, auth }); res(); })); return c; };
+const A = client('lmkk', L.token), B = client('Other', O.token);
+await Promise.all([A.open, B.open]); await wait(300);
+A.send({ t: 'create' }); await wait(300);
+const code = A.msgs.find((m) => m.t === 'party').code;
+B.send({ t: 'join', code }); await wait(300);
+const tiny = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+const got = (c) => c.msgs.filter((m) => m.t === 'pchat');
+const res = [];
+A.send({ t: 'pchat', text: 'look', img: 'https://x.com/cat' }); await wait(200);
+res.push(['lmkk link picture reaches the party', got(B).at(-1)?.img === 'https://x.com/cat' && got(B).at(-1).text === 'look']);
+A.send({ t: 'pchat', text: 'https://x.com/typed' }); await wait(200);
+res.push(['lmkk typed link becomes a picture', got(B).at(-1)?.img === 'https://x.com/typed' && got(B).at(-1).text === '']);
+const s = await post('chat/stash', { img: tiny }, L.token);
+A.send({ t: 'pchat', text: 'file', pic: s.ticket }); await wait(200);
+res.push(['lmkk dragged-in file reaches the party', got(B).at(-1)?.img === tiny]);
+A.send({ t: 'pchat', text: 'again', pic: s.ticket }); await wait(200);
+res.push(['a ticket works only once', !(got(B).at(-1)?.text === 'again' && got(B).at(-1).img)]);
+const bad = await post('chat/stash', { img: tiny }, O.token);
+res.push(['another account cannot stash a picture', !!bad.error]);
+B.send({ t: 'pchat', text: 'pic?', img: 'https://x.com/no' }); await wait(200);
+res.push(['another account sending a picture is refused', B.msgs.some((m) => m.t === 'error' && m.code === 'NO_PICS') && !got(A).some((m) => m.text === 'pic?')]);
+B.send({ t: 'pchat', text: 'https://x.com/plain' }); await wait(200);
+res.push(['another account typed link stays text', got(A).at(-1)?.text === 'https://x.com/plain' && !got(A).at(-1).img]);
+for (const [n, ok] of res) console.log(ok ? 'ok  ' : 'FAIL', n);
+const ok = res.every((r) => r[1]);
+console.log(ok ? 'all passed' : 'FAILED');
+srv.kill(); process.exit(ok ? 0 : 1);

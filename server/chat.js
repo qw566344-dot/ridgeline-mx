@@ -10,12 +10,12 @@ const MAX_AGE = 6 * 3600 * 1000; // messages older than this are dropped so the 
 const MAX_LEN = 200;
 // PICTURES: only the account IMAGE_USER can put an image in the chat - by dragging one in (sent as a small data image,
 // kept in memory only so the save stays small) or by typing a link to an image (kept as the link).
-const IMAGE_USER = 'lmkk';
-const MAX_DATA_IMG = 160_000;                       // characters of the data image the game sends (it shrinks the picture first)
-const DATA_IMG = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+export const IMAGE_USER = 'lmkk';
+export const MAX_DATA_IMG = 160_000;                       // characters of the data image the game sends (it shrinks the picture first)
+export const DATA_IMG = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 const IMG_URL = /^https?:\/\/[^\s"'<>\\]{4,1000}$/i;
 // any web link works for the picture account (image search results, CDNs and so on have no file ending): the game just tries to show it as a picture
-const isImageUrl = (s) => IMG_URL.test(s);
+export const isImageUrl = (s) => IMG_URL.test(s);
 const GAP_MS = 100; // spam away - this only stops a stuck key flooding the server
 
 export class Chat {
@@ -78,7 +78,29 @@ export class Chat {
     return { ok: 'Chat cleared for everyone' };
   }
 
+  // PARTY pictures: the party chat runs over the game connection (small messages only), so a dragged-in picture is
+  // handed in here first (over HTTP, picture account only) and the party message then just carries its ticket
+  stash(u, m) {
+    if (String(u.name).toLowerCase() !== IMAGE_USER) return { error: 'Only ' + IMAGE_USER + ' can send pictures' };
+    const s = String(m.img || '');
+    if (!(DATA_IMG.test(s) && s.length <= MAX_DATA_IMG)) return { error: 'That picture is too big or not an image' };
+    this.tickets = this.tickets || new Map();
+    const now = Date.now();
+    for (const [k, v] of this.tickets) if (now - v.at > 60_000) this.tickets.delete(k);
+    const id = Math.random().toString(36).slice(2) + now.toString(36);
+    this.tickets.set(id, { at: now, key: u.key, data: s });
+    return { ok: true, ticket: id };
+  }
+  // the party chat picks the picture up once
+  take(id, key) {
+    const v = this.tickets && this.tickets.get(String(id));
+    if (!v || v.key !== key || Date.now() - v.at > 60_000) return null;
+    this.tickets.delete(String(id));
+    return v.data;
+  }
+
   handle(route, u, m, url) {
+    if (route === 'chat/stash') return this.stash(u, m);
     if (route === 'chat') return this.read(url.searchParams.get('after'));
     if (route === 'chat/send') return this.send(u, m);
     return null;

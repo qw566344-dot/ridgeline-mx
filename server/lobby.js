@@ -9,6 +9,7 @@
 //  - Disconnected players keep their seat for 60 s so they can rejoin.
 // =====================================================================
 import crypto from 'crypto';
+import { IMAGE_USER, isImageUrl } from './chat.js';
 import { getTrack, TRACKS } from '../shared/tracks.js';
 import { VEHICLES, BIKE_COLORS, isSpecial, isPassVehicle } from '../shared/vehicles.js';
 import { buildTrack, buildFields, locatePrecise } from '../shared/trackgen.js';
@@ -410,12 +411,20 @@ export class Lobby {
     if (!p.party) return this.err(p, 'NO_PARTY', 'You are not in a party.');
     const acc = this.accounts && this.accounts.db.users[p.name.toLowerCase()];
     if (acc && this.accounts.admin.muted(acc)) return this.err(p, 'MUTED', 'You are muted in chat right now.');
-    const text = String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
-    if (!text) return;
+    const full = String(m.text || '').replace(/\s+/g, ' ').trim();
+    let text = full.slice(0, 200);
+    // pictures (only the picture account, same rules as the global chat): a link, or a ticket from chat/stash for a dragged-in file
+    let img = null;
+    if (acc && String(acc.name).toLowerCase() === IMAGE_USER) {
+      if (m.pic) img = this.accounts.chat.take(m.pic, acc.key);
+      else if (m.img && isImageUrl(String(m.img))) img = String(m.img);
+      else if (isImageUrl(full)) { img = full; text = ''; }
+    } else if (m.pic || m.img) return this.err(p, 'NO_PICS', 'Only ' + IMAGE_USER + ' can send pictures');
+    if (!text && !img) return;
     const now = Date.now();
     if (now - (p.chatAt || 0) < 100) return this.err(p, 'SLOW', 'Slow down a little');
     p.chatAt = now;
-    const msg = JSON.stringify({ t: 'pchat', name: p.name, text, at: now });
+    const msg = JSON.stringify({ t: 'pchat', name: p.name, text, at: now, ...(img ? { img } : {}) });
     for (const x of p.party.members.values()) if (x.conn) x.conn.send(msg);
   }
 

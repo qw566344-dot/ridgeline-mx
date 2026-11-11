@@ -88,6 +88,7 @@ export class ChatBox {
   mayPic() { return this.available() && this.visible() && !!(this.A.profile && String(this.A.profile.name).toLowerCase() === 'lmkk'); }
   // a picture dragged in from a web page: send its link (or the data image) to the global chat
   async sendLink(url) {
+    if (this.tab === 'party') { if (this.inParty() && this.net.connected) { this.net.send({ t: 'pchat', text: this.input.value.trim().slice(0, 200), img: url }); this.input.value = ''; } else this.system('Not connected to your party', 'party'); return; }
     const r = await this.A.api('chat/send', { img: url, text: this.input.value.trim() }).catch(() => ({ error: 'Could not reach the server' }));
     if (r.error) this.system(r.error === 'That picture is too big or not an image' ? 'That picture link is too long to send - copy the image address and type it in instead' : r.error, 'global'); else { this.input.value = ''; this.poll(); }
   }
@@ -101,6 +102,13 @@ export class ChatBox {
       URL.revokeObjectURL(url);
       let q = 0.72, data = c.toDataURL('image/jpeg', q);
       while (data.length > 150_000 && q > 0.3) { q -= 0.12; data = c.toDataURL('image/jpeg', q); }
+      if (this.tab === 'party') { // the party chat rides the game connection (small messages): hand the picture over by HTTP first, then send its ticket
+        if (!this.inParty() || !this.net.connected) return this.system('Not connected to your party', 'party');
+        const s = await this.A.api('chat/stash', { img: data }).catch(() => ({ error: 'Could not reach the server' }));
+        if (s.error) return this.system(s.error, 'party');
+        this.net.send({ t: 'pchat', text: this.input.value.trim().slice(0, 200), pic: s.ticket }); this.input.value = '';
+        return;
+      }
       const r = await this.A.api('chat/send', { img: data, text: this.input.value.trim() }).catch(() => ({ error: 'Could not reach the server' }));
       if (r.error) this.system(r.error, 'global'); else { this.input.value = ''; this.poll(); }
     };
@@ -148,7 +156,7 @@ export class ChatBox {
     this.input.value = '';
     if (this.tab === 'party') {
       if (!this.inParty() || !this.net.connected) { this.system('Not connected to your party', 'party'); return; }
-      this.net.send({ t: 'pchat', text });
+      this.net.send({ t: 'pchat', text: this.mayPic() && /^https?:\/\/\S+$/.test(text) ? text : text.slice(0, 200) });
       return;
     }
     const r = await this.A.api('chat/send', { text }).catch(() => ({ error: 'Could not reach the server' }));
@@ -164,7 +172,7 @@ export class ChatBox {
 
   // a message in your party (from the game server)
   partyMessage(m) {
-    const msg = { id: 0, name: String(m.name || ''), text: String(m.text || ''), party: true, system: !!m.system };
+    const msg = { id: 0, name: String(m.name || ''), text: String(m.text || ''), party: true, system: !!m.system, ...(m.img ? { img: String(m.img) } : {}) };
     this.pmsgs = this.pmsgs.concat(msg).slice(-60);
     if (msg.name.toLowerCase() !== this.myName() && this.tab !== 'party') this.unread.party++;
     if (msg.name.toLowerCase() !== this.myName() && !this.isOpen()) this.lobbyNew++;
