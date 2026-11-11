@@ -26,7 +26,9 @@ export class Chat {
   read(after) {
     after = Number(after) || 0;
     const list = this.list;
-    return { messages: list.filter((m) => m.id > after).slice(-50).map((m) => (m.pic && this.imgs.has(m.id) ? { ...m, img: this.imgs.get(m.id) } : m)), latest: list.length ? list[list.length - 1].id : 0 };
+    return { messages: list.filter((m) => m.id > after).slice(-50).map((m) => (m.pic && this.imgs.has(m.id) ? { ...m, img: this.imgs.get(m.id) } : m)), latest: list.length ? list[list.length - 1].id : 0,
+      // messages deleted lately: every game takes them off its screen (a deleted picture used to stay on other riders' screens)
+      gone: (this.gone || []).filter((g) => Date.now() - g.at < 15 * 60_000).map((g) => g.id) };
   }
 
   send(u, m) {
@@ -67,7 +69,24 @@ export class Chat {
     return n;
   }
 
-  remove(id) { const list = this.list; const i = list.findIndex((m) => m.id === Number(id)); if (i < 0) return { error: 'No such message' }; list.splice(i, 1); this.A.save(); return { ok: 'Message deleted' }; }
+  remove(id) {
+    const list = this.list; id = Number(id);
+    const i = list.findIndex((m) => m.id === id);
+    if (i < 0) return { error: 'No such message' };
+    list.splice(i, 1);
+    this.imgs.delete(id);                                  // the picture itself goes too
+    (this.gone = this.gone || []).push({ id, at: Date.now() });
+    this.gone = this.gone.filter((g) => Date.now() - g.at < 15 * 60_000).slice(-200);
+    this.A.save();
+    return { ok: 'Message deleted' };
+  }
+  // the rider who posted a message can delete it too (their own pictures)
+  removeOwn(u, id) {
+    const m = this.list.find((x) => x.id === Number(id));
+    if (!m) return { error: 'No such message' };
+    if (String(m.name).toLowerCase() !== String(u.name).toLowerCase() && !(this.A.admin && this.A.admin.isAdmin(u))) return { error: 'You can only delete your own messages' };
+    return this.remove(id);
+  }
 
   // clearing keeps the id counting up, so riders' "after" still works; the note carries clear: true,
   // which tells every game to wipe what it is showing (even when the list here is already empty)
@@ -103,6 +122,7 @@ export class Chat {
     if (route === 'chat/stash') return this.stash(u, m);
     if (route === 'chat') return this.read(url.searchParams.get('after'));
     if (route === 'chat/send') return this.send(u, m);
+    if (route === 'chat/delete') return this.removeOwn(u, m.id);
     return null;
   }
 }

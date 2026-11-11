@@ -1621,3 +1621,7 @@ body.crazy #privacy-link { display: none !important; }
 .pod-prize.p2 span { background: linear-gradient(135deg, #f4f6f9, #a9b3c1); }
 .pod-prize.p3 span { background: linear-gradient(135deg, #f3c39a, #c7783f); }
 .lbi-top { margin-bottom: 0; }
+
+/* delete button on a chat picture */
+.cm-del { display: block; margin-top: 4px; padding: 2px 10px; font-size: 11px; border-radius: 6px; border: 1px solid rgba(248,113,113,.5); background: rgba(127,29,29,.45); color: #fecaca; cursor: pointer; }
+.cm-del:hover:not(:disabled) { background: rgba(185,28,28,.7); }

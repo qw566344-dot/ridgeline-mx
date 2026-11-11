@@ -18,5 +18,8 @@ t.push(['lmkk dropped image ok + served', (() => { const r = A.chat.send(L, { im
 t.push(['bad data refused', !!A.chat.send(L, { img: 'data:text/html;base64,AAAA' }).error]); await wait();
 t.push(['javascript url refused', !!A.chat.send(L, { img: 'javascript:alert(1)' }).error]); await wait();
 t.push(['saved chat has no data blob', !JSON.stringify(A.db.chat).includes('base64')]);
+t.push(['deleting a dropped picture frees it and tells every game', (() => { const r = A.chat.send(L, { img: tiny }); const id = A.chat.list.at(-1).id; const had = A.chat.imgs.has(id); A.chat.remove(id); const rd = A.chat.read(0); return r.ok && had && !A.chat.imgs.has(id) && rd.gone.includes(id) && !rd.messages.some((m) => m.id === id); })()]);
+t.push(['another rider cannot delete lmkk message', (() => { A.chat.send(L, { text: 'https://x.com/z.png' }); const id = A.chat.list.at(-1).id; return !!A.chat.removeOwn(O, id).error && A.chat.list.some((m) => m.id === id); })()]);
+t.push(['the poster can delete their own picture', (() => { const id = A.chat.list.at(-1).id; return !!A.chat.removeOwn(L, id).ok && !A.chat.list.some((m) => m.id === id); })()]);
 for (const [n, ok] of t) console.log(ok ? 'ok  ' : 'FAIL', n);
 process.exit(t.every((x) => x[1]) ? 0 : 1);

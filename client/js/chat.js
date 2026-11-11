@@ -78,6 +78,17 @@ export class ChatBox {
       const a = document.createElement('a'); a.href = im.src; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'picture would not load - open link'; a.className = 'cm-img-fail';
       im.replaceWith(a);
     }, true);
+    // the Delete button on a picture (admins, and the rider who posted it)
+    this.log.addEventListener('click', async (e) => {
+      const b = e.target.closest('.cm-del');
+      if (!b) return;
+      e.stopPropagation();
+      const id = Number(b.dataset.del);
+      b.disabled = true; b.textContent = 'Deleting...';
+      const r = await this.A.api(this.isAdmin() ? 'admin/chatdelete' : 'chat/delete', { id }).catch(() => ({ error: 'Could not reach the server' }));
+      if (r && r.error) { b.disabled = false; b.textContent = 'Delete'; this.system(r.error, 'global'); return; }
+      this.msgs = this.msgs.filter((x) => x.id !== id); this.render();
+    }, true);
     this.log.addEventListener('click', (e) => { const im = e.target.closest('.cm-img'); if (im) im.classList.toggle('big'); });
     if (net) net.onPartyChat = (m) => this.partyMessage(m);
     this.loop();
@@ -184,6 +195,7 @@ export class ChatBox {
     if (!this.available()) return;
     const r = await this.A.api('chat?after=' + this.after).catch(() => null);
     if (!r || r.error || !r.messages) return;
+    if (r.gone && r.gone.length) { const g = new Set(r.gone.map(String)), n = this.msgs.length; this.msgs = this.msgs.filter((x) => !g.has(String(x.id))); if (this.msgs.length !== n) this.render(); } // deleted messages leave every screen
     if (r.latest < this.after) { this.after = 0; this.msgs = []; return this.poll(); } // the chat was reset
     const fresh = r.messages.filter((m) => m.id > this.after);
     const old = this.first; // the first answer is history from before you came online
@@ -228,7 +240,7 @@ export class ChatBox {
     const me = this.myName();
     if (m.system) return `<div class="cm sys" data-id="${m.id || ''}">${clean(m.text)}</div>`;
     const tags = (STAFF_TAGS[m.name.toLowerCase()] || []).map(([label, cls]) => `<span class="stag ${cls}">${label}</span>`).join('');
-    return `<div class="cm${m.name.toLowerCase() === me ? ' me' : ''}${m.party ? ' pt' : ''}" data-id="${m.id}">${tags}<b>${clean(m.name)}</b>${clean(m.text)}${m.img ? `<img class="cm-img" src="${escapeHtml(m.img)}" alt="picture" referrerpolicy="no-referrer" loading="lazy">` : ''}</div>`;
+    return `<div class="cm${m.name.toLowerCase() === me ? ' me' : ''}${m.party ? ' pt' : ''}" data-id="${m.id}">${tags}<b>${clean(m.name)}</b>${clean(m.text)}${m.img ? `<img class="cm-img" src="${escapeHtml(m.img)}" alt="picture" referrerpolicy="no-referrer" loading="lazy">` : ''}${m.img && m.id && !m.party && (this.isAdmin() || m.name.toLowerCase() === me) ? `<button class="cm-del" data-del="${m.id}">Delete</button>` : ''}</div>`;
   }
 
   render() {
