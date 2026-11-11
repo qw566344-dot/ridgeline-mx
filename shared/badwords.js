@@ -15,7 +15,7 @@ const WORDS = [
   'masturbate', 'cunts', 'shithead', 'dumbass', 'jackass', 'asshat', 'dipshit', 'cuck', 'incel', 'pedo', 'pedophile', 'molest', 'hitler',
   'killyourself', 'kill yourself', 'ky5', 'k y s', 'autist', 'mongoloid', 'spastic', 'spaz',
 ];
-const EXACT = new Set(['anal', 'tard', 'nig', 'jap', 'kkk', 'ass', 'asshole', 'arse', 'hoe', 'hell', 'damn', 'crap', 'piss', 'sex', 'nazi', 'stfu', 'wtf', 'gay']);
+const EXACT = new Set(['anal', 'tard', 'nig', 'jap', 'kkk', 'asshole', 'arse', 'hoe', 'hell', 'damn', 'crap', 'piss', 'sex', 'nazi', 'stfu', 'wtf', 'gay']);
 // words that are fine on their own even though a bad word is inside them
 const SAFE = new Set(['nigeria', 'nigerian', 'nigerians', 'analyst', 'analysis', 'analog', 'canal', 'banal', 'japan', 'japanese', 'cocktail', 'cockpit', 'peacock', 'hancock', 'shitake', 'scunthorpe', 'dickens', 'cumulative', 'document', 'circumstance', 'cucumber', 'cumin', 'therapist', 'grape', 'drape', 'scrape', 'skyscraper', 'title', 'titan', 'spice', 'raccoon', 'cocoon', 'tycoon', 'hello', 'shell', 'shells', 'class', 'pass', 'mass', 'bass', 'grass', 'glass', 'assume', 'assist', 'hellcat', 'hellfire']);
 
